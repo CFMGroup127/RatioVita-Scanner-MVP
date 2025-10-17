@@ -1,0 +1,27 @@
+# SwiftLint Configuration
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - force_unwrapping
+
+excluded:
+  - Pods
+  - build
+  - DerivedData
+
+line_length:
+  warning: 120
+  error: 200
+
+function_body_length:
+  warning: 50
+  error: 100
+
+file_length:
+  warning: 400
+  error: 1000
