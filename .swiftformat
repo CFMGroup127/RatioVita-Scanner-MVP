@@ -1,28 +1,18 @@
-# SwiftFormat Configuration
 --indent 4
---tabwidth 4
 --maxwidth 120
 --wraparguments before-first
---wrapparameters before-first
 --wrapcollections before-first
---closingparen balanced
---self insert
---importgrouping testable-bottom
---extensionacl on-extension
---patternlet hoist
---redundanttype inferred
---redundantnilcoalescing
---redundantfileprivate
---redundantget
---redundantlet
---redundantrawvalues
---redundanttype
---redundantvoid
 --semicolons never
---trailingcommas always
---trimwhitespace always
---unusedarguments always
---wrapreturntype if-multiline
---wraparguments before-first
---wrapcollections before-first
---wrapparameters before-first
+--commas always
+--trimwhitespace nonblank-lines
+--typeattributes prev-line
+--extensionacl on-declarations
+--guardelse same-line
+--indentcase true
+--self remove
+--selfrequired ignore
+--ranges no-space
+--ifdef no-indent
+--importgrouping testable-first
+--conflictmarkers reject
+--swiftversion 5.9

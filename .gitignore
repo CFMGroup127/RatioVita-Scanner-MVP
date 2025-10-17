@@ -1,50 +1,53 @@
-# Xcode
-.DS_Store
-*/build/*
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata/
-*.moved-aside
-*.xccheckout
-*.xcscmblueprint
-
-# Build generated
-build/
+Xcode
 DerivedData/
-
-# Various settings
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-
-# Other
+build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
 *.hmap
 *.ipa
-*.dSYM.zip
-*.dSYM
 
-# CocoaPods
+SwiftPM
+.swiftpm/
+.build/
+
+CocoaPods (if added later)
 Pods/
 
-# Carthage
-Carthage/Build
+Carthage (if added later)
+Carthage/
+Carthage/Build/
 
-# fastlane
+Fastlane (if added later)
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
-fastlane/test_output
+fastlane/test_output/
 
-# Code Injection
-iOSInjectionProject/
+Archives
+*.xcarchive
+
+User-specific settings
+*.perspectivev3
+*.mode1v3
+*.pbxuser
+
+Simulator/device data (never commit)
+*.mobileprovision
+*.cer
+*.p12
+
+Logs
+*.log
+
+SwiftData / Core Data transient
+*.sqlite-shm
+*.sqlite-wal
+
+Generated docs
+docs/
+
+Cursor/Editor state (optional)
+.cursor/

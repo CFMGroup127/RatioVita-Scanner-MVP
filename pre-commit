@@ -1,0 +1,38 @@
+#!/bin/sh
+# Pre-commit hook for running SwiftFormat on the repository before each commit.
+
+# Fail fast
+set -e
+
+# Repo root (assumes the hook lives in .git/hooks)
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+cd "$REPO_ROOT"
+
+# Check if SwiftFormat is installed
+if ! command -v swiftformat >/dev/null 2>&1; then
+    echo "error: SwiftFormat is not installed."
+    echo "Install with: brew install swiftformat"
+    exit 1
+fi
+
+# Ensure .swiftformat config exists; warn if missing but continue
+if [ ! -f ".swiftformat" ]; then
+    echo "warning: .swiftformat not found at repo root. Using SwiftFormat defaults."
+fi
+
+echo "Running SwiftFormat (pre-commit)..."
+
+# Run SwiftFormat quietly; do not print diffs to keep hook output clean
+swiftformat "$REPO_ROOT" --config "$REPO_ROOT/.swiftformat" --swiftversion 5.9 --quiet
+
+# Stage any changes made by SwiftFormat so they are included in this commit
+# Only re-add files that changed to avoid restaging unrelated files
+FORMATTED_FILES="$(git ls-files -m | grep -E ".swift$" || true)"
+if [ -n "$FORMATTED_FILES" ]; then
+    echo "Staging formatted files..."
+    echo "$FORMATTED_FILES" | xargs git add
+fi
+
+echo "SwiftFormat completed."
+exit 0
