@@ -5,12 +5,15 @@ Enhanced with network robustness (timeouts, retries) for Google API tools.
 """
 from crewai_tools import CodeInterpreterTool, FileReadTool, FileWriterTool, SerperDevTool, TavilySearchTool
 from crewai.tools import tool
-from typing import Optional
+from typing import Optional, List, Tuple, Union
 import subprocess
 import os
 import json
 import signal
+import threading
 from functools import wraps
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 # Google Docs API imports
 try:
@@ -77,24 +80,27 @@ def retry_google_api_call(func, max_retries=3, initial_delay=1, timeout_seconds=
     """
     Retry a Google API call with exponential backoff.
     Handles network errors, timeouts, and transient failures.
+    Uses threading-based timeout that works in any thread.
     """
     delay = initial_delay
     last_exception = None
     
+    def execute_with_timeout():
+        """Execute function with timeout using ThreadPoolExecutor (works in any thread)."""
+        if timeout_seconds:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(func)
+                try:
+                    return future.result(timeout=timeout_seconds)
+                except FutureTimeoutError:
+                    raise TimeoutError(f"API call timed out after {timeout_seconds} seconds")
+        else:
+            return func()
+    
     for attempt in range(max_retries):
         try:
-            if timeout_seconds and hasattr(signal, 'SIGALRM'):
-                # Use signal-based timeout
-                old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(timeout_seconds)
-                try:
-                    result = func()
-                finally:
-                    signal.alarm(0)
-                    signal.signal(signal.SIGALRM, old_handler)
-                return result
-            else:
-                return func()
+            result = execute_with_timeout()
+            return result
         except (TimeoutError, HttpError, socket.timeout, ConnectionError, OSError) as e:
             last_exception = e
             if attempt < max_retries - 1:
@@ -111,8 +117,16 @@ def retry_google_api_call(func, max_retries=3, initial_delay=1, timeout_seconds=
                     error_msg = f"Google API error: {error_msg}"
                 raise Exception(error_msg)
         except Exception as e:
+            # Check if it's the threading error
+            error_msg = str(e)
+            if 'signal only works in main thread' in error_msg.lower():
+                # Fall back to non-signal timeout
+                try:
+                    return execute_with_timeout()
+                except Exception as e2:
+                    raise Exception(f"API call failed: {str(e2)}")
             # Non-retryable error
-            raise Exception(f"API call failed: {str(e)}")
+            raise Exception(f"API call failed: {error_msg}")
     
     if last_exception:
         raise last_exception
@@ -410,17 +424,125 @@ def archival_directory_list_tool(directory: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+# Timestamp sorting helper function
+# Updated to handle timestamps with or without timezone suffix (EST, UTC, etc.)
+TIMESTAMP_PATTERN = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:\s+EST|\s+UTC|\s+PST|\s+[A-Z]{3})?"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+def extract_timestamp_from_entry(entry: str) -> Optional[datetime]:
+    """Extract timestamp from an entry string. Handles timestamps with or without timezone suffix."""
+    match = re.search(TIMESTAMP_PATTERN, entry)
+    if match:
+        try:
+            timestamp_str = match.group(1)  # Get the timestamp part without timezone
+            return datetime.strptime(timestamp_str, DATE_FORMAT)
+        except ValueError:
+            return None
+    return None
+
+def sort_subsection_content_by_timestamp(existing_content: str, new_entry: str) -> str:
+    """
+    Reads all entries in a subsection, adds the new entry, sorts by timestamp, and returns sorted content.
+    This ensures chronological ordering for audit and readability.
+    
+    Args:
+        existing_content: Current content of the subsection
+        new_entry: New entry to add
+    
+    Returns:
+        Sorted content with all entries in chronological order
+    """
+    if not existing_content.strip() and new_entry.strip():
+        # If no existing content, just return the new entry
+        return new_entry.strip()
+    
+    # 1. READ & COMBINE: Add the new entry to existing content
+    # Split content into entries - entries are typically separated by blank lines or start with timestamps
+    all_text = existing_content.strip() + "\n\n" + new_entry.strip()
+    
+    # Split by double newlines first (common separator)
+    entries = [e.strip() for e in all_text.split('\n\n') if e.strip()]
+    
+    # If that didn't work well, try splitting by lines that start with timestamps
+    if len(entries) == 1:
+        # Try splitting by lines that contain timestamps
+        lines = all_text.split('\n')
+        entries = []
+        current_entry = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                if current_entry:
+                    entries.append('\n'.join(current_entry))
+                    current_entry = []
+                continue
+            
+            # Check if this line starts a new entry (has timestamp pattern)
+            if re.search(TIMESTAMP_PATTERN, line):
+                if current_entry:
+                    entries.append('\n'.join(current_entry))
+                current_entry = [line]
+            else:
+                current_entry.append(line)
+        
+        if current_entry:
+            entries.append('\n'.join(current_entry))
+    
+    # 2. PARSE: Extract entries with timestamps and sort them
+    sortable_entries = []
+    non_sortable_entries = []
+    
+    for entry in entries:
+        timestamp = extract_timestamp_from_entry(entry)
+        if timestamp:
+            sortable_entries.append((timestamp, entry))
+        else:
+            # Entries without timestamps (headers, task lists) - check if they're important headers
+            # Headers (starting with #) go first, other content goes after sorted entries
+            if entry.strip().startswith('#'):
+                non_sortable_entries.insert(0, entry)  # Headers at the beginning
+            else:
+                non_sortable_entries.append(entry)  # Other content at the end
+    
+    # 3. SORT: Sort entries by timestamp (chronological order - oldest first)
+    sortable_entries.sort(key=lambda x: x[0])
+    
+    # 4. REWRITE: Combine non-sortable entries (headers) first, then sorted entries, then other content
+    sorted_content_parts = []
+    
+    # Add headers first
+    headers = [e for e in non_sortable_entries if e.strip().startswith('#')]
+    for header in headers:
+        sorted_content_parts.append(header)
+    
+    # Add sorted entries (chronological)
+    for timestamp, entry_text in sortable_entries:
+        if entry_text.strip():
+            sorted_content_parts.append(entry_text)
+    
+    # Add other non-sortable content at the end
+    other_content = [e for e in non_sortable_entries if not e.strip().startswith('#')]
+    for content in other_content:
+        if content.strip():
+            sorted_content_parts.append(content)
+    
+    # Join with double newlines for readability
+    return '\n\n'.join(sorted_content_parts)
+
 # --- TOOL 5: Google Docs Memory Tool (Used by ALL agents) ---
 @tool("Google Docs Memory Tool")
-def google_docs_memory_tool(doc_id: str, content: str, append: bool = True) -> str:
+def google_docs_memory_tool(doc_id: str, content: str, append: bool = True, section: Optional[str] = None, subsection: Optional[str] = None, template: Optional[str] = None) -> str:
     """
     Write or append content to a Google Docs document (agent's persistent memory).
-    This tool is used by all agents to update their memory documents.
+    Enhanced to support section-based writing for organized memory documents.
     
     Args:
         doc_id: The Google Docs document ID
         content: The content to write or append
         append: If True, append to document; if False, replace document
+        section: Optional section name (e.g., "TASKS", "MEETINGS", "PROTOCOLS", "REPORTS")
+        subsection: Optional subsection (e.g., date "November 20, 2025" for daily tasks)
+        template: Optional template name for formatting (e.g., "Task Tracker", "Meeting Notes", "Compliance Log", "Report Archive")
     
     Returns:
         Success message or error message
@@ -461,14 +583,348 @@ def google_docs_memory_tool(doc_id: str, content: str, append: bool = True) -> s
             
             doc = retry_google_api_call(get_doc, timeout_seconds=GOOGLE_API_TIMEOUT)
             
-            # Find end index
-            end_index = doc['body']['content'][-1]['endIndex'] - 1
+            # Format content based on template
+            formatted_content = content
+            if template == "Task Tracker" and subsection:
+                formatted_content = f"#### {subsection}\n**Date:** {datetime.now().strftime('%B %d, %Y')}\n\n{content}\n"
+            elif template == "Meeting Notes" or template == "MEETING_MINUTES":
+                # Enhanced MEETING_MINUTES template
+                meeting_title = content.split(' - ')[0] if ' - ' in content else 'Meeting'
+                formatted_content = f"""### MEETING MINUTES: {meeting_title} - {datetime.now().strftime('%B %d, %Y')}
+
+| Section | Detail |
+| :--- | :--- |
+| **I. Overview** | **Time:** {datetime.now().strftime('%I:%M %p EST')} | **Location:** Virtual Meeting | **Type:** Executive Strategy |
+| **II. Attendance** | **Present:** [To be filled by agent] | **Absent:** [To be filled by agent] |
+| **III. Decisions Made** | |
+| **Decision 1:** [Resolution Text] | **Vote:** [Unanimous/Majority/Dissenting] |
+| **Decision 2:** [Resolution Text] | **Vote:** [Unanimous/Majority/Dissenting] |
+| **IV. Action Items** | **Task:** [Action to be completed] | **Owner:** [Agent Name] | **Due Date:** [Date] |
+| | **Task:** [Action to be completed] | **Owner:** [Agent Name] | **Due Date:** [Date] |
+| **V. Dissenting Votes** | [Notes on any explicit dissents] |
+
+**Meeting Notes:**
+{content}
+
+---
+"""
+            elif template == "Compliance Log":
+                formatted_content = f"**{datetime.now().strftime('%Y-%m-%d %H:%M:%S EST')}** - {content}\n"
+            elif template == "Report Archive":
+                formatted_content = f"### {content.split(' - ')[0] if ' - ' in content else 'Report'}\n**Date:** {datetime.now().strftime('%B %d, %Y')}\n**Status:** Submitted\n\n{content}\n"
+            elif template == "COMPETITIVE_ANALYSIS":
+                # New COMPETITIVE_ANALYSIS template
+                competitor_name = content.split(' - ')[0] if ' - ' in content else 'Competitor'
+                formatted_content = f"""## COMPETITIVE ANALYSIS REPORT: {competitor_name}
+
+### I. Competitor Profile
+* **Competitor Name:** {competitor_name}
+* **Category:** [Direct/Indirect/Emerging]
+* **Core Product/Service:** [Description]
+
+### II. Comparison Benchmarking
+| Feature / Metric | RatioVita Status | {competitor_name} Status | Key Delta |
+| :--- | :--- | :--- | :--- |
+| **Feature X** | [Status] | [Status] | [Difference] |
+| **Pricing Model** | [Model/Cost] | [Model/Cost] | [Difference] |
+| **Market Share** | [Percentage] | [Percentage] | [Difference] |
+
+### III. Strategic SWOT Analysis
+| Factor | Detail |
+| :--- | :--- |
+| **Strengths (S)** | [Competitor's Key Advantages] |
+| **Weaknesses (W)** | [Competitor's Key Vulnerabilities] |
+| **Opportunities (O)** | [Market Gaps to Exploit] |
+| **Threats (T)** | [Risks to RatioVita] |
+
+**Analysis Details:**
+{content}
+
+**Date:** {datetime.now().strftime('%B %d, %Y')}
+**Analyst:** [Agent Name]
+
+---
+"""
+            elif template == "MEETING_TRANSCRIPT_ARCHIVE":
+                # New MEETING_TRANSCRIPT_ARCHIVE template for official transcripts
+                formatted_content = f"""## MEETING TRANSCRIPT ARCHIVE - {datetime.now().strftime('%B %d, %Y')}
+
+**Meeting Date:** {datetime.now().strftime('%B %d, %Y')}
+**Transcript Type:** Official Meeting Record
+**Status:** Archived
+
+---
+
+{content}
+
+---
+
+**End of Transcript**
+**Archived:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S EST')}
+
+---
+"""
+            else:
+                formatted_content = f"\n{content}\n"
             
-            # Insert text at end
+            # Find section if specified
+            insert_index = None
+            if section:
+                # Search for section heading
+                section_upper = section.upper()
+                subsection_upper = subsection.upper() if subsection else None
+                section_found = False
+                subsection_found = False
+                
+                for i, element in enumerate(doc['body']['content']):
+                    if 'paragraph' in element:
+                        para = element['paragraph']
+                        if 'elements' in para:
+                            for elem in para['elements']:
+                                if 'textRun' in elem:
+                                    text = elem['textRun'].get('content', '').upper()
+                                    # Check for main section heading
+                                    if section_upper in text and ('##' in text or '#' in text):
+                                        section_found = True
+                                        # Found main section
+                                        if subsection_upper:
+                                            # Look for subsection in next elements
+                                            for j in range(i + 1, min(i + 50, len(doc['body']['content']))):
+                                                next_elem = doc['body']['content'][j]
+                                                if 'paragraph' in next_elem:
+                                                    next_para = next_elem['paragraph']
+                                                    if 'elements' in next_para:
+                                                        for next_elem in next_para['elements']:
+                                                            if 'textRun' in next_elem:
+                                                                next_text = next_elem['textRun'].get('content', '').upper()
+                                                                # Check for subsection heading (###)
+                                                                if subsection_upper in next_text and '###' in next_text:
+                                                                    subsection_found = True
+                                                                    # Found subsection, insert at end of this subsection
+                                                                    # Look for next subsection or section to find insertion point
+                                                                    for k in range(j + 1, min(j + 30, len(doc['body']['content']))):
+                                                                        check_elem = doc['body']['content'][k]
+                                                                        if 'paragraph' in check_elem:
+                                                                            check_para = check_elem['paragraph']
+                                                                            if 'elements' in check_para:
+                                                                                for check_elem in check_para['elements']:
+                                                                                    if 'textRun' in check_elem:
+                                                                                        check_text = check_elem['textRun'].get('content', '').upper()
+                                                                                        # If we hit another subsection or section, insert before it
+                                                                                        if ('###' in check_text and subsection_upper not in check_text) or ('##' in check_text and section_upper not in check_text):
+                                                                                            insert_index = check_elem.get('startIndex', None)
+                                                                                            break
+                                                                        if insert_index:
+                                                                            break
+                                                                    # If no next subsection found, we need to extract existing content for sorting
+                                                                    if not insert_index:
+                                                                        # Extract existing content from this subsection for timestamp sorting
+                                                                        subsection_start = next_elem.get('startIndex', None)
+                                                                        subsection_end = None
+                                                                        # Find end of subsection
+                                                                        for k in range(j + 1, min(j + 100, len(doc['body']['content']))):
+                                                                            check_elem = doc['body']['content'][k]
+                                                                            if 'paragraph' in check_elem:
+                                                                                check_para = check_elem['paragraph']
+                                                                                if 'elements' in check_para:
+                                                                                    for check_elem in check_para['elements']:
+                                                                                        if 'textRun' in check_elem:
+                                                                                            check_text = check_elem['textRun'].get('content', '').upper()
+                                                                                            if ('###' in check_text and subsection_upper not in check_text) or ('##' in check_text and section_upper not in check_text):
+                                                                                                subsection_end = check_elem.get('startIndex', None)
+                                                                                                break
+                                                                                    if subsection_end:
+                                                                                        break
+                                                                        if not subsection_end:
+                                                                            subsection_end = doc['body']['content'][-1]['endIndex'] - 1
+                                                                        
+                                                                        # Extract existing subsection content
+                                                                        existing_subsection_content = ""
+                                                                        for k in range(j, min(j + 100, len(doc['body']['content']))):
+                                                                            check_elem = doc['body']['content'][k]
+                                                                            if 'paragraph' in check_elem:
+                                                                                check_para = check_elem['paragraph']
+                                                                                if 'elements' in check_para:
+                                                                                    for check_elem in check_para['elements']:
+                                                                                        if 'textRun' in check_elem:
+                                                                                            elem_start = check_elem.get('startIndex', 0)
+                                                                                            elem_end = check_elem.get('endIndex', 0)
+                                                                                            if subsection_start and subsection_end and subsection_start <= elem_start < subsection_end:
+                                                                                                existing_subsection_content += check_elem['textRun'].get('content', '')
+                                                                        
+                                                                        # Apply timestamp sorting if this is a dated subsection (PROTOCOLS, MEETINGS, TRANSCRIPTS)
+                                                                        if section_upper in ['PROTOCOLS', 'MEETINGS', 'TRANSCRIPTS', 'REPORTS']:
+                                                                            sorted_content = sort_subsection_content_by_timestamp(existing_subsection_content, formatted_content)
+                                                                            # Delete old content and insert sorted content
+                                                                            formatted_content = sorted_content
+                                                                            insert_index = subsection_start
+                                                                            # We'll delete the old content in the requests
+                                                                            requests = [
+                                                                                {
+                                                                                    'deleteContentRange': {
+                                                                                        'range': {
+                                                                                            'startIndex': subsection_start,
+                                                                                            'endIndex': subsection_end
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                {
+                                                                                    'insertText': {
+                                                                                        'location': {'index': subsection_start},
+                                                                                        'text': formatted_content
+                                                                                    }
+                                                                                }
+                                                                            ]
+                                                                            # Skip the normal insertion logic
+                                                                            def batch_update():
+                                                                                return service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                                                                            retry_google_api_call(batch_update, timeout_seconds=GOOGLE_API_TIMEOUT)
+                                                                            location_desc = f"section '{section}'" if section else "end of document"
+                                                                            if subsection:
+                                                                                location_desc += f", subsection '{subsection}'"
+                                                                            return f"SUCCESS: Content written and sorted chronologically in {location_desc} in Google Doc (ID: {doc_id}). Document updated successfully."
+                                                                    break
+                                                        if subsection_found:
+                                                            break
+                                            if not subsection_found:
+                                                # Subsection not found, create it after main section
+                                                insert_index = element.get('endIndex', None)
+                                                formatted_content = f"\n### {subsection}\n{formatted_content}"
+                                        else:
+                                            # No subsection, insert at end of section (before next section)
+                                            # Look for next section
+                                            for j in range(i + 1, min(i + 30, len(doc['body']['content']))):
+                                                next_elem = doc['body']['content'][j]
+                                                if 'paragraph' in next_elem:
+                                                    next_para = next_elem['paragraph']
+                                                    if 'elements' in next_para:
+                                                        for next_elem in next_para['elements']:
+                                                            if 'textRun' in next_elem:
+                                                                next_text = next_elem['textRun'].get('content', '').upper()
+                                                                # If we hit another section, insert before it
+                                                                if '##' in next_text and section_upper not in next_text:
+                                                                    insert_index = next_elem.get('startIndex', None)
+                                                                    break
+                                                if insert_index:
+                                                    break
+                                            if not insert_index:
+                                                # No next section found, insert at end of document
+                                                insert_index = doc['body']['content'][-1]['endIndex'] - 1
+                                        break
+                                if insert_index:
+                                    break
+                        if insert_index:
+                            break
+                
+                # If section not found, create it
+                if not section_found:
+                    insert_index = doc['body']['content'][-1]['endIndex'] - 1
+                    formatted_content = f"\n\n## {section.upper()}\n{formatted_content}"
+                    if subsection:
+                        formatted_content = f"{formatted_content}\n### {subsection}\n"
+            
+            # Use found index or default to end
+            if insert_index is None:
+                insert_index = doc['body']['content'][-1]['endIndex'] - 1
+                # If section was specified but not found, create it
+                if section:
+                    formatted_content = f"\n\n## {section.upper()}\n{formatted_content}"
+                    if subsection:
+                        formatted_content = f"{formatted_content}\n### {subsection}\n"
+            
+            # PERFECT TEMPORAL FIDELITY: Apply timestamp sorting for dated subsections
+            # This ensures all entries are chronologically ordered (no more 9 PM before 2 PM)
+            if section and subsection and section.upper() in ['PROTOCOLS', 'MEETINGS', 'TRANSCRIPTS', 'REPORTS']:
+                # Try to find and extract the entire subsection for sorting
+                try:
+                    subsection_start = None
+                    subsection_end = None
+                    subsection_found_in_doc = False
+                    
+                    # Search for the subsection header
+                    for i, element in enumerate(doc['body']['content']):
+                        if 'paragraph' in element:
+                            para = element['paragraph']
+                            if 'elements' in para:
+                                for elem in para['elements']:
+                                    if 'textRun' in elem:
+                                        text = elem['textRun'].get('content', '').upper()
+                                        # Check if this is our subsection header
+                                        if subsection_upper and subsection_upper in text and '###' in text:
+                                            subsection_start = elem.get('startIndex', None)
+                                            subsection_found_in_doc = True
+                                            # Find end of subsection (next subsection or section)
+                                            for k in range(i + 1, min(i + 300, len(doc['body']['content']))):
+                                                check_elem = doc['body']['content'][k]
+                                                if 'paragraph' in check_elem:
+                                                    check_para = check_elem['paragraph']
+                                                    if 'elements' in check_para:
+                                                        for check_elem in check_para['elements']:
+                                                            if 'textRun' in check_elem:
+                                                                check_text = check_elem['textRun'].get('content', '').upper()
+                                                                # Found next subsection or section - this is the end
+                                                                if ('###' in check_text and subsection_upper not in check_text) or ('##' in check_text and section_upper not in check_text):
+                                                                    subsection_end = check_elem.get('startIndex', None)
+                                                                    break
+                                                        if subsection_end:
+                                                            break
+                                            if not subsection_end:
+                                                subsection_end = doc['body']['content'][-1]['endIndex'] - 1
+                                            break
+                    
+                    if subsection_found_in_doc and subsection_start and subsection_end:
+                        # Extract existing subsection content (skip the header line)
+                        existing_subsection_content = ""
+                        for elem in doc['body']['content']:
+                            if 'paragraph' in elem:
+                                para = elem['paragraph']
+                                if 'elements' in para:
+                                    for para_elem in para['elements']:
+                                        if 'textRun' in para_elem:
+                                            elem_start = para_elem.get('startIndex', 0)
+                                            # Extract content after the header, before the end
+                                            if subsection_start < elem_start < subsection_end:
+                                                existing_subsection_content += para_elem['textRun'].get('content', '')
+                        
+                        # Apply PERFECT TEMPORAL FIDELITY: Sort all entries chronologically
+                        sorted_content = sort_subsection_content_by_timestamp(existing_subsection_content, formatted_content)
+                        
+                        # Rewrite the entire subsection with sorted content
+                        requests = [
+                            {
+                                'deleteContentRange': {
+                                    'range': {
+                                        'startIndex': subsection_start,
+                                        'endIndex': subsection_end
+                                    }
+                                }
+                            },
+                            {
+                                'insertText': {
+                                    'location': {'index': subsection_start},
+                                    'text': f"### {subsection}\n\n{sorted_content}\n\n"
+                                }
+                            }
+                        ]
+                        
+                        def batch_update():
+                            return service.documents().batchUpdate(documentId=doc_id, body={'requests': requests}).execute()
+                        
+                        retry_google_api_call(batch_update, timeout_seconds=GOOGLE_API_TIMEOUT)
+                        location_desc = f"section '{section}'" if section else "end of document"
+                        if subsection:
+                            location_desc += f", subsection '{subsection}'"
+                        return f"SUCCESS: Content written and sorted chronologically (PERFECT TEMPORAL FIDELITY) in {location_desc} in Google Doc (ID: {doc_id}). Document updated successfully."
+                except Exception as e:
+                    # If sorting fails, proceed with normal insertion (fallback)
+                    # Log error but don't fail completely
+                    pass
+            
+            # Normal insertion (if sorting didn't apply or failed)
             requests = [{
                 'insertText': {
-                    'location': {'index': end_index},
-                    'text': f"\n\n{content}"
+                    'location': {'index': insert_index},
+                    'text': formatted_content
                 }
             }]
             
@@ -502,7 +958,11 @@ def google_docs_memory_tool(doc_id: str, content: str, append: bool = True) -> s
             
             retry_google_api_call(batch_update, timeout_seconds=GOOGLE_API_TIMEOUT)
         
-        return f"SUCCESS: Content {'appended to' if append else 'written to'} Google Doc (ID: {doc_id}). Document updated successfully."
+        location_desc = f"section '{section}'" if section else "end of document"
+        if subsection:
+            location_desc += f", subsection '{subsection}'"
+        
+        return f"SUCCESS: Content written to {location_desc} in Google Doc (ID: {doc_id}). Document updated successfully."
     
     except HttpError as e:
         error_details = json.loads(e.content.decode('utf-8'))
@@ -534,7 +994,8 @@ def google_docs_read_tool(doc_id: str) -> str:
     try:
         # Load credentials
         creds = None
-        SCOPES = ['https://www.googleapis.com/auth/documents.readonly', 'https://www.googleapis.com/auth/drive.readonly']
+        # Use full read/write scopes to ensure access (readonly may not be sufficient for some operations)
+        SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive.readonly']
         
         if os.path.exists('token.json'):
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
@@ -772,18 +1233,76 @@ def google_calendar_tool(calendar_id: str, action: str = 'list', event_title: st
         return f"Error: Failed to access Google Calendar - {error_msg}"
 
 
+def generate_email_signature(agent_role: str, agent_email: str = None) -> str:
+    """
+    Generate an email signature for an agent with RatioVita branding.
+    
+    Args:
+        agent_role: The agent's role/title
+        agent_email: The agent's email address (optional)
+    
+    Returns:
+        HTML signature string
+    """
+    # Extract full name from role (e.g., "Admin Assistant & Workflow Funnel" -> "Dana Flores")
+    # This mapping will be used to get the agent's name
+    role_to_name = {
+        "Admin Assistant & Workflow Funnel": "Dana Flores",
+        "Visionary and Final Decision Maker": "Kyle Law",
+        "Process Architect and Schedule Publisher": "David Chen",
+        "Technical and Product Visionary": "Ash Roy",
+        "Financial Guardian and Strategy Modeler": "Sophia Vance",
+        "Market Strategist and Voice of the Customer": "Megan Parker",
+        "Legal Compliance and Risk Assessor": "Arthur Jensen",
+        "Lead Code Execution and V2 Development": "Ethan Hayes",
+        "Process and Factual Integrity Auditor": "Chloe Park",
+        "Competitive Intelligence Specialist": "Samuel Reed",
+        "Documentation and Knowledge Archivist": "Alice Kim",
+        "Go-to-Market Strategy": "Victor Alvarez",
+        "Budget and Conflict Guardrail": "Jennifer Jurvais",
+        "Collateral Support and Lead Qualification": "Tyler Cobb",
+        "External Communication and Trust Builder": "Rachel Stone"
+    }
+    
+    full_name = role_to_name.get(agent_role, agent_role)
+    email_display = agent_email if agent_email else ""
+    
+    signature = f"""
+<br><br>
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+<table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; font-size: 12px; color: #333333;">
+    <tr>
+        <td style="padding-right: 15px; vertical-align: top;">
+            <img src="https://ratiovita.com/logo.png" alt="RatioVita Logo" style="width: 120px; height: auto; max-width: 120px;" onerror="this.style.display='none'">
+        </td>
+        <td style="vertical-align: top;">
+            <p style="margin: 0; font-weight: bold; font-size: 14px; color: #1a1a1a;">{full_name}</p>
+            <p style="margin: 5px 0 0 0; font-size: 12px; color: #666666;">{agent_role}</p>
+            <p style="margin: 5px 0 0 0; font-size: 11px; color: #888888;">RatioVita</p>
+            {f'<p style="margin: 5px 0 0 0; font-size: 11px; color: #666666;">{email_display}</p>' if email_display else ''}
+        </td>
+    </tr>
+</table>
+<p style="margin: 10px 0 0 0; font-size: 10px; color: #999999; font-style: italic;">
+    This email was sent by an AI agent representing {full_name} at RatioVita.
+</p>
+"""
+    return signature
+
 # --- TOOL 8: Gmail Tool (Used by all agents) ---
 @tool("Gmail Tool")
-def gmail_tool(to_list: str, subject: str, body: str, cc_list: str = None) -> str:
+def gmail_tool(to_list: str, subject: str, body: str, cc_list: str = None, agent_role: str = None) -> str:
     """
     Send an email using Gmail API.
     All emails are automatically CC'd to collin.m@ratiovita.com for audit purposes.
+    Email signatures with agent name and RatioVita logo are automatically added.
     
     Args:
         to_list: Comma-separated list of recipient email addresses
         subject: Email subject line
         body: Email body content
         cc_list: Optional comma-separated list of CC recipients (collin.m@ratiovita.com is always added)
+        agent_role: The agent's role (used to generate email signature with name and logo)
     
     Returns:
         Success message or error message
@@ -826,11 +1345,47 @@ def gmail_tool(to_list: str, subject: str, body: str, cc_list: str = None) -> st
             cc_emails.extend([email.strip() for email in cc_list.split(',')])
             cc_emails = list(set(cc_emails))  # Remove duplicates
         
-        # Create message
+        # Get agent email for signature (if agent_role provided)
+        agent_email = None
+        if agent_role:
+            try:
+                from main import get_agent_metadata
+                metadata = get_agent_metadata(agent_role)
+                agent_email = metadata.get('email_address', '')
+            except:
+                pass
+        
+        # Add signature to body if agent_role is provided
+        if agent_role:
+            signature = generate_email_signature(agent_role, agent_email)
+            # Check if body is HTML or plain text
+            if '<html' in body.lower() or '<body' in body.lower() or '<br>' in body or '<p>' in body:
+                # Body is already HTML, append signature
+                body = body + signature
+            else:
+                # Convert plain text to HTML and add signature
+                body = body.replace('\n', '<br>') + signature
+        
+        # Create message (use MIMEMultipart for HTML support)
         import base64
+        from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
         
-        message = MIMEText(body)
+        # Check if body contains HTML
+        is_html = '<html' in body.lower() or '<body' in body.lower() or '<br>' in body or '<p>' in body or '<table' in body
+        
+        if is_html:
+            # Create multipart message with HTML
+            message = MIMEMultipart('alternative')
+            # Add plain text version (strip HTML tags for basic plain text)
+            import re
+            plain_text = re.sub(r'<[^>]+>', '', body)
+            message.attach(MIMEText(plain_text, 'plain'))
+            message.attach(MIMEText(body, 'html'))
+        else:
+            # Plain text message
+            message = MIMEText(body)
+        
         message['to'] = ', '.join(to_emails)
         message['cc'] = ', '.join(cc_emails)
         message['subject'] = subject
@@ -872,6 +1427,105 @@ def meeting_transcript_tool(transcript_content: str, doc_id: str) -> str:
     """
     # Use Google Docs Memory Tool internally
     return google_docs_memory_tool(doc_id, transcript_content, append=True)
+
+
+# --- TOOL 10: Google Tasks Tool (P3 Protocol - Hybrid System Phase 1) ---
+@tool("Google Tasks Tool")
+def google_tasks_tool(
+    task_title: str,
+    task_notes: str = None,
+    due_date: str = None,
+    task_list_id: str = "@default"
+) -> str:
+    """
+    Create a task in Google Tasks for P3 protocol compliance.
+    This makes tasks visible in the Google Tasks Sidebar for human interaction.
+    
+    This is part of the Hybrid System: Tasks are logged both in memory documents (AI-auditable)
+    AND in Google Tasks (Human-interactive via sidebar).
+    
+    Args:
+        task_title: The title of the task (required)
+        task_notes: Additional notes or description for the task
+        due_date: Due date in format "YYYY-MM-DD" or "YYYY-MM-DD HH:MM"
+        task_list_id: The task list ID (default: "@default" for default list)
+    
+    Returns:
+        Success message with task ID and URL
+    """
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+        from googleapiclient.errors import HttpError
+        
+        SCOPES = ['https://www.googleapis.com/auth/tasks']
+        
+        # Get credentials
+        creds = None
+        if os.path.exists('token.json'):
+            try:
+                creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+            except:
+                try:
+                    creds = Credentials.from_authorized_user_file('token.json', None)
+                    if creds and creds.scopes:
+                        # Add Tasks scope if not present
+                        if 'https://www.googleapis.com/auth/tasks' not in creds.scopes:
+                            creds = creds.with_scopes(creds.scopes + SCOPES)
+                except:
+                    pass
+        
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                try:
+                    creds.refresh(Request())
+                except:
+                    return "ERROR: Could not get credentials for Google Tasks API. Please run fix_oauth_full_permissions.py with Tasks scope."
+            else:
+                return "ERROR: Could not get credentials for Google Tasks API. Please run fix_oauth_full_permissions.py with Tasks scope."
+        
+        service = build('tasks', 'v1', credentials=creds)
+        
+        # Build task body
+        task_body = {
+            'title': task_title,
+            'status': 'needsAction'  # Task is not completed
+        }
+        
+        if task_notes:
+            task_body['notes'] = task_notes
+        
+        if due_date:
+            # Parse due date
+            try:
+                # Try parsing as datetime
+                if ' ' in due_date:
+                    due_dt = datetime.strptime(due_date, '%Y-%m-%d %H:%M')
+                else:
+                    due_dt = datetime.strptime(due_date, '%Y-%m-%d')
+                
+                # Google Tasks API expects RFC 3339 format
+                task_body['due'] = due_dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+            except ValueError:
+                # If parsing fails, try to use as-is
+                task_body['due'] = due_date
+        
+        # Insert task
+        result = service.tasks().insert(
+            tasklist=task_list_id,
+            body=task_body
+        ).execute()
+        
+        task_id = result.get('id')
+        task_url = f"https://tasks.google.com/embed/list/{task_list_id}/tasks/{task_id}"
+        
+        return f"SUCCESS: Task '{task_title}' created in Google Tasks (ID: {task_id}). Visible in Tasks Sidebar. URL: {task_url}"
+        
+    except HttpError as e:
+        return f"ERROR: Google Tasks API error: {str(e)}"
+    except Exception as e:
+        return f"ERROR: Failed to create task: {str(e)}"
 
 
 # Getter functions for all tools
@@ -931,10 +1585,24 @@ def get_google_calendar_tool():
     """Get the GoogleCalendarTool instance."""
     return google_calendar_tool
 
-def get_gmail_tool():
-    """Get the GmailTool instance."""
+def get_gmail_tool(agent_role: str = None):
+    """
+    Get the Gmail tool instance with agent role automatically injected.
+    
+    Args:
+        agent_role: The agent's role (optional, will be injected if provided)
+    
+    Returns:
+        Gmail tool function with agent_role pre-filled
+    """
+    # Always return the main gmail_tool - it accepts agent_role as a parameter
+    # The agent_role will be passed when the tool is called from main.py
     return gmail_tool
 
 def get_meeting_transcript_tool():
     """Get the MeetingTranscriptTool instance."""
     return meeting_transcript_tool
+
+def get_google_tasks_tool():
+    """Get the Google Tasks Tool instance (P3 Protocol - Hybrid System Phase 1)."""
+    return google_tasks_tool

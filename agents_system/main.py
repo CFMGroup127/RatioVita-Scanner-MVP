@@ -25,8 +25,11 @@ from tools import (
     get_meeting_transcript_tool,
     get_google_calendar_tool,
     get_google_docs_read_tool,
-    get_gmail_tool
+    get_gmail_tool,
+    get_google_tasks_tool  # P3 Protocol - Hybrid System Phase 1
 )
+from memory_search_tool import get_memory_search_tool
+from system_binder_generator import get_system_binder_generator
 
 # Legacy V1 Path - Shared constant for the entire crew
 LEGACY_V1_PATH = "/Users/colliemorris/Projects 2/RatioVita_v2/RatioVita_v1"
@@ -234,12 +237,42 @@ def load_agents_from_yaml(filepath='agents.yaml'):
             # Google Docs Read tool not available, continue without it
             pass
         
-        # Gmail Tool (for all agents to send emails)
+        # Gmail Tool (for all agents to send emails) - with agent role injected
         try:
-            gmail_tool = get_gmail_tool()
-            agent_tools.append(gmail_tool)
-        except Exception:
+            # Create a wrapper function that injects the agent_role
+            from functools import partial
+            gmail_tool_func = get_gmail_tool()
+            # Create a partial function that pre-fills agent_role
+            gmail_tool_with_role = partial(gmail_tool_func, agent_role=role)
+            # Wrap it as a tool
+            from crewai.tools import tool
+            @tool("Gmail Tool")
+            def gmail_tool_wrapper(to_list: str, subject: str, body: str, cc_list: str = None) -> str:
+                """Send an email using Gmail API with automatic signature."""
+                return gmail_tool_func(to_list, subject, body, cc_list, agent_role=role)
+            agent_tools.append(gmail_tool_wrapper)
+        except Exception as e:
             # Gmail tool not available, continue without it
+            print(f"Warning: Gmail tool not available for {role}: {e}")
+            pass
+        
+        # Google Tasks Tool (for ALL agents - P3 Protocol - Hybrid System Phase 1)
+        # Universal tool for P3 accountability: tasks logged to both memory AND Google Tasks
+        try:
+            tasks_tool = get_google_tasks_tool()
+            agent_tools.append(tasks_tool)
+        except Exception as e:
+            # Google Tasks tool not available, continue without it
+            print(f"Warning: Google Tasks tool not available for {role}: {e}")
+            pass
+        
+        # Memory Search Tool (for all agents to search across memory documents)
+        # Essential for competitive analysis, reporting, and cross-agent synthesis
+        try:
+            memory_search = get_memory_search_tool()
+            agent_tools.append(memory_search)
+        except Exception:
+            # Memory search tool not available, continue without it
             pass
         
         # Create agent
