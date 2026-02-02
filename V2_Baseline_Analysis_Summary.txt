@@ -1,0 +1,3 @@
+V2 Baseline Analysis - Batch 1
+
+Unable to locate any configuration or code files in the V2 project directory. All attempts to read files such as Podfile, package.json, Info.plist, or any build configuration files have failed. Further attempts to access code files in the src directory have also been unsuccessful.

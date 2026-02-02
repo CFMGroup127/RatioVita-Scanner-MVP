@@ -1,0 +1,119 @@
+workspace 'RatioVita.xcworkspace'
+
+target 'RatioVita iOS' do
+  platform :ios, '16.0'
+  use_frameworks!
+  
+  # ALL PODS TEMPORARILY DISABLED due to framework embedding sandbox issues
+  # pod 'KeychainAccess'
+end
+
+target 'RatioVita-macOS' do
+  platform :osx, '11.0'
+  use_frameworks!
+  
+  # ALL PODS TEMPORARILY DISABLED due to framework embedding sandbox issues
+  # pod 'KeychainAccess'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # Set minimum deployment targets
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 16.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      end
+      if config.build_settings['MACOSX_DEPLOYMENT_TARGET'].to_f < 11.0
+        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '11.0'
+      end
+      
+      # Enable ARC for all pods - CRITICAL FIX for GTMSessionFetcher
+      config.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
+      config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
+      config.build_settings['CLANG_WARN_OBJC_WEAK'] = 'NO'
+      
+      # Additional ARC settings for GTMSessionFetcher compatibility
+      config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+      config.build_settings['CLANG_WARN_OBJC_ARC_WEAK'] = 'NO'
+      config.build_settings['CLANG_WARN_OBJC_ARC_BRIDGE_CAST'] = 'NO'
+      config.build_settings['CLANG_WARN_OBJC_ARC_RETAIN_CYCLE'] = 'NO'
+      
+      # Fix nullability issues
+      config.build_settings['CLANG_WARN_NULLABLE_TO_NONNULL_CONVERSION'] = 'NO'
+      
+      # Fix deployment target warnings
+      config.build_settings['WARNING_CFLAGS'] = '$(inherited) -Wno-deprecated-declarations -Wno-availability'
+      
+      # Xcode 26.0 Compatibility Fixes
+      # Add explicit framework search paths
+      config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/**/Frameworks'
+      config.build_settings['LIBRARY_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/**/lib'
+      
+      # Ensure proper module linking
+      config.build_settings['DEFINES_MODULE'] = 'YES'
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+      
+      # Comprehensive header search paths - CRITICAL FIX for GoogleAPIClientForREST
+      config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/**/Headers/Public $(PODS_ROOT)/**/Headers/Private $(PODS_ROOT)/**/Sources/Public $(PODS_ROOT)/**/Sources/Private $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public $(PODS_ROOT)/GoogleAPIClientForREST/Sources/GeneratedServices/Gmail $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public/GoogleAPIClientForREST'
+
+      config.build_settings['SWIFT_INCLUDE_PATHS'] = '$(inherited) $(PODS_ROOT)/**/Headers/Public $(PODS_ROOT)/**/Headers/Private $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public $(PODS_ROOT)/GoogleAPIClientForREST/Sources/GeneratedServices/Gmail $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public/GoogleAPIClientForREST'
+
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+      config.build_settings['DEFINES_MODULE'] = 'YES'
+      
+      # Enable Swift modules for all pods
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'YES'
+      
+      # Additional ARC and module settings for Xcode 26.0
+      config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+      config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'YES'
+      
+      # GTMSessionFetcher specific ARC settings
+      if target.name.include?('GTMSessionFetcher')
+        config.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
+        config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
+        config.build_settings['CLANG_WARN_OBJC_WEAK'] = 'NO'
+        config.build_settings['CLANG_WARN_OBJC_ARC_WEAK'] = 'NO'
+        config.build_settings['CLANG_WARN_OBJC_ARC_BRIDGE_CAST'] = 'NO'
+        config.build_settings['CLANG_WARN_OBJC_ARC_RETAIN_CYCLE'] = 'NO'
+        config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+        config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'YES'
+        
+        # Xcode 26.0 compatibility fix for __has_feature macro
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) __has_feature=1 __OBJC2__=1'
+        
+        # Xcode 26.0 compatibility fix for __has_feature macro
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) __has_feature=1 __OBJC2__=1'
+        config.build_settings['OTHER_CFLAGS'] = '$(inherited) -fobjc-arc'
+        
+        # Xcode 26.0 compatibility fixes
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = '$(inherited) __has_feature=1 __OBJC2__=1'
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+        config.build_settings['WARNING_CFLAGS'] = '$(inherited) -Wno-deprecated-declarations -Wno-availability'
+      end
+      
+      # General ARC settings for all pods
+      config.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
+      config.build_settings['CLANG_ENABLE_OBJC_WEAK'] = 'YES'
+      
+      # GoogleAPIClientForREST specific settings
+      if target.name.include?('GoogleAPIClientForREST')
+        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public $(PODS_ROOT)/GoogleAPIClientForREST/Sources/GeneratedServices/Gmail'
+
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+        config.build_settings['SWIFT_INCLUDE_PATHS'] = '$(inherited) $(PODS_ROOT)/GoogleAPIClientForREST/Sources/Core/Public $(PODS_ROOT)/GoogleAPIClientForREST/Sources/GeneratedServices/Gmail'
+
+      end
+      
+      # Force ARC for all Objective-C files
+      config.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
+      config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
+      config.build_settings['CLANG_WARN_OBJC_WEAK'] = 'NO'
+    end
+  end
+end 

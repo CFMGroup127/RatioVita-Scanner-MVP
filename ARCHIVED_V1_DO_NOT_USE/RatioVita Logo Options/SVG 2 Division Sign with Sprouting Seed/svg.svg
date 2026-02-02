@@ -1,0 +1,15 @@
+<svg width="256" height="256" xmlns="http://www.w3.org/2000/svg" fill="none">
+
+ <!-- Golden spiral -->
+ <!-- Scale arms -->
+ <!-- Leaf sprout at the spiral's end -->
+ <g>
+  <title>Layer 1</title>
+  <rect id="svg_1" fill="#A7D1A9" rx="64" height="256" width="256"/>
+  <path id="svg_2" fill="none" stroke-width="8" stroke="#FFD700" d="m128,128q0,-64 64,-64q0,64 -64,64"/>
+  <line id="svg_3" stroke-width="8" stroke="#FFA500" y2="128" x2="168" y1="128" x1="88"/>
+  <circle id="svg_4" stroke-width="2" stroke="#FFD700" fill="#F5F5DC" r="12" cy="128" cx="88"/>
+  <circle id="svg_5" stroke-width="2" stroke="#FFD700" fill="#F5F5DC" r="12" cy="128" cx="168"/>
+  <path id="svg_6" stroke-width="2" stroke="#FFD700" fill="#A7D1A9" d="m192,128q8,12 0,24q-8,-12 0,-24"/>
+ </g>
+</svg>

@@ -51,3 +51,10 @@ docs/
 
 Cursor/Editor state (optional)
 .cursor/
+
+# Sovereign Vault: generated exports (private data); track .swift and template logic
+Vault/Exports/
+Vault/Exports/**/*.numbers
+Vault/Exports/**/*.pages
+Vault/Exports/**/*.key
+Vault/Exports/**/*.pdf

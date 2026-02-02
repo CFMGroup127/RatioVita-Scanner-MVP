@@ -1,0 +1,10 @@
+{
+  "id": "unique-id-001",
+  "from": "xcode",
+  "to": "cursor",
+  "type": "file_operation",
+  "request": "Please refactor this file.",
+  "filename": "MyFile.swift",
+  "response_type": "full_file",
+  "content": "// ...Swift file content here..."
+}

@@ -1,0 +1,21 @@
+# Task Definitions
+# This is where you define BLOCK A, B, C, and D as sequential tasks
+# and assign them to the correct agent.
+
+# Example structure - Replace with your actual tasks:
+tasks:
+  - description: "Task A - Initial analysis"
+    expected_output: "A detailed analysis report"
+    agent: "Senior Data Analyst"  # Must match role from agents.yaml
+    # async_execution: false  # Optional
+  
+  - description: "Task B - Content creation"
+    expected_output: "Creative content output"
+    agent: "Creative Writer"  # Must match role from agents.yaml
+  
+  # TODO: Add your remaining tasks (BLOCK C, D, etc.) here...
+  # Follow the same structure:
+  # - description: "..."
+  #   expected_output: "..."
+  #   agent: "Agent Role Name"  # Must match exactly with agents.yaml
+

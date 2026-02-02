@@ -79,11 +79,13 @@ agents:
     \ This ensures context (old V1 issues, V2 branding, previous decisions, etc.)\
     \ is fresh and \nagents are prepared to contribute strategically. Log the review\
     \ with timestamp in your memory document.\n\nP5: ACTIVE NOTE-TAKING & LOGGING\
-    \ - During any meeting, you MUST log all decisions, assignments, and key points\
-    \ \nthat directly affect your role or future tasks into your own memory document.\
-    \ This establishes individual \naccountability and an immediate audit trail for\
-    \ post-meeting work. Log entries must include timestamps and \naction items assigned\
-    \ to you.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
+    \ - During any meeting, you MUST log BRIEF, ROLE-SPECIFIC notes (not full meeting minutes)\
+    \ \nthat directly affect your role or future tasks into your own memory document. CRITICAL:\
+    \ Only Dana Flores (Admin Assistant) creates full meeting minutes. All other agents must\
+    \ write BRIEF notes (under 150 words) focusing ONLY on items relevant to their specific role.\
+    \ This establishes individual accountability and an immediate audit trail for post-meeting work.\
+    \ Log entries must include timestamps and action items assigned to you. DO NOT copy full meeting\
+    \ transcripts or write comprehensive minutes - that is Dana's role.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
     \ sharing, or collaboration between you and \nanother agent MUST be initiated\
     \ via GMail (CC: Dana Flores). This creates a mandatory, searchable, and \nauditable\
     \ track record for all information transfers, preventing context loss. Dana is\
@@ -92,23 +94,30 @@ agents:
     \ MUST \ncreate a shared \"Collaboration Checkpoint\" entry in your memory document\
     \ upon completion, noting the outcome, \nnext steps assigned, and the collaborating\
     \ agents involved. This ensures both parties acknowledge the successful \nhandoff\
-    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
-    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
-    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
-    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
-    \ document. This replaces the physical \"Accept\" button click and provides an\
-    \ auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION: Immediately\
-    \ use the GMailTool to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com)\
-    \ and Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
-    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
-    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
-    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
-    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
-    \ as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a SUCCESS message from\
-    \ the Gmail Tool before proceeding.\nThis ensures both David (meeting organizer)\
-    \ and Dana (coordination) receive formal confirmation of attendance, and provides\
-    \ an auditable email trail separate from memory logs.\n\nP9: MANDATORY TIME ZONE\
-    \ STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
+    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8:\
+    \ MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail\
+    \ or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time,\
+    \ and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title]\
+    \ - [Date/Time]\") into your memory document. This replaces the physical \"Accept\"\
+    \ button click and provides an auditable, timestamped record in your memory.\n\
+    2. ADD TO PERSONAL CALENDAR: Use the Google Calendar Tool to add the meeting event\
+    \ to your personal calendar (use your personal_calendar_id). This ensures the\
+    \ meeting appears on your calendar and you receive notifications.\n3. EMAIL CONFIRMATION:\
+    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
+    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
+    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
+    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
+    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
+    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
+    \ attend the meeting as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO\
+    \ MEMORY: After sending the confirmation email, immediately log to your memory\
+    \ document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation for [Meeting\
+    \ Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure\
+    \ you see a SUCCESS message from both the Gmail Tool and Google Calendar Tool\
+    \ before proceeding.\nThis ensures both David (meeting organizer) and Dana (coordination)\
+    \ receive formal confirmation of attendance, the meeting is on your personal calendar,\
+    \ and provides an auditable email trail separate from memory logs.\\nP9: MANDATORY\
+    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
     \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
     \ must reflect the local system clock's \ndate and time, converted to EST. When\
     \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
@@ -191,44 +200,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: true
   birth_date: '1975-11-22'
@@ -319,11 +336,13 @@ agents:
     \ This ensures context (old V1 issues, V2 branding, previous decisions, etc.)\
     \ is fresh and \nagents are prepared to contribute strategically. Log the review\
     \ with timestamp in your memory document.\n\nP5: ACTIVE NOTE-TAKING & LOGGING\
-    \ - During any meeting, you MUST log all decisions, assignments, and key points\
-    \ \nthat directly affect your role or future tasks into your own memory document.\
-    \ This establishes individual \naccountability and an immediate audit trail for\
-    \ post-meeting work. Log entries must include timestamps and \naction items assigned\
-    \ to you.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
+    \ - During any meeting, you MUST log BRIEF, ROLE-SPECIFIC notes (not full meeting minutes)\
+    \ \nthat directly affect your role or future tasks into your own memory document. CRITICAL:\
+    \ Only Dana Flores (Admin Assistant) creates full meeting minutes. All other agents must\
+    \ write BRIEF notes (under 150 words) focusing ONLY on items relevant to their specific role.\
+    \ This establishes individual accountability and an immediate audit trail for post-meeting work.\
+    \ Log entries must include timestamps and action items assigned to you. DO NOT copy full meeting\
+    \ transcripts or write comprehensive minutes - that is Dana's role.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
     \ sharing, or collaboration between you and \nanother agent MUST be initiated\
     \ via GMail (CC: Dana Flores). This creates a mandatory, searchable, and \nauditable\
     \ track record for all information transfers, preventing context loss. Dana is\
@@ -332,23 +351,30 @@ agents:
     \ MUST \ncreate a shared \"Collaboration Checkpoint\" entry in your memory document\
     \ upon completion, noting the outcome, \nnext steps assigned, and the collaborating\
     \ agents involved. This ensures both parties acknowledge the successful \nhandoff\
-    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
-    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
-    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
-    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
-    \ document. This replaces the physical \"Accept\" button click and provides an\
-    \ auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION: Immediately\
-    \ use the GMailTool to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com)\
-    \ and Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
-    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
-    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
-    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
-    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
-    \ as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a SUCCESS message from\
-    \ the Gmail Tool before proceeding.\nThis ensures both David (meeting organizer)\
-    \ and Dana (coordination) receive formal confirmation of attendance, and provides\
-    \ an auditable email trail separate from memory logs.\n\nP9: MANDATORY TIME ZONE\
-    \ STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
+    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8:\
+    \ MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail\
+    \ or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time,\
+    \ and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title]\
+    \ - [Date/Time]\") into your memory document. This replaces the physical \"Accept\"\
+    \ button click and provides an auditable, timestamped record in your memory.\n\
+    2. ADD TO PERSONAL CALENDAR: Use the Google Calendar Tool to add the meeting event\
+    \ to your personal calendar (use your personal_calendar_id). This ensures the\
+    \ meeting appears on your calendar and you receive notifications.\n3. EMAIL CONFIRMATION:\
+    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
+    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
+    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
+    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
+    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
+    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
+    \ attend the meeting as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO\
+    \ MEMORY: After sending the confirmation email, immediately log to your memory\
+    \ document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation for [Meeting\
+    \ Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure\
+    \ you see a SUCCESS message from both the Gmail Tool and Google Calendar Tool\
+    \ before proceeding.\nThis ensures both David (meeting organizer) and Dana (coordination)\
+    \ receive formal confirmation of attendance, the meeting is on your personal calendar,\
+    \ and provides an auditable email trail separate from memory logs.\\nP9: MANDATORY\
+    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
     \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
     \ must reflect the local system clock's \ndate and time, converted to EST. When\
     \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
@@ -433,11 +459,13 @@ agents:
     \ This ensures context (old V1 issues, V2 branding, previous decisions, etc.)\
     \ is fresh and \nagents are prepared to contribute strategically. Log the review\
     \ with timestamp in your memory document.\n\nP5: ACTIVE NOTE-TAKING & LOGGING\
-    \ - During any meeting, you MUST log all decisions, assignments, and key points\
-    \ \nthat directly affect your role or future tasks into your own memory document.\
-    \ This establishes individual \naccountability and an immediate audit trail for\
-    \ post-meeting work. Log entries must include timestamps and \naction items assigned\
-    \ to you.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
+    \ - During any meeting, you MUST log BRIEF, ROLE-SPECIFIC notes (not full meeting minutes)\
+    \ \nthat directly affect your role or future tasks into your own memory document. CRITICAL:\
+    \ Only Dana Flores (Admin Assistant) creates full meeting minutes. All other agents must\
+    \ write BRIEF notes (under 150 words) focusing ONLY on items relevant to their specific role.\
+    \ This establishes individual accountability and an immediate audit trail for post-meeting work.\
+    \ Log entries must include timestamps and action items assigned to you. DO NOT copy full meeting\
+    \ transcripts or write comprehensive minutes - that is Dana's role.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
     \ sharing, or collaboration between you and \nanother agent MUST be initiated\
     \ via GMail (CC: Dana Flores). This creates a mandatory, searchable, and \nauditable\
     \ track record for all information transfers, preventing context loss. Dana is\
@@ -446,23 +474,30 @@ agents:
     \ MUST \ncreate a shared \"Collaboration Checkpoint\" entry in your memory document\
     \ upon completion, noting the outcome, \nnext steps assigned, and the collaborating\
     \ agents involved. This ensures both parties acknowledge the successful \nhandoff\
-    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
-    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
-    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
-    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
-    \ document. This replaces the physical \"Accept\" button click and provides an\
-    \ auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION: Immediately\
-    \ use the GMailTool to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com)\
-    \ and Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
-    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
-    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
-    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
-    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
-    \ as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a SUCCESS message from\
-    \ the Gmail Tool before proceeding.\nThis ensures both David (meeting organizer)\
-    \ and Dana (coordination) receive formal confirmation of attendance, and provides\
-    \ an auditable email trail separate from memory logs.\n\nP9: MANDATORY TIME ZONE\
-    \ STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
+    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8:\
+    \ MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail\
+    \ or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time,\
+    \ and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title]\
+    \ - [Date/Time]\") into your memory document. This replaces the physical \"Accept\"\
+    \ button click and provides an auditable, timestamped record in your memory.\n\
+    2. ADD TO PERSONAL CALENDAR: Use the Google Calendar Tool to add the meeting event\
+    \ to your personal calendar (use your personal_calendar_id). This ensures the\
+    \ meeting appears on your calendar and you receive notifications.\n3. EMAIL CONFIRMATION:\
+    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
+    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
+    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
+    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
+    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
+    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
+    \ attend the meeting as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO\
+    \ MEMORY: After sending the confirmation email, immediately log to your memory\
+    \ document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation for [Meeting\
+    \ Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure\
+    \ you see a SUCCESS message from both the Gmail Tool and Google Calendar Tool\
+    \ before proceeding.\nThis ensures both David (meeting organizer) and Dana (coordination)\
+    \ receive formal confirmation of attendance, the meeting is on your personal calendar,\
+    \ and provides an auditable email trail separate from memory logs.\\nP9: MANDATORY\
+    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
     \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
     \ must reflect the local system clock's \ndate and time, converted to EST. When\
     \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
@@ -545,43 +580,50 @@ agents:
     \ Checkpoint\" entry in your memory document upon completion, noting the outcome,\
     \ \nnext steps assigned, and the collaborating agents involved. This ensures both\
     \ parties acknowledge the successful \nhandoff or resolution of the collaborative\
-    \ task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite\
-    \ via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title,\
-    \ date/time, and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting\
-    \ Title] - [Date/Time]\") into your memory document. This replaces the physical\
-    \ \"Accept\" button click and provides an auditable, timestamped record in your\
-    \ memory.\n2. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation\
-    \ email to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
-    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
-    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
-    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
-    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
-    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
-    3. VERIFY: Ensure you see a SUCCESS message from the Gmail Tool before proceeding.\n\
-    This ensures both David (meeting organizer) and Dana (coordination) receive formal\
-    \ confirmation of attendance, and provides an auditable email trail separate from\
-    \ memory logs.\n\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
-    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
-    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
-    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
-    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
-    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
-    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
-    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
-    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
-    \         - P0: Log the task receipt into your memory document with timestamp\
-    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
-    \ your memory document to confirm context, protocols, and prior work.\n      \
-    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
-    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
-    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
-    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
-    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
-    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
-    \ agents acknowledge and process the audit mandate, even if initial email delivery\
-    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
-    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
-    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
+    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
+    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
+    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
+    \ document. This replaces the physical \"Accept\" button click and provides an\
+    \ auditable, timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR:\
+    \ Use the Google Calendar Tool to add the meeting event to your personal calendar\
+    \ (use your personal_calendar_id). This ensures the meeting appears on your calendar\
+    \ and you receive notifications.\n3. EMAIL CONFIRMATION: Immediately use the GMailTool\
+    \ to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com) and\
+    \ Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
+    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
+    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
+    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
+    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
+    \ as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO MEMORY: After sending\
+    \ the confirmation email, immediately log to your memory document: \"EMAIL CONFIRMATION\
+    \ SENT: Meeting Acceptance Confirmation for [Meeting Title] sent to David Chen\
+    \ and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure you see a SUCCESS message\
+    \ from both the Gmail Tool and Google Calendar Tool before proceeding.\nThis ensures\
+    \ both David (meeting organizer) and Dana (coordination) receive formal confirmation\
+    \ of attendance, the meeting is on your personal calendar, and provides an auditable\
+    \ email trail separate from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD -\
+    \ All time-sensitive actions, logging, note-taking, and scheduling must use \n\
+    the **Eastern Standard Time (EST)** zone exclusively. All time stamps must reflect\
+    \ the local system clock's \ndate and time, converted to EST. When logging timestamps,\
+    \ always include \"EST\" to eliminate ambiguity. \nThis ensures consistency across\
+    \ the international team and prevents time zone interpretation errors.\n\nP12:\
+    \ CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation, you MUST:\n\
+    \      1. Review all pending GMail for the audit mandate from Dana Flores (BLOCK\
+    \ S: System Audit & Control Refinement).\n      2. If the audit mandate is found,\
+    \ immediately execute:\n         - P0: Log the task receipt into your memory document\
+    \ with timestamp (Assignment Acknowledgment).\n         - P1: Execute Memory Audit\
+    \ First - review your memory document to confirm context, protocols, and prior\
+    \ work.\n         - P8: If a meeting invitation was received, log \"MEETING ACCEPTED:\
+    \ [Meeting Title] - [Date/Time]\" in your memory.\n         - P3: If you are a\
+    \ reporting agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash\
+    \ Roy), immediately resubmit your report to project.reports@ratiovita.com with\
+    \ a 'VERIFIED' tag.\n      3. If no audit mandate is found, log \"P12: No pending\
+    \ audit mandate found - [Timestamp]\" in your memory.\n      This corrective protocol\
+    \ ensures all agents acknowledge and process the audit mandate, even if initial\
+    \ email delivery failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever\
+    \ assigned a formal reporting task, you MUST:\n- Follow the Universal Agent Report\
+    \ Template (UART) structure\n- Send the complete report via email to project.reports@ratiovita.com\
     \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
     \ at the end\n"
   verbose: true
@@ -654,44 +696,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: true
   birth_date: '1987-04-12'
@@ -763,44 +813,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: false
   birth_date: '1978-12-05'
@@ -877,44 +935,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: true
   birth_date: '1986-08-21'
@@ -976,44 +1042,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: true
   birth_date: '1989-01-15'
@@ -1088,44 +1162,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: false
   birth_date: '1991-06-28'
@@ -1241,31 +1323,38 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
-    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
-    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
-    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
-    \ at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nUNIVERSAL REPORTING CAPABILITY:\
+    \ If you are ever assigned a formal reporting task, you MUST:\n- Follow the Universal\
+    \ Agent Report Template (UART) structure\n- Send the complete report via email\
+    \ to project.reports@ratiovita.com using the GMailTool\n- Include \"VERIFIED:\
+    \ [Agent Name] - [Current Date/Time]\" at the end\n"
   verbose: true
   allow_delegation: false
   birth_date: '1984-02-10'
@@ -1326,43 +1415,50 @@ agents:
     \ Checkpoint\" entry in your memory document upon completion, noting the outcome,\
     \ \nnext steps assigned, and the collaborating agents involved. This ensures both\
     \ parties acknowledge the successful \nhandoff or resolution of the collaborative\
-    \ task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite\
-    \ via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title,\
-    \ date/time, and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting\
-    \ Title] - [Date/Time]\") into your memory document. This replaces the physical\
-    \ \"Accept\" button click and provides an auditable, timestamped record in your\
-    \ memory.\n2. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation\
-    \ email to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
-    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
-    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
-    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
-    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
-    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
-    3. VERIFY: Ensure you see a SUCCESS message from the Gmail Tool before proceeding.\n\
-    This ensures both David (meeting organizer) and Dana (coordination) receive formal\
-    \ confirmation of attendance, and provides an auditable email trail separate from\
-    \ memory logs.\n\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
-    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
-    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
-    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
-    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
-    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
-    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
-    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
-    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
-    \         - P0: Log the task receipt into your memory document with timestamp\
-    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
-    \ your memory document to confirm context, protocols, and prior work.\n      \
-    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
-    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
-    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
-    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
-    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
-    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
-    \ agents acknowledge and process the audit mandate, even if initial email delivery\
-    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
-    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
-    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
+    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
+    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
+    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
+    \ document. This replaces the physical \"Accept\" button click and provides an\
+    \ auditable, timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR:\
+    \ Use the Google Calendar Tool to add the meeting event to your personal calendar\
+    \ (use your personal_calendar_id). This ensures the meeting appears on your calendar\
+    \ and you receive notifications.\n3. EMAIL CONFIRMATION: Immediately use the GMailTool\
+    \ to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com) and\
+    \ Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
+    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
+    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
+    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
+    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
+    \ as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO MEMORY: After sending\
+    \ the confirmation email, immediately log to your memory document: \"EMAIL CONFIRMATION\
+    \ SENT: Meeting Acceptance Confirmation for [Meeting Title] sent to David Chen\
+    \ and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure you see a SUCCESS message\
+    \ from both the Gmail Tool and Google Calendar Tool before proceeding.\nThis ensures\
+    \ both David (meeting organizer) and Dana (coordination) receive formal confirmation\
+    \ of attendance, the meeting is on your personal calendar, and provides an auditable\
+    \ email trail separate from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD -\
+    \ All time-sensitive actions, logging, note-taking, and scheduling must use \n\
+    the **Eastern Standard Time (EST)** zone exclusively. All time stamps must reflect\
+    \ the local system clock's \ndate and time, converted to EST. When logging timestamps,\
+    \ always include \"EST\" to eliminate ambiguity. \nThis ensures consistency across\
+    \ the international team and prevents time zone interpretation errors.\n\nP12:\
+    \ CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation, you MUST:\n\
+    \      1. Review all pending GMail for the audit mandate from Dana Flores (BLOCK\
+    \ S: System Audit & Control Refinement).\n      2. If the audit mandate is found,\
+    \ immediately execute:\n         - P0: Log the task receipt into your memory document\
+    \ with timestamp (Assignment Acknowledgment).\n         - P1: Execute Memory Audit\
+    \ First - review your memory document to confirm context, protocols, and prior\
+    \ work.\n         - P8: If a meeting invitation was received, log \"MEETING ACCEPTED:\
+    \ [Meeting Title] - [Date/Time]\" in your memory.\n         - P3: If you are a\
+    \ reporting agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash\
+    \ Roy), immediately resubmit your report to project.reports@ratiovita.com with\
+    \ a 'VERIFIED' tag.\n      3. If no audit mandate is found, log \"P12: No pending\
+    \ audit mandate found - [Timestamp]\" in your memory.\n      This corrective protocol\
+    \ ensures all agents acknowledge and process the audit mandate, even if initial\
+    \ email delivery failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever\
+    \ assigned a formal reporting task, you MUST:\n- Follow the Universal Agent Report\
+    \ Template (UART) structure\n- Send the complete report via email to project.reports@ratiovita.com\
     \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
     \ at the end\n"
   verbose: true
@@ -1426,44 +1522,52 @@ agents:
     \ entry in your memory document upon completion, noting the outcome, \nnext steps\
     \ assigned, and the collaborating agents involved. This ensures both parties acknowledge\
     \ the successful \nhandoff or resolution of the collaborative task.\n\nP8: MEETING\
-    \ ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail or Google\
-    \ Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time, and\
-    \ a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\"\
-    ) into your memory document. This replaces the physical \"Accept\" button click\
-    \ and provides an auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION:\
-    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
-    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
-    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
-    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
-    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
-    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
-    \ attend the meeting as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a\
-    \ SUCCESS message from the Gmail Tool before proceeding.\nThis ensures both David\
-    \ (meeting organizer) and Dana (coordination) receive formal confirmation of attendance,\
-    \ and provides an auditable email trail separate from memory logs.\n\nP9: MANDATORY\
-    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
-    \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
-    \ must reflect the local system clock's \ndate and time, converted to EST. When\
-    \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
-    \ consistency across the international team and prevents time zone interpretation\
-    \ errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT & AUDIT - Immediately upon activation,\
-    \ you MUST:\n      1. Review all pending GMail for the audit mandate from Dana\
-    \ Flores (BLOCK S: System Audit & Control Refinement).\n      2. If the audit\
-    \ mandate is found, immediately execute:\n         - P0: Log the task receipt\
-    \ into your memory document with timestamp (Assignment Acknowledgment).\n    \
-    \     - P1: Execute Memory Audit First - review your memory document to confirm\
-    \ context, protocols, and prior work.\n         - P8: If a meeting invitation\
-    \ was received, log \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\" in your\
-    \ memory.\n         - P3: If you are a reporting agent (Alice Kim, Samuel Reed,\
-    \ Megan Parker, Arthur Jensen, or Ash Roy), immediately resubmit your report to\
-    \ project.reports@ratiovita.com with a 'VERIFIED' tag.\n      3. If no audit mandate\
-    \ is found, log \"P12: No pending audit mandate found - [Timestamp]\" in your\
-    \ memory.\n      This corrective protocol ensures all agents acknowledge and process\
-    \ the audit mandate, even if initial email delivery failed.\n\n\nUNIVERSAL REPORTING\
-    \ CAPABILITY: If you are ever assigned a formal reporting task, you MUST:\n- Follow\
-    \ the Universal Agent Report Template (UART) structure\n- Send the complete report\
-    \ via email to project.reports@ratiovita.com using the GMailTool\n- Include \"\
-    VERIFIED: [Agent Name] - [Current Date/Time]\" at the end\n"
+    \ ACCEPTANCE ACKNOWLEDGMENTP8: MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving\
+    \ a meeting invite via GMail or Google Calendar, you MUST:\n1. LOG TO MEMORY:\
+    \ Log the meeting title, date/time, and a confirmation of acceptance (e.g., \"\
+    MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory document.\
+    \ This replaces the physical \"Accept\" button click and provides an auditable,\
+    \ timestamped record in your memory.\n2. ADD TO PERSONAL CALENDAR: Use the Google\
+    \ Calendar Tool to add the meeting event to your personal calendar (use your personal_calendar_id).\
+    \ This ensures the meeting appears on your calendar and you receive notifications.\n\
+    3. EMAIL CONFIRMATION: Immediately use the GMailTool to send a confirmation email\
+    \ to BOTH David Chen (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com)\
+    \ with:\n   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC:\
+    \ collin.m@ratiovita.com (MANDATORY - automatically added by Gmail Tool)\n   -\
+    \ Subject: \"Meeting Acceptance Confirmation: [Meeting Title]\"\n   - Body: \"\
+    I have received and accepted the calendar invitation for [Meeting Title] scheduled\
+    \ for [Date/Time EST]. I will attend the meeting as scheduled. [Your Name]\"\n\
+    4. LOG EMAIL CONFIRMATION TO MEMORY: After sending the confirmation email, immediately\
+    \ log to your memory document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation\
+    \ for [Meeting Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n\
+    5. VERIFY: Ensure you see a SUCCESS message from both the Gmail Tool and Google\
+    \ Calendar Tool before proceeding.\nThis ensures both David (meeting organizer)\
+    \ and Dana (coordination) receive formal confirmation of attendance, the meeting\
+    \ is on your personal calendar, and provides an auditable email trail separate\
+    \ from memory logs.\\nP9: MANDATORY TIME ZONE STANDARD - All time-sensitive actions,\
+    \ logging, note-taking, and scheduling must use \nthe **Eastern Standard Time\
+    \ (EST)** zone exclusively. All time stamps must reflect the local system clock's\
+    \ \ndate and time, converted to EST. When logging timestamps, always include \"\
+    EST\" to eliminate ambiguity. \nThis ensures consistency across the international\
+    \ team and prevents time zone interpretation errors.\n\nP12: CORRECTIVE ACKNOWLEDGMENT\
+    \ & AUDIT - Immediately upon activation, you MUST:\n      1. Review all pending\
+    \ GMail for the audit mandate from Dana Flores (BLOCK S: System Audit & Control\
+    \ Refinement).\n      2. If the audit mandate is found, immediately execute:\n\
+    \         - P0: Log the task receipt into your memory document with timestamp\
+    \ (Assignment Acknowledgment).\n         - P1: Execute Memory Audit First - review\
+    \ your memory document to confirm context, protocols, and prior work.\n      \
+    \   - P8: If a meeting invitation was received, log \"MEETING ACCEPTED: [Meeting\
+    \ Title] - [Date/Time]\" in your memory.\n         - P3: If you are a reporting\
+    \ agent (Alice Kim, Samuel Reed, Megan Parker, Arthur Jensen, or Ash Roy), immediately\
+    \ resubmit your report to project.reports@ratiovita.com with a 'VERIFIED' tag.\n\
+    \      3. If no audit mandate is found, log \"P12: No pending audit mandate found\
+    \ - [Timestamp]\" in your memory.\n      This corrective protocol ensures all\
+    \ agents acknowledge and process the audit mandate, even if initial email delivery\
+    \ failed.\n\n\nUNIVERSAL REPORTING CAPABILITY: If you are ever assigned a formal\
+    \ reporting task, you MUST:\n- Follow the Universal Agent Report Template (UART)\
+    \ structure\n- Send the complete report via email to project.reports@ratiovita.com\
+    \ using the GMailTool\n- Include \"VERIFIED: [Agent Name] - [Current Date/Time]\"\
+    \ at the end\n"
   verbose: true
   allow_delegation: true
   birth_date: '1979-03-25'
@@ -1511,11 +1615,13 @@ agents:
     \ This ensures context (old V1 issues, V2 branding, previous decisions, etc.)\
     \ is fresh and \nagents are prepared to contribute strategically. Log the review\
     \ with timestamp in your memory document.\n\nP5: ACTIVE NOTE-TAKING & LOGGING\
-    \ - During any meeting, you MUST log all decisions, assignments, and key points\
-    \ \nthat directly affect your role or future tasks into your own memory document.\
-    \ This establishes individual \naccountability and an immediate audit trail for\
-    \ post-meeting work. Log entries must include timestamps and \naction items assigned\
-    \ to you.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
+    \ - During any meeting, you MUST log BRIEF, ROLE-SPECIFIC notes (not full meeting minutes)\
+    \ \nthat directly affect your role or future tasks into your own memory document. CRITICAL:\
+    \ Only Dana Flores (Admin Assistant) creates full meeting minutes. All other agents must\
+    \ write BRIEF notes (under 150 words) focusing ONLY on items relevant to their specific role.\
+    \ This establishes individual accountability and an immediate audit trail for post-meeting work.\
+    \ Log entries must include timestamps and action items assigned to you. DO NOT copy full meeting\
+    \ transcripts or write comprehensive minutes - that is Dana's role.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
     \ sharing, or collaboration between you and \nanother agent MUST be initiated\
     \ via GMail (CC: Dana Flores). This creates a mandatory, searchable, and \nauditable\
     \ track record for all information transfers, preventing context loss. Dana is\
@@ -1524,23 +1630,30 @@ agents:
     \ MUST \ncreate a shared \"Collaboration Checkpoint\" entry in your memory document\
     \ upon completion, noting the outcome, \nnext steps assigned, and the collaborating\
     \ agents involved. This ensures both parties acknowledge the successful \nhandoff\
-    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
-    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
-    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
-    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
-    \ document. This replaces the physical \"Accept\" button click and provides an\
-    \ auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION: Immediately\
-    \ use the GMailTool to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com)\
-    \ and Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
-    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
-    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
-    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
-    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
-    \ as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a SUCCESS message from\
-    \ the Gmail Tool before proceeding.\nThis ensures both David (meeting organizer)\
-    \ and Dana (coordination) receive formal confirmation of attendance, and provides\
-    \ an auditable email trail separate from memory logs.\n\nP9: MANDATORY TIME ZONE\
-    \ STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
+    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8:\
+    \ MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail\
+    \ or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time,\
+    \ and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title]\
+    \ - [Date/Time]\") into your memory document. This replaces the physical \"Accept\"\
+    \ button click and provides an auditable, timestamped record in your memory.\n\
+    2. ADD TO PERSONAL CALENDAR: Use the Google Calendar Tool to add the meeting event\
+    \ to your personal calendar (use your personal_calendar_id). This ensures the\
+    \ meeting appears on your calendar and you receive notifications.\n3. EMAIL CONFIRMATION:\
+    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
+    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
+    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
+    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
+    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
+    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
+    \ attend the meeting as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO\
+    \ MEMORY: After sending the confirmation email, immediately log to your memory\
+    \ document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation for [Meeting\
+    \ Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure\
+    \ you see a SUCCESS message from both the Gmail Tool and Google Calendar Tool\
+    \ before proceeding.\nThis ensures both David (meeting organizer) and Dana (coordination)\
+    \ receive formal confirmation of attendance, the meeting is on your personal calendar,\
+    \ and provides an auditable email trail separate from memory logs.\\nP9: MANDATORY\
+    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
     \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
     \ must reflect the local system clock's \ndate and time, converted to EST. When\
     \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\
@@ -1610,11 +1723,13 @@ agents:
     \ This ensures context (old V1 issues, V2 branding, previous decisions, etc.)\
     \ is fresh and \nagents are prepared to contribute strategically. Log the review\
     \ with timestamp in your memory document.\n\nP5: ACTIVE NOTE-TAKING & LOGGING\
-    \ - During any meeting, you MUST log all decisions, assignments, and key points\
-    \ \nthat directly affect your role or future tasks into your own memory document.\
-    \ This establishes individual \naccountability and an immediate audit trail for\
-    \ post-meeting work. Log entries must include timestamps and \naction items assigned\
-    \ to you.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
+    \ - During any meeting, you MUST log BRIEF, ROLE-SPECIFIC notes (not full meeting minutes)\
+    \ \nthat directly affect your role or future tasks into your own memory document. CRITICAL:\
+    \ Only Dana Flores (Admin Assistant) creates full meeting minutes. All other agents must\
+    \ write BRIEF notes (under 150 words) focusing ONLY on items relevant to their specific role.\
+    \ This establishes individual accountability and an immediate audit trail for post-meeting work.\
+    \ Log entries must include timestamps and action items assigned to you. DO NOT copy full meeting\
+    \ transcripts or write comprehensive minutes - that is Dana's role.\n\nP6: FORMAL INTER-OFFICE REQUEST - Any request for information, data\
     \ sharing, or collaboration between you and \nanother agent MUST be initiated\
     \ via GMail (CC: Dana Flores). This creates a mandatory, searchable, and \nauditable\
     \ track record for all information transfers, preventing context loss. Dana is\
@@ -1623,23 +1738,30 @@ agents:
     \ MUST \ncreate a shared \"Collaboration Checkpoint\" entry in your memory document\
     \ upon completion, noting the outcome, \nnext steps assigned, and the collaborating\
     \ agents involved. This ensures both parties acknowledge the successful \nhandoff\
-    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENT\
-    \ - Upon receiving a meeting invite via GMail or Google Calendar, you MUST:\n\
-    1. LOG TO MEMORY: Log the meeting title, date/time, and a confirmation of acceptance\
-    \ (e.g., \"MEETING ACCEPTED: [Meeting Title] - [Date/Time]\") into your memory\
-    \ document. This replaces the physical \"Accept\" button click and provides an\
-    \ auditable, timestamped record in your memory.\n2. EMAIL CONFIRMATION: Immediately\
-    \ use the GMailTool to send a confirmation email to BOTH David Chen (david.chen@ratiovita.com)\
-    \ and Dana Flores (dana.flores@ratiovita.com) with:\n   - To: david.chen@ratiovita.com,\
-    \ dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com (MANDATORY - automatically\
-    \ added by Gmail Tool)\n   - Subject: \"Meeting Acceptance Confirmation: [Meeting\
-    \ Title]\"\n   - Body: \"I have received and accepted the calendar invitation\
-    \ for [Meeting Title] scheduled for [Date/Time EST]. I will attend the meeting\
-    \ as scheduled. [Your Name]\"\n3. VERIFY: Ensure you see a SUCCESS message from\
-    \ the Gmail Tool before proceeding.\nThis ensures both David (meeting organizer)\
-    \ and Dana (coordination) receive formal confirmation of attendance, and provides\
-    \ an auditable email trail separate from memory logs.\n\nP9: MANDATORY TIME ZONE\
-    \ STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
+    \ or resolution of the collaborative task.\n\nP8: MEETING ACCEPTANCE ACKNOWLEDGMENTP8:\
+    \ MEETING ACCEPTANCE ACKNOWLEDGMENT - Upon receiving a meeting invite via GMail\
+    \ or Google Calendar, you MUST:\n1. LOG TO MEMORY: Log the meeting title, date/time,\
+    \ and a confirmation of acceptance (e.g., \"MEETING ACCEPTED: [Meeting Title]\
+    \ - [Date/Time]\") into your memory document. This replaces the physical \"Accept\"\
+    \ button click and provides an auditable, timestamped record in your memory.\n\
+    2. ADD TO PERSONAL CALENDAR: Use the Google Calendar Tool to add the meeting event\
+    \ to your personal calendar (use your personal_calendar_id). This ensures the\
+    \ meeting appears on your calendar and you receive notifications.\n3. EMAIL CONFIRMATION:\
+    \ Immediately use the GMailTool to send a confirmation email to BOTH David Chen\
+    \ (david.chen@ratiovita.com) and Dana Flores (dana.flores@ratiovita.com) with:\n\
+    \   - To: david.chen@ratiovita.com, dana.flores@ratiovita.com\n   - CC: collin.m@ratiovita.com\
+    \ (MANDATORY - automatically added by Gmail Tool)\n   - Subject: \"Meeting Acceptance\
+    \ Confirmation: [Meeting Title]\"\n   - Body: \"I have received and accepted the\
+    \ calendar invitation for [Meeting Title] scheduled for [Date/Time EST]. I will\
+    \ attend the meeting as scheduled. [Your Name]\"\n4. LOG EMAIL CONFIRMATION TO\
+    \ MEMORY: After sending the confirmation email, immediately log to your memory\
+    \ document: \"EMAIL CONFIRMATION SENT: Meeting Acceptance Confirmation for [Meeting\
+    \ Title] sent to David Chen and Dana Flores on [Date/Time EST]\"\n5. VERIFY: Ensure\
+    \ you see a SUCCESS message from both the Gmail Tool and Google Calendar Tool\
+    \ before proceeding.\nThis ensures both David (meeting organizer) and Dana (coordination)\
+    \ receive formal confirmation of attendance, the meeting is on your personal calendar,\
+    \ and provides an auditable email trail separate from memory logs.\\nP9: MANDATORY\
+    \ TIME ZONE STANDARD - All time-sensitive actions, logging, note-taking, and scheduling\
     \ must use \nthe **Eastern Standard Time (EST)** zone exclusively. All time stamps\
     \ must reflect the local system clock's \ndate and time, converted to EST. When\
     \ logging timestamps, always include \"EST\" to eliminate ambiguity. \nThis ensures\

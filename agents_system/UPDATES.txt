@@ -1,0 +1,2 @@
+Upgrade dataprocesslib to version 2.5.0 to include authenticated logging hook for CCPA compliance.
+Update requirements.txt accordingly.

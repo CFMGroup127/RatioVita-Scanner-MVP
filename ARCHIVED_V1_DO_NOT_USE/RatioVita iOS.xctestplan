@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "20A944FB-D218-4C0E-AF73-0B3590163C6D",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:RatioVita.xcodeproj",
+      "identifier" : "4CF61B1B2E96D1B69101D2F9",
+      "name" : "RatioVita iOS"
+    }
+  },
+  "testTargets" : [
+
+  ],
+  "version" : 1
+}

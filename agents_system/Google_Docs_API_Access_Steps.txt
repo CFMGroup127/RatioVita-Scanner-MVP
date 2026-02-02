@@ -1,0 +1,10 @@
+To re-enable Google Docs API access, follow these steps:
+
+1. **Check Google Cloud Console**: Go to the Google Cloud Console (https://console.cloud.google.com/).
+2. **Select Project**: Ensure you are in the correct project associated with the Google Docs API.
+3. **Enable API**: Navigate to the 'APIs & Services' section, and select 'Library'. Search for 'Google Docs API' and click on it. Then, click the 'Enable' button if it is disabled.
+4. **Credentials**: Go to 'APIs & Services' > 'Credentials'. Ensure that you have valid OAuth 2.0 credentials. If not, create new credentials by clicking on 'Create Credentials'.
+5. **OAuth Consent Screen**: Ensure that the OAuth consent screen is configured properly. Fill out any required fields and save.
+6. **Check Quotas**: Verify that you have not exceeded your API usage limits in the 'Quotas' section.
+7. **Permissions**: Ensure that the service account or user has the necessary permissions to access the Google Docs API.
+8. **Testing**: After re-enabling, test the API access using a simple request to confirm that it works as expected.

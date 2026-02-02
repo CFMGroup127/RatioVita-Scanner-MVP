@@ -1,0 +1,390 @@
+# RatioVita Diagnostic Bundle
+# Generated: $(date)
+# Purpose: Fix immediate launch crash (error 163) and ensure theme is applied globally
+
+## 0) Quick Context
+- iOS version + simulator/device model: iOS 18.5 (iPhone 15 Pro Max - 0A52D615-E9DC-42A6-99F3-6F603E11DE8E) and iOS 26.0 beta
+- Xcode version: Xcode 26.0 beta (17A5305k)
+- Did the crash start after a recent change: Yes, after implementing the design system and theme manager
+- Current issue summary: App crashes immediately on launch (error 163), design system not applied (default iOS styling)
+
+## 1) App Entry Points
+
+### 1.1 RatioVitaApp.swift
+```swift
+//
+//  RatioVitaApp.swift
+//  RatioVita
+//
+//  Created by CFM Group International on 2025-09-02.
+//
+
+import SwiftData
+import SwiftUI
+
+@main
+struct RatioVitaApp: App {
+    var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            Item.self,
+            Receipt.self,
+            ReceiptImage.self,
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        do {
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            fatalError("Could not create ModelContainer: \(error)")
+        }
+    }()
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .ratioVitaTheme()
+        }
+        .modelContainer(sharedModelContainer)
+    }
+}
+```
+
+### 1.2 ContentView.swift
+```swift
+//
+//  ContentView.swift
+//  RatioVita
+//
+//  Created by CFM Group International on 2025-09-02.
+//
+
+import SwiftData
+import SwiftUI
+
+struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        #if os(macOS)
+        NavigationSplitView {
+            ReceiptsView()
+        } detail: {
+            Text("Select a receipt")
+        }
+        .navigationTitle("Receipts")
+        // .ratioVitaTheme() // Temporarily disabled for testing
+        #else
+        NavigationStack {
+            ReceiptsView()
+                .navigationTitle("Receipts")
+        }
+        // .ratioVitaTheme() // Temporarily disabled for testing
+        #endif
+    }
+}
+
+#Preview {
+    ContentView()
+        .modelContainer(SampleData.previewContainer)
+}
+```
+
+## 2) Theme System
+
+### 2.1 ThemeManager.swift
+```swift
+import SwiftUI
+import Combine
+
+// MARK: - Theme Manager
+
+/// Manages app-wide theming and color schemes
+@MainActor
+class ThemeManager: ObservableObject {
+    static let shared = ThemeManager()
+    
+    @Published var isDarkMode: Bool = false
+    @Published var accentColor: Color = .ratioVitaPrimary
+    @Published var customTheme: RatioVitaTheme = .default
+    
+    private init() {
+        // Load saved preferences
+        loadTheme()
+    }
+    
+    // MARK: - Theme Management
+    
+    func toggleDarkMode() {
+        isDarkMode.toggle()
+        saveTheme()
+    }
+    
+    func setAccentColor(_ color: Color) {
+        accentColor = color
+        saveTheme()
+    }
+    
+    func setCustomTheme(_ theme: RatioVitaTheme) {
+        customTheme = theme
+        saveTheme()
+    }
+    
+    // MARK: - Persistence
+    
+    private func saveTheme() {
+        UserDefaults.standard.set(isDarkMode, forKey: "isDarkMode")
+        UserDefaults.standard.set(accentColor.toHex(), forKey: "accentColor")
+        UserDefaults.standard.set(customTheme.rawValue, forKey: "customTheme")
+    }
+    
+    private func loadTheme() {
+        isDarkMode = UserDefaults.standard.bool(forKey: "isDarkMode")
+        
+        if let accentHex = UserDefaults.standard.string(forKey: "accentColor") {
+            accentColor = Color(hex: accentHex)
+        }
+        
+        if let themeRawValue = UserDefaults.standard.string(forKey: "customTheme"),
+           let theme = RatioVitaTheme(rawValue: themeRawValue) {
+            customTheme = theme
+        }
+    }
+}
+
+// MARK: - RatioVita Themes
+
+enum RatioVitaTheme: String, CaseIterable {
+    case `default` = "Default"
+    case forest = "Forest"
+    case ocean = "Ocean"
+    case sunset = "Sunset"
+    case monochrome = "Monochrome"
+    
+    var displayName: String {
+        rawValue
+    }
+    
+    var primaryColor: Color {
+        switch self {
+        case .default:
+            return .ratioVitaPrimary
+        case .forest:
+            return Color(hex: "#2E7D32")
+        case .ocean:
+            return Color(hex: "#1976D2")
+        case .sunset:
+            return Color(hex: "#FF5722")
+        case .monochrome:
+            return Color(hex: "#424242")
+        }
+    }
+    
+    var secondaryColor: Color {
+        switch self {
+        case .default:
+            return .ratioVitaSecondary
+        case .forest:
+            return Color(hex: "#4CAF50")
+        case .ocean:
+            return Color(hex: "#03A9F4")
+        case .sunset:
+            return Color(hex: "#FF9800")
+        case .monochrome:
+            return Color(hex: "#757575")
+        }
+    }
+    
+    var accentColor: Color {
+        switch self {
+        case .default:
+            return .ratioVitaAccent
+        case .forest:
+            return Color(hex: "#8BC34A")
+        case .ocean:
+            return Color(hex: "#00BCD4")
+        case .sunset:
+            return Color(hex: "#FFC107")
+        case .monochrome:
+            return Color(hex: "#9E9E9E")
+        }
+    }
+}
+
+// MARK: - Theme Environment
+
+struct ThemeEnvironmentKey: EnvironmentKey {
+    static let defaultValue = ThemeManager.shared
+}
+
+extension EnvironmentValues {
+    var theme: ThemeManager {
+        get { self[ThemeEnvironmentKey.self] }
+        set { self[ThemeEnvironmentKey.self] = newValue }
+    }
+}
+
+// MARK: - Theme View Modifier
+
+struct ThemeModifier: ViewModifier {
+    @StateObject private var themeManager = ThemeManager.shared
+    
+    func body(content: Content) -> some View {
+        content
+            .environment(\.theme, themeManager)
+            .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
+            .accentColor(themeManager.accentColor)
+    }
+}
+
+extension View {
+    /// Apply RatioVita theme to the view
+    func ratioVitaTheme() -> some View {
+        self.modifier(ThemeModifier())
+    }
+}
+
+// MARK: - Theme Preview
+
+struct ThemePreview: View {
+    @StateObject private var themeManager = ThemeManager.shared
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section("Appearance") {
+                    Toggle("Dark Mode", isOn: $themeManager.isDarkMode)
+                        .onChange(of: themeManager.isDarkMode) { _ in
+                            themeManager.toggleDarkMode()
+                        }
+                }
+                
+                Section("Theme") {
+                    ForEach(RatioVitaTheme.allCases, id: \.self) { theme in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(theme.displayName)
+                                    .font(DesignSystem.Typography.bodyEmphasized)
+                                
+                                HStack(spacing: DesignSystem.Spacing.xs) {
+                                    Circle()
+                                        .fill(theme.primaryColor)
+                                        .frame(width: 12, height: 12)
+                                    
+                                    Circle()
+                                        .fill(theme.secondaryColor)
+                                        .frame(width: 12, height: 12)
+                                    
+                                    Circle()
+                                        .fill(theme.accentColor)
+                                        .frame(width: 12, height: 12)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            if themeManager.customTheme == theme {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(themeManager.accentColor)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            themeManager.setCustomTheme(theme)
+                        }
+                    }
+                }
+                
+                Section("Accent Color") {
+                    HStack {
+                        Text("Accent Color")
+                        
+                        Spacer()
+                        
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            ForEach(Color.tagColors.prefix(8), id: \.self) { color in
+                                Circle()
+                                    .fill(color)
+                                    .frame(width: 24, height: 24)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.ratioVitaAdaptiveText, lineWidth: 1)
+                                    )
+                                    .onTapGesture {
+                                        themeManager.setAccentColor(color)
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Theme Settings")
+        }
+        .ratioVitaTheme()
+    }
+}
+
+#Preview("Theme Preview") {
+    ThemePreview()
+}
+```
+
+## 3) Key Issues Identified
+
+### 3.1 CRITICAL ISSUE: ThemeModifier StateObject Problem
+**Location**: `ThemeManager.swift` line 134
+**Problem**: `@StateObject private var themeManager = ThemeManager.shared` creates a new StateObject every time the modifier is instantiated
+**Impact**: This can cause crashes and inconsistent state management
+
+### 3.2 Theme Application Inconsistency
+**Problem**: Theme is applied in `RatioVitaApp.swift` but commented out in `ContentView.swift`
+**Impact**: Theme may not be applied consistently across the app
+
+### 3.3 Missing Theme in ContentView
+**Location**: `ContentView.swift` lines 22 and 28
+**Problem**: `.ratioVitaTheme()` is commented out
+**Impact**: Child views may not inherit the theme properly
+
+## 4) Recommended Fixes
+
+### 4.1 Fix ThemeModifier
+Replace the `@StateObject` approach with direct usage:
+```swift
+struct ThemeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .environment(\.theme, ThemeManager.shared)
+            .preferredColorScheme(ThemeManager.shared.isDarkMode ? .dark : .light)
+            .accentColor(ThemeManager.shared.accentColor)
+    }
+}
+```
+
+### 4.2 Ensure Single Theme Application
+- Keep `.ratioVitaTheme()` in `RatioVitaApp.swift` (line 31)
+- Remove any duplicate theme applications
+- Ensure theme is applied at the root level only
+
+### 4.3 Verify ModelContainer
+- Confirm `.modelContainer(sharedModelContainer)` is applied at WindowGroup level ✓
+- Schema includes all required models: [Item.self, Receipt.self, ReceiptImage.self] ✓
+
+## 5) Self-Check Checklist
+- [x] .modelContainer(...) applied at WindowGroup with schema: [Receipt.self, ReceiptImage.self, Item.self]
+- [x] Only one ModelContainer in the running app (previews/tests use separate in-memory containers)
+- [ ] .ratioVitaTheme() applied at the root (WindowGroup or top of ContentView) - PARTIALLY (applied in RatioVitaApp but commented in ContentView)
+- [ ] ThemeManager has no force-unwraps/heavy work during init - ISSUE: @StateObject in ThemeModifier
+- [x] Scanner services don't access camera at app launch (only after user taps Scan)
+- [x] Info.plist includes NSCameraUsageDescription
+- [ ] Tried a different simulator/device or iOS version (avoid beta OS while debugging) - RECOMMENDED
+
+## 6) Success Criteria
+- App launches without crashing
+- Theme visible globally (green palette), typography consistent
+- StatusBadge, SectionHeader, CardStyle, PrimaryButtonStyle render correctly
+- Dark/light mode switching functional
+
+## 7) Next Steps
+1. Fix the ThemeModifier to remove @StateObject
+2. Ensure theme is applied only at the root level
+3. Test on iOS 18.5 simulator (avoid iOS 26.0 beta)
+4. Verify all design system components render correctly

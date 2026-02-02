@@ -1,0 +1,3 @@
+Subject: V1 Legacy Codebase Quarantined - Off-Limits for V2 Development
+
+This is a formal notification that the V1 legacy codebase has been quarantined and moved to ARCHIVED_V1_DO_NOT_USE directory. All agents are instructed that the V1 folder is strictly off-limits for V2 development and testing. Any code, architectural patterns, or configurations from V1 are forbidden from V2 compilation per the V1 CODE INJECTION GUARDRAIL protocol.

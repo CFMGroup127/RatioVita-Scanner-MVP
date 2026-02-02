@@ -1,0 +1,6 @@
+Introduction:
+Name: Sales Manager
+Role: Go-to-Market Strategy
+Birth Date: 1983-10-07
+Favorite Restaurant: Sales Success Sushi
+This information is part of the Birthday Lunch System Integration Test.
