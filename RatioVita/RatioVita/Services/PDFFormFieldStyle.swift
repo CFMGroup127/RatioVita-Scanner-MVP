@@ -68,6 +68,38 @@ enum PDFFormFieldStyle {
     }
 
     /// Prevents PDFKit from re-opening grid cells with EP’s oversized default font when previewing exports.
+    /// Reads AcroForm widget text, then freeText overlays stamped by export (widgets are often cleared).
+    static func readGridFieldValue(on page: PDFPage, named fieldName: String) -> String? {
+        let widgets = page.annotations.filter { $0.fieldName == fieldName }
+        for widget in widgets {
+            if let value = normalizedFieldText(widget.widgetStringValue) {
+                return value
+            }
+            if let overlay = overlayText(on: page, intersecting: widget.bounds) {
+                return overlay
+            }
+        }
+        return nil
+    }
+
+    private static func normalizedFieldText(_ raw: String?) -> String? {
+        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty, trimmed.lowercased() != "off" else { return nil }
+        return trimmed
+    }
+
+    private static func overlayText(on page: PDFPage, intersecting bounds: CGRect) -> String? {
+        let expanded = bounds.insetBy(dx: -2, dy: -2)
+        let hits = page.annotations.compactMap { ann -> String? in
+            guard ann.fieldName == nil || ann.fieldName?.isEmpty == true else { return nil }
+            let isFreeText = ann.type == "FreeText"
+            guard isFreeText else { return nil }
+            guard ann.bounds.intersects(expanded) else { return nil }
+            return normalizedFieldText(ann.contents)
+        }
+        return hits.first
+    }
+
     static func lockGridWidgetsForDisplay(on page: PDFPage) {
         let gridNames: Set<String> = [
             "DATESUN", "DATEMON", "DATETUE", "DATEWED", "DATETHU", "DATEFRI", "DATESAT",

@@ -730,8 +730,9 @@ private struct TimecardExportResultSheet: View {
                 }
 
                 Text(
-                    "Save & close reads DATE / CALL / MEAL / WRAP / TRAVEL from the PDF on disk (edit in Preview or another app first). "
-                        + "Grid cells in this preview are display-only so fonts stay uniform — use Labor Sentinel for in-app hour entry."
+                    "Save & close reads DATE / CALL / MEAL / WRAP / TRAVEL from the PDF file on disk. "
+                        + "Edit in Preview (or another app), save the file, then tap Save & close here. "
+                        + "In-app grid preview is display-only — hours should be entered in Labor Sentinel or external Preview."
                 )
                 .font(.caption2)
                 .foregroundStyle(.tertiary)

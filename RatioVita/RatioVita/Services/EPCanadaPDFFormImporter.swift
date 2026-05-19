@@ -124,11 +124,7 @@ enum EPCanadaPDFFormImporter {
     }
 
     private static func fieldValue(on page: PDFPage, named name: String) -> String? {
-        let values = page.annotations
-            .filter { $0.fieldName == name }
-            .compactMap { $0.widgetStringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && $0.lowercased() != "off" }
-        return values.first
+        PDFFormFieldStyle.readGridFieldValue(on: page, named: name)
     }
 
     private static func parseTime(_ raw: String?, on workDate: Date?) -> Date? {

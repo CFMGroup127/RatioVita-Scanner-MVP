@@ -6,6 +6,8 @@ enum DocumentCabinet: String, CaseIterable, Identifiable, Hashable {
     case vehicles
     case equipment
     case tools
+    case supplies
+    case kits
 
     var id: String { rawValue }
 
@@ -14,6 +16,8 @@ enum DocumentCabinet: String, CaseIterable, Identifiable, Hashable {
             case .vehicles: "Vehicles"
             case .equipment: "Equipment"
             case .tools: "Tools"
+            case .supplies: "Supplies"
+            case .kits: "Kits"
         }
     }
 
@@ -22,6 +26,8 @@ enum DocumentCabinet: String, CaseIterable, Identifiable, Hashable {
             case .vehicles: "car.fill"
             case .equipment: "wrench.and.screwdriver.fill"
             case .tools: "hammer.fill"
+            case .supplies: "shippingbox.fill"
+            case .kits: "case.fill"
         }
     }
 
@@ -32,11 +38,15 @@ enum DocumentCabinet: String, CaseIterable, Identifiable, Hashable {
     var detailCopy: String {
         switch self {
             case .vehicles:
-                "Vehicle-related receipts and maintenance logs will file here. This cabinet is a placeholder for the upcoming folder hierarchy."
+                "Vehicle-related receipts, insurance, and plate records for payroll kit / car allowances."
             case .equipment:
                 "Grip, electric, and rental equipment paperwork will live here once cabinet routing is enabled."
             case .tools:
                 "Tooling and small-asset purchases will map here for production and facility ops."
+            case .supplies:
+                "Consumables (printer ink, breakdown supplies, notions) tracked for loss and replacement."
+            case .kits:
+                "Named costume-truck / office kits built from Equipment, Tools, and Supplies for deal-memo rentals."
         }
     }
 }
