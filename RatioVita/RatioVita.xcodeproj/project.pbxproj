@@ -263,7 +263,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "#!/bin/sh\n# Safe tooling wrapper: never fail the build and only run when appropriate.\n\n# Only run for Debug to keep Release builds clean/fast\nif [ \"${CONFIGURATION}\" != \"Debug\" ]; then\n  echo \"Skipping tools: CONFIGURATION=${CONFIGURATION}\"\n  exit 0\nfi\n\n# Only run for Apple platforms\ncase \"${PLATFORM_NAME}\" in\n  iphoneos|iphonesimulator|macosx|appletvos|appletvsimulator|watchos|watchsimulator)\n    ;;\n  *)\n    echo \"Skipping tools: PLATFORM_NAME=${PLATFORM_NAME}\"\n    exit 0\n    ;;\nesac\n\nset +e\n\nrun_tool() {\n  TOOL=\"$1\"\n  ARGS=\"$2\"\n  if command -v \"$TOOL\" >/dev/null 2>&1; then\n    echo \"Running $TOOL $ARGS\"\n    \"$TOOL\" $ARGS\n    STATUS=$?\n    if [ $STATUS -ne 0 ]; then\n      echo \"warning: $TOOL exited with status $STATUS (continuing).\"\n    fi\n  else\n    echo \"warning: $TOOL not installed; skipping.\"\n  fi\n}\n\nrun_tool_if_config() {\n  TOOL=\"$1\"\n  ARGS=\"$2\"\n  CONFIG_FILE=\"$3\"\n  if [ -r \"$CONFIG_FILE\" ]; then\n    run_tool \"$TOOL\" \"$ARGS\"\n  else\n    echo \"warning: $TOOL skipped (config not readable: $CONFIG_FILE)\"\n  fi\n}\n\n# Tools to run\nrun_tool swiftlint \"\"\n# Only run SwiftFormat if a readable config exists\nrun_tool_if_config swiftformat \".\" \"${SRCROOT}/.swiftformat\"\n\n# Always succeed\nexit 0\n";
+			shellScript = "#!/bin/sh\n# Optional opt-out (scheme env): RV_SKIP_TOOLS=1 skips SwiftLint/SwiftFormat when Xcode-beta/SourceKit is unstable.\nif [ \"${RV_SKIP_TOOLS:-0}\" = \"1\" ]; then\n  exit 0\nfi\n\n# Safe tooling wrapper: never fail the build and only run when appropriate.\n\n# Only run for Debug to keep Release builds clean/fast\nif [ \"${CONFIGURATION}\" != \"Debug\" ]; then\n  echo \"Skipping tools: CONFIGURATION=${CONFIGURATION}\"\n  exit 0\nfi\n\n# Only run for Apple platforms\ncase \"${PLATFORM_NAME}\" in\n  iphoneos|iphonesimulator|macosx|appletvos|appletvsimulator|watchos|watchsimulator)\n    ;;\n  *)\n    echo \"Skipping tools: PLATFORM_NAME=${PLATFORM_NAME}\"\n    exit 0\n    ;;\nesac\n\nset +e\n\nrun_tool() {\n  TOOL=\"$1\"\n  ARGS=\"$2\"\n  if command -v \"$TOOL\" >/dev/null 2>&1; then\n    echo \"Running $TOOL $ARGS\"\n    \"$TOOL\" $ARGS\n    STATUS=$?\n    if [ $STATUS -ne 0 ]; then\n      echo \"warning: $TOOL exited with status $STATUS (continuing).\"\n    fi\n  else\n    echo \"warning: $TOOL not installed; skipping.\"\n  fi\n}\n\nrun_tool_if_config() {\n  TOOL=\"$1\"\n  ARGS=\"$2\"\n  CONFIG_FILE=\"$3\"\n  if [ -r \"$CONFIG_FILE\" ]; then\n    run_tool \"$TOOL\" \"$ARGS\"\n  else\n    echo \"warning: $TOOL skipped (config not readable: $CONFIG_FILE)\"\n  fi\n}\n\n# Tools to run\nrun_tool swiftlint \"\"\n# Only run SwiftFormat if a readable config exists\nrun_tool_if_config swiftformat \".\" \"${SRCROOT}/.swiftformat\"\n\n# Always succeed\nexit 0\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -426,12 +426,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "RatioVita/RatioVita-macos.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8DQXQQBS99;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = RatioVita/Info.plist;
@@ -472,12 +474,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "RatioVita/RatioVita-macos.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8DQXQQBS99;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = RatioVita/Info.plist;

@@ -1,7 +1,6 @@
 # SwiftLint Configuration
 disabled_rules:
   - trailing_whitespace
-  - line_length
   - todo
 
 opt_in_rules:

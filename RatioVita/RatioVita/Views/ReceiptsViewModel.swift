@@ -1,7 +1,7 @@
-import Foundation
-import SwiftUI
-import SwiftData
 import Combine
+import Foundation
+import SwiftData
+import SwiftUI
 
 @MainActor
 final class ReceiptsViewModel: ObservableObject {
@@ -13,8 +13,12 @@ final class ReceiptsViewModel: ObservableObject {
     private(set) var scanner: ScannerService
     private(set) var context: ModelContext
 
+    /// Serializes overlapping ingest saves (e.g. duplicate “Send to review” firing two `Task`s).
+    private var ingestSaveInFlight = false
+
     @AppStorage("ocrEnabled") private var ocrEnabled: Bool = true
     @AppStorage("compressionEnabled") private var compressionEnabled: Bool = false
+    @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary: Bool = true
 
     init(scanner: ScannerService, context: ModelContext) {
         self.scanner = scanner
@@ -33,38 +37,32 @@ final class ReceiptsViewModel: ObservableObject {
 
         do {
             let result = try await scanner.scanReceipt(ocrEnabled: ocrEnabled, compressionEnabled: compressionEnabled)
-
-            let receipt = Receipt(
-                merchant: result.extractedData.merchant ?? "Unknown Merchant",
-                total: result.extractedData.total ?? 0,
-                currencyCode: result.extractedData.currency ?? (Locale.current.currency?.identifier ?? "USD")
-            )
-
-            var images: [ReceiptImage] = []
-            for (idx, page) in result.scannedPages.enumerated() {
-                let img = ReceiptImage(
-                    pageIndex: idx,
-                    image: page.image,
-                    ocrText: page.ocrText,
-                    receipt: receipt,
-                    compressionQuality: compressionEnabled ? 0.6 : 0.9
-                )
-                images.append(img)
+            let opts = ReceiptIngestOptions.filedImmediateCamera(true)
+            try await persistScanResult(result, options: opts)
+            if mirrorScannedReceiptsToPhotoLibrary, !opts.pendingHumanReview, opts.scannedViaCamera {
+                await ReceiptPhotosLibraryExporter.mirrorReceiptAfterSave(scan: result)
             }
-            receipt.images = images
-
-            context.insert(receipt)
-            try context.save()
         } catch {
-            print("Scan failed: \(error)")
+            UserMessageCenter.shared.present(
+                title: "Scan failed",
+                message: error.ratioVitaUserDescription
+            )
         }
     }
 
     func delete(_ receipts: [Receipt]) {
+        let now = Date()
         for r in receipts {
-            context.delete(r)
+            r.trashedAt = now
         }
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            UserMessageCenter.shared.present(
+                title: "Couldn't update library",
+                message: error.ratioVitaUserDescription
+            )
+        }
     }
     
     // MARK: - Scanner Presentation
@@ -73,37 +71,84 @@ final class ReceiptsViewModel: ObservableObject {
         showScanner = true
     }
     
-    func handleScanResult(_ result: ScanResult) async {
-        isScanning = true
-        defer { 
-            isScanning = false
-            showScanner = false
-        }
-        
-        do {
-            let receipt = Receipt(
-                merchant: result.extractedData.merchant ?? "Unknown Merchant",
-                total: result.extractedData.total ?? 0,
-                currencyCode: result.extractedData.currency ?? (Locale.current.currency?.identifier ?? "USD")
+    func handleScanResult(_ result: ScanResult, options: ReceiptIngestOptions) async {
+        guard !ingestSaveInFlight else {
+            UserMessageCenter.shared.present(
+                title: "Still saving",
+                message: "Please wait for the current import to finish."
             )
+            return
+        }
+        ingestSaveInFlight = true
+        defer { ingestSaveInFlight = false }
 
-            var images: [ReceiptImage] = []
-            for (idx, page) in result.scannedPages.enumerated() {
-                let img = ReceiptImage(
-                    pageIndex: idx,
-                    image: page.image,
-                    ocrText: page.ocrText,
-                    receipt: receipt,
-                    compressionQuality: compressionEnabled ? 0.6 : 0.9
-                )
-                images.append(img)
+        isScanning = true
+        defer { isScanning = false }
+
+        guard !result.scannedPages.isEmpty else {
+            UserMessageCenter.shared.present(
+                title: "Nothing to save",
+                message: "No receipt image was captured. Please try scanning or importing again."
+            )
+            return
+        }
+
+        await Task.yield()
+
+        do {
+            try await persistScanResult(result, options: options)
+            if mirrorScannedReceiptsToPhotoLibrary, !options.pendingHumanReview, options.scannedViaCamera {
+                await ReceiptPhotosLibraryExporter.mirrorReceiptAfterSave(scan: result)
             }
-            receipt.images = images
-
-            context.insert(receipt)
-            try context.save()
         } catch {
-            print("Scan result processing failed: \(error)")
+            UserMessageCenter.shared.present(
+                title: "Couldn't save receipt",
+                message: error.ratioVitaUserDescription
+            )
+        }
+    }
+
+    private func persistScanResult(_ result: ScanResult, options: ReceiptIngestOptions) async throws {
+        let apiKeyPresent = !GeminiAPIKeyResolver.resolveAPIKeyTrimmed().isEmpty
+        let deferGemini = options.scannedViaCamera
+            && GeminiAPIKeyResolver.isGeminiExtractionEnabled()
+            && apiKeyPresent
+
+        try await ReceiptPersistence.saveScanResult(
+            result,
+            context: context,
+            compressionEnabled: compressionEnabled,
+            pendingHumanReview: options.pendingHumanReview,
+            scannedViaCamera: options.scannedViaCamera,
+            deferGeminiRefinement: deferGemini,
+            vaultPathPrefix: options.vaultPathPrefix
+        )
+    }
+
+    /// DEBUG / QA: import real scans bundled as `Resources/RVArchive2020__*` (flattened 2020 archive) through the same
+    /// pipeline as
+    /// file import.
+    func importBundledHistoricalArchive(limit: Int?) async {
+        isScanning = true
+        defer { isScanning = false }
+
+        do {
+            let count = try await BundledReceiptArchiveImporter.importArchive(
+                into: context,
+                limit: limit,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled
+            )
+            let detail = limit.map { "First \($0) file(s) from the bundle." } ?? "All files in the bundle."
+            UserMessageCenter.shared.present(
+                title: "Archive import complete",
+                message: "Imported \(count) receipt(s). \(detail) Each used Vision OCR and OCRParsing."
+            )
+        } catch {
+            UserMessageCenter.shared.present(
+                title: "Archive import failed",
+                message: error.ratioVitaUserDescription
+            )
         }
     }
 }

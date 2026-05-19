@@ -2,8 +2,10 @@
 //  DailyLedgerService.swift
 //  RatioVita
 //
-//  Monday Ignition: 5 PM Ledger — Apple Numbers daily ledger from Receipt records.
-//  Fetches Receipts created 00:00–17:00, populates Sovereign_Ledger_Template, saves to Vault/Exports/Ledgers/.
+//  Monday Ignition: 5 PM Ledger — daily ledger from Receipt records.
+//  macOS: writes CSV under Vault/Exports/Ledgers first, then optionally drives Numbers; if Numbers will not launch,
+//  AppleScript errors, or the .numbers file never appears, opens the CSV in the default app and still returns the CSV
+//  URL.
 //
 
 import Foundation
@@ -15,20 +17,20 @@ import UIKit
 import AppKit
 #endif
 
-/// 5 PM Ledger spec: Native .numbers, columnar data (Timestamp, Merchant, Sovereign Hash, Currency, Total, Compliance Status),
-/// alternating row highlighting, locked Total footer. Delivery to Vault/Exports/Ledgers/YYYY-MM-DD_Daily_Ledger.numbers.
-protocol DailyLedgerServiceProtocol: Sendable {
+/// 5 PM Ledger spec: columnar data (Timestamp, Merchant, Sovereign Hash, Currency, Total, Compliance Status),
+/// delivery to `Vault/Exports/Ledgers/YYYY-MM-DD_Daily_Ledger.csv` (always) and optional `…Daily_Ledger.numbers` on
+/// macOS when Numbers cooperates.
+@MainActor
+protocol DailyLedgerServiceProtocol {
     func generateDailyLedger(for date: Date, modelContext: ModelContext) async throws -> URL
 }
 
+@MainActor
 final class DailyLedgerService: DailyLedgerServiceProtocol {
-
     static let shared = DailyLedgerService()
 
     private init() {}
 
-    /// Generates the daily ledger for the given date (receipts from 00:00 to 17:00).
-    /// Saves to Vault/Exports/Ledgers/YYYY-MM-DD_Daily_Ledger.numbers (macOS) or .csv (iOS fallback).
     func generateDailyLedger(for date: Date, modelContext: ModelContext) async throws -> URL {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
@@ -46,40 +48,76 @@ final class DailyLedgerService: DailyLedgerServiceProtocol {
         let filename = "\(dateStr)_Daily_Ledger"
 
         #if os(macOS)
-        return try await generateNumbersLedgerMacOS(receipts: receipts, filename: filename)
+        return try await generateLedgerMacOS(receipts: receipts, filename: filename)
         #else
-        return try await generateCSVLedgeriOS(receipts: receipts, filename: filename)
+        let vault = vaultLedgersURL()
+        try FileManager.default.createDirectory(at: vault, withIntermediateDirectories: true)
+        return try writeCSVLedger(receipts: receipts, filename: filename, vault: vault)
         #endif
     }
 
     #if os(macOS)
-    private func generateNumbersLedgerMacOS(receipts: [Receipt], filename: String) async throws -> URL {
+    private func generateLedgerMacOS(receipts: [Receipt], filename: String) async throws -> URL {
         let vault = vaultLedgersURL()
         try FileManager.default.createDirectory(at: vault, withIntermediateDirectories: true)
-        let fileURL = vault.appendingPathComponent("\(filename).numbers")
-        let script = """
-        tell application "Numbers" to activate
-        make new document
-        -- Sovereign_Ledger_Template: Timestamp, Merchant, Sovereign Hash, Currency, Total, Compliance Status
-        -- Populate rows with receipt data; sum Total column; Bold footer
-        -- Save: save document 1 to "\(fileURL.path)"
+
+        let csvURL = try writeCSVLedger(receipts: receipts, filename: filename, vault: vault)
+
+        guard let numbersAppURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iWork.Numbers") else {
+            openCSVLedgerInDefaultApp(csvURL)
+            return csvURL
+        }
+
+        let numbersURL = vault.appendingPathComponent("\(filename).numbers")
+        let pathForAppleScript = numbersURL.path
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+
+        let scriptSource = """
+        tell application "Numbers"
+            activate
+            set ledgerDoc to make new document
+            save ledgerDoc in POSIX file "\(pathForAppleScript)"
+        end tell
         """
-        guard let scriptObject = NSAppleScript(source: script) else {
-            throw DailyLedgerError.scriptFailed("Could not create AppleScript")
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        let launchedOK = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            NSWorkspace.shared.openApplication(at: numbersAppURL, configuration: configuration) { _, error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+        if !launchedOK {
+            openCSVLedgerInDefaultApp(csvURL)
+            return csvURL
+        }
+        try await Task.sleep(nanoseconds: 900_000_000)
+
+        guard let scriptObject = NSAppleScript(source: scriptSource) else {
+            openCSVLedgerInDefaultApp(csvURL)
+            return csvURL
         }
         var error: NSDictionary?
         scriptObject.executeAndReturnError(&error)
-        if let err = error {
-            throw DailyLedgerError.scriptFailed((err[NSAppleScript.errorMessage] as? String) ?? "Unknown")
+        if error != nil {
+            try? FileManager.default.removeItem(at: numbersURL)
+            openCSVLedgerInDefaultApp(csvURL)
+            return csvURL
         }
-        return fileURL
+        if !FileManager.default.fileExists(atPath: numbersURL.path) {
+            openCSVLedgerInDefaultApp(csvURL)
+            return csvURL
+        }
+        return numbersURL
+    }
+
+    private func openCSVLedgerInDefaultApp(_ csvURL: URL) {
+        _ = NSWorkspace.shared.open(csvURL)
     }
     #endif
 
-    #if os(iOS)
-    private func generateCSVLedgeriOS(receipts: [Receipt], filename: String) async throws -> URL {
-        let vault = vaultLedgersURL()
-        try FileManager.default.createDirectory(at: vault, withIntermediateDirectories: true)
+    private func writeCSVLedger(receipts: [Receipt], filename: String, vault: URL) throws -> URL {
         let fileURL = vault.appendingPathComponent("\(filename).csv")
         var csv = "Timestamp,Merchant,Sovereign Hash,Currency,Total,Compliance Status\n"
         let dateFormatter = DateFormatter()
@@ -89,13 +127,13 @@ final class DailyLedgerService: DailyLedgerServiceProtocol {
             let ts = dateFormatter.string(from: r.createdAt)
             let hash = r.id.uuidString.prefix(8)
             total += r.total
-            csv += "\(ts),\(r.merchant),\(hash),\(r.currencyCode),\(r.total),Verified\n"
+            let merchant = r.merchant.replacingOccurrences(of: ",", with: " ")
+            csv += "\(ts),\(merchant),\(hash),\(r.currencyCode),\(r.total),Verified\n"
         }
         csv += ",,,Total,\(total),\n"
         try csv.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
     }
-    #endif
 
     private func vaultLedgersURL() -> URL {
         #if os(iOS)
@@ -110,12 +148,10 @@ final class DailyLedgerService: DailyLedgerServiceProtocol {
 
 enum DailyLedgerError: Error, LocalizedError {
     case invalidDate
-    case scriptFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidDate: return "Invalid date for ledger"
-        case .scriptFailed(let msg): return "Numbers script failed: \(msg)"
+            case .invalidDate: "Invalid date for ledger"
         }
     }
 }

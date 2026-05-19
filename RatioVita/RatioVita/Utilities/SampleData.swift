@@ -9,18 +9,23 @@ import AppKit
 
 enum SampleData {
     static var previewContainer: ModelContainer {
-        let schema = Schema([
-            Item.self,
-            Receipt.self,
-            ReceiptImage.self,
-        ])
+        let schema = LibrarySwiftDataSchema.makeSchema()
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: [config])
 
         let context = container.mainContext
 
-        let r1 = Receipt(merchant: "Sample Mart", total: 19.99, currencyCode: "USD")
-        let r2 = Receipt(merchant: "Coffee Corner", total: 4.75, currencyCode: "USD", notes: "Latte + croissant")
+        let r1 = Receipt(
+            merchant: "Sample Mart",
+            total: AccountingAmountPolarity.canonicalTotal(documentType: .receipt, amount: 19.99),
+            currencyCode: "USD"
+        )
+        let r2 = Receipt(
+            merchant: "Coffee Corner",
+            total: AccountingAmountPolarity.canonicalTotal(documentType: .receipt, amount: 4.75),
+            currencyCode: "USD",
+            notes: "Latte + croissant"
+        )
 
         let img = placeholderThumb()
         let i1 = ReceiptImage(pageIndex: 0, image: img, ocrText: "Sample Mart\nTotal 19.99")
@@ -31,6 +36,14 @@ enum SampleData {
 
         context.insert(r1)
         context.insert(r2)
+
+        let contact = ProductionContact(
+            name: "Alex Rivera",
+            companyName: "Northwind Pictures",
+            email: "alex@example.com",
+            tags: ["Producer", "Client"]
+        )
+        context.insert(contact)
 
         return container
     }

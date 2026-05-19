@@ -33,7 +33,7 @@ final class PreviewScannerService: ScannerService {
         let processingSteps = [
             ImageProcessingStep(name: "Capture", description: "Image captured", duration: 0.1),
             ImageProcessingStep(name: "OCR", description: "Text recognition", duration: 0.5),
-            ImageProcessingStep(name: "Parsing", description: "Data extraction", duration: 0.2)
+            ImageProcessingStep(name: "Parsing", description: "Data extraction", duration: 0.2),
         ]
         
         let metadata = ProcessingMetadata(
@@ -50,7 +50,8 @@ final class PreviewScannerService: ScannerService {
             originalImage: demoImage,
             pageNumber: 1,
             ocrText: ocr,
-            confidence: ocrEnabled ? 0.85 : nil
+            confidence: ocrEnabled ? 0.85 : nil,
+            capturedAt: Date()
         )
         
         return ScanResult(
@@ -61,6 +62,7 @@ final class PreviewScannerService: ScannerService {
     }
     
     // MARK: - Phase 2 optional hooks (no-ops for preview)
+
     func requestCameraPermission() async -> Bool { true }
     func isCameraAvailable() -> Bool { true }
     func getCameraPermissionStatus() -> CameraPermissionStatus { .authorized }

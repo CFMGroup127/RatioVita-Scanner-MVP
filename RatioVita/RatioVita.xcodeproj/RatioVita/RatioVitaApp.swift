@@ -5,8 +5,8 @@
 //  Created by CFM Group International on 2025-09-02.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct RatioVitaApp: App {
@@ -14,7 +14,7 @@ struct RatioVitaApp: App {
         let schema = Schema([
             Item.self,
             Receipt.self,
-            ReceiptImage.self
+            ReceiptImage.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

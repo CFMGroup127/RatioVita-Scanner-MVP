@@ -1,5 +1,7 @@
 # Monday Ignition Verification Report — Feb 2, 2026
 
+**Last verified against repo:** May 12, 2026
+
 Verification of completion for the **Monday Ignition** / **Apple Suite** / **15-Agent** initiative tasks in the RatioVita IDE.
 
 ---
@@ -9,7 +11,7 @@ Verification of completion for the **Monday Ignition** / **Apple Suite** / **15-
 | Initiative | Status | Notes |
 |------------|--------|--------|
 | **Duplicate file cleanup** | ✅ **Complete** | Removed duplicate .swift files from Models/ (kept Services/, Views/, Utilities/). Build should pass. |
-| RealScannerService (live feed, Vision, persistence) | ✅ **Partial** | AVCaptureSession, VNDetectRectanglesRequest, SwiftData save exist. "Sovereign" sharpen/contrast filter not in pipeline. |
+| RealScannerService (live feed, Vision, persistence) | ✅ **Partial** | iOS / **visionOS (device):** AVFoundation + Vision + SwiftData via `RealScannerService`. **visionOS (simulator):** `PreviewScannerService`. **macOS:** `MacAVScannerService` (USB / FaceTime / **Continuity Camera** via `DiscoverySession`) + file import in `CameraCaptureView`. Sovereign enhancement: `ImageProcessing`. |
 | Apple Suite / iWork Handshake | ✅ **Implemented** | Services/Export/AppleiWorkService.swift — Pages/Keynote/PDF export; macOS AppleScript, iOS PDF fallback; Sovereign Audit Stamp. |
 | SovereignVault / Data Shield | ❌ **Not implemented** | No SovereignVault wrapper around SwiftData. |
 | The Purge / SampleSeed archive | ❌ **Not done** | SampleSeed still used (insertSamples); no archive path. |
@@ -48,29 +50,35 @@ Verification of completion for the **Monday Ignition** / **Apple Suite** / **15-
 
 ## 3. Initialize the RatioVita Production Bridge
 
-**Data Shield:** Wrap SwiftData in SovereignVault → ❌ No SovereignVault.
+**Note (May 2026):** This section previously contradicted §1–2, §6, and §12. The following reflects the **current** tree.
 
-**The Purge:** Archive SampleSeed, prepare Receipt for live input → ❌ SampleSeed.insertSamples still used in ReceiptsView; no archive.
+**Data Shield (SovereignVault):** ❌ Not implemented — SwiftData is used directly; no SovereignVault wrapper.
 
-**Apple Handshake:** Utilities/SovereignExportService.swift (AppleScript → Pages/Keynote) → ❌ File does not exist.
+**The Purge / SampleSeed:** ❌ `SampleSeed.insertSamples` remains on the DEBUG toolbar in `ReceiptsView`; no formal archive path.
 
-**UI Update:** 144.0 px Ceiling in ScannerView and ReceiptsListView → ❌ ScannerView is placeholder (“Scanner functionality coming soon”); no 144pt; ReceiptsView uses DesignSystem.Spacing, no topMargin/ceiling.
+**Apple Handshake:** ✅ Implemented as **`Services/Export/AppleiWorkService.swift`** (not `Utilities/SovereignExportService.swift`). macOS: AppleScript to Pages/Keynote where supported; PDF to `Vault/Exports`; Sovereign Audit Stamp in code.
 
-**Status:** ❌ Not implemented (except scanner exists separately).
+**Scanner intake:** ✅ **iOS:** `CameraCaptureView` + `RealScannerService` (device) / `PreviewScannerService` (simulator). **visionOS:** `RealScannerService` on **device**; **simulator** uses `PreviewScannerService`. **macOS:** `MacAVScannerService` for **camera** (built-in, external, Continuity); `CameraCaptureView` also offers **file import** + `ReceiptScanPipeline`.
+
+**144.0 px ceiling:** ✅ `DesignSystem.Layout.topMargin` / `sovereignHeaderHeight` on **`ScannerView`** (auxiliary UI) and **`ReceiptsView`** header.
+
+**Sovereign enhancement:** ✅ **`Utilities/ImageProcessing.swift`** — Core Image sharpen + contrast; shared by **`RealScannerService`**, **`ReceiptScanPipeline`**, and **`Utilities/VisionReceiptAnalysis.swift`**.
+
+**Status:** ⚠️ **Partial** — bridge is operational for scan/import, exports, ledger, and enhancement; SovereignVault, Purge, and static `/Vault/Templates/` remain future work.
 
 ---
 
 ## 4. Step 1: RealScannerService (Core Scanner Engine)
 
-**Live Feed:** AVCaptureSession in RealScannerService → ✅ Implemented.
+**Live Feed:** AVCaptureSession in RealScannerService (iOS device) → ✅ Implemented.
 
-**Vision:** VNDetectRectanglesRequest → ✅ Used (e.g. in RealScannerService for rectangle detection).
+**Vision:** Text + rectangle analysis via **`VisionReceiptAnalysis`** (shared with `ReceiptScanPipeline`) → ✅ Implemented.
 
-**Sovereign Filter:** Sharpen + high-contrast before save → ❌ ImageProcessing.processImage is a stub (returns image unchanged); no CIFilter sharpen/contrast in pipeline.
+**Sovereign Filter:** Sharpen + high-contrast before save → ✅ **`ImageProcessing.processImage`** (Core Image `CISharpenLuminance` + `CIColorControls`); invoked from **`RealScannerService`** and **`ReceiptScanPipeline`**.
 
 **Persistence:** SwiftData permanent retention → ✅ Receipts/ReceiptImage saved via ModelContext.
 
-**Status:** ✅ Partial (capture + Vision + persistence yes; “Sovereign” filter no).
+**Status:** ✅ **Core engine complete** for iOS capture + macOS import paths (tuning of filter constants remains optional).
 
 ---
 
@@ -140,10 +148,10 @@ Verification of completion for the **Monday Ignition** / **Apple Suite** / **15-
 
 ## 11. Task 10: Tests + Workspace Fix
 
-**OCRParsingTests.swift, ImageProcessingTests.swift:** ✅ **Created** under `RatioVitaTests/SwiftTesting/`. They verify:
+**OCRParsingTests.swift, ImageProcessingTests.swift:** ✅ Under **`RatioVita/RatioVitaTests/`** (XCTest). They verify:
 
 - OCRParsing: merchant and total extraction from sample OCR text.
-- ImageProcessing: processImage returns an image (current stub behavior).
+- ImageProcessing: `processImage` returns an image, does not crash, and produces a valid **`rvCGImage`** after the Core Image Sovereign enhancement path.
 
 **Workspace:** Do not save `RatioVita_v2.xcworkspace` as a file; open the project folder and revert if the save dialog appears.
 
@@ -154,27 +162,30 @@ Verification of completion for the **Monday Ignition** / **Apple Suite** / **15-
 ## 12. What Exists Today (RatioVita) — Post–Sovereign Cleanup
 
 - **Duplicate cleanup:** Models/ no longer contains duplicates; single copies in Services/, Views/, Utilities/. Build should pass.
-- **RealScannerService:** AVFoundation capture, Vision OCR, VNDetectRectanglesRequest, SwiftData save.
-- **PreviewScannerService:** Mock for simulator/previews (Services/).
-- **ScannerService protocol:** scanReceipt(ocrEnabled:compressionEnabled:) (Services/).
+- **RealScannerService (iOS + visionOS):** AVFoundation capture, Vision OCR via **`VisionReceiptAnalysis`**, Core Image via **`ImageProcessing`**, SwiftData save.
+- **ReceiptScanPipeline:** `Services/ReceiptScanPipeline.swift` — file-import path (macOS) and shared Vision + enhancement + `ScanResult` assembly.
+- **PreviewScannerService:** Mock for simulator / visionOS / macOS toolbar dependency resolution (Services/).
+- **ScannerService protocol:** `scanReceipt(ocrEnabled:compressionEnabled:)` (Services/).
+- **MacAVScannerService:** `Services/MacAVScannerService.swift` — macOS AVFoundation photo capture; discovers built-in and `.external` devices (Continuity / USB). Sandboxed **camera** entitlement: `RatioVita-macos.entitlements` (`com.apple.security.device.camera`). Stops `AVCaptureSession` after each scan to reduce CMIO buffer pressure.
+- **CameraCaptureView:** iOS / visionOS — shutter flow via injected `ScannerService`; macOS — **Capture from camera** when hardware is present, plus **Choose image…** (`ReceiptScanPipeline`).
 - **AppleiWorkService:** Services/Export/AppleiWorkService.swift — Pages/Keynote/PDF export, Sovereign Audit Stamp.
 - **DailyLedgerService:** Services/Reporting/DailyLedgerService.swift — 5 PM ledger, Numbers/CSV to Vault/Exports/Ledgers/.
 - **DesignSystem.Layout:** topMargin 144.0, sovereignHeaderHeight; applied in ScannerView and ReceiptsView.
-- **OCRParsing, ImageProcessing:** Utilities/; Task 10 tests in RatioVitaTests/.
-- **ReceiptsView, ReceiptDetailView, ScannerView:** Views/ with 144pt ceiling where specified.
-- **Docs:** Config.md, ScannerPipelinePlan.md under RatioVita/RatioVita/Docs/.
+- **OCRParsing, ImageProcessing, VisionReceiptAnalysis:** Utilities/; Task 10 tests in RatioVitaTests/.
+- **ReceiptsView, ReceiptDetailView, ScannerView:** Views/ — primary scan flow uses **`CameraCaptureView`** from the Receipts toolbar; **`ScannerView`** remains an auxiliary placeholder screen.
+- **Docs:** Config.md, ScannerPipelinePlan.md, RESOLVING_7_BLOCKED_TASKS.md under RatioVita/RatioVita/Docs/.
 - **.gitignore:** Vault/Exports/ and generated exports ignored; .swift and template logic tracked.
 
 ---
 
 ## 13. Recommended Next Steps (remaining)
 
-1. **Sovereign filter:** Implement sharpen + high-contrast in `ImageProcessing` (or RealScannerService pipeline) and call it before save.
-2. **ScannerView:** Replace placeholder with live camera UI (e.g. wire to RealScannerService/CameraCaptureView) where appropriate.
-3. **Data Shield / Purge:** Introduce SovereignVault (if desired) and an archive path for SampleSeed so production runs on live Receipt data only.
-4. **Templates:** Add Vault/Templates and Sovereign_Standard_Report / Sovereign_Executive_Presentation template generation (AppleScript or equivalent) when ready.
-5. **5 PM trigger:** Schedule DailyLedgerService.generateDailyLedger to run at 5:00 PM (e.g. background task or timer).
+1. **Data Shield / Purge:** Introduce SovereignVault (if desired) and an archive path for SampleSeed so production runs on live Receipt data only.
+2. **Templates:** Add `/Vault/Templates/` in-repo or bundled assets and Sovereign_Standard_Report / Sovereign_Executive_Presentation generation when ready.
+3. **5 PM trigger:** Optional `BGAppRefreshTask` / extension for ledger when the app is not foregrounded (today: timer in `RatioVitaApp` while running).
+4. **Richer scan UI:** Optional live preview (`AVCaptureVideoPreviewLayer` / SwiftUI wrapper) before shutter; multi-page receipt merge.
+5. **SwiftLint in build:** If SourceKitten crashes in the Run Script phase, pin SwiftLint or run lint outside Xcode CI.
 
 ---
 
-*Report updated after Sovereign Cleanup: duplicate files removed; AppleiWorkService, DailyLedgerService, and 144pt ceiling implemented; .gitignore updated. Build: run Product > Clean Build Folder (Cmd+Shift+K), then build.*
+*Report updated after Sovereign Cleanup and May 2026 verification pass: `ImageProcessing` + `VisionReceiptAnalysis` + `ReceiptScanPipeline` + `CameraCaptureView` (iOS / visionOS / macOS); §3 aligned with codebase. Build: Product > Clean Build Folder (⇧⌘K), then Build (⌘B).*

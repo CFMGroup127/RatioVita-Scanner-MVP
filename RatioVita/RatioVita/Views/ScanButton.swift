@@ -14,14 +14,14 @@ struct ScanButton: View {
             action()
         } label: {
             HStack(spacing: DesignSystem.Spacing.sm) {
-            if isScanning {
-                ProgressView()
-                    .scaleEffect(0.8)
+                if isScanning {
+                    ProgressView()
+                        .scaleEffect(0.8)
                         .tint(.white)
-            } else {
-                Image(systemName: "camera.fill")
+                } else {
+                    Image(systemName: "camera.fill")
                         .font(DesignSystem.Typography.title3)
-            }
+                }
                 
                 Text(isScanning ? "Scanning..." : "Scan")
                     .font(DesignSystem.Typography.bodyEmphasized)

@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(visionOS)
 //
 //  RealScannerService.swift
 //  RatioVita
@@ -58,77 +58,89 @@ class RealScannerService: NSObject, ScannerService {
         // 2) Permission flow (avoid guard else that doesn't exit)
         let status = getCameraPermissionStatus()
         switch status {
-        case .authorized:
-            break
-        case .notDetermined:
-            let granted = await requestCameraPermission()
-            guard granted else {
+            case .authorized:
+                break
+            case .notDetermined:
+                let granted = await requestCameraPermission()
+                guard granted else {
+                    throw ScannerError.cameraPermissionDenied
+                }
+            case .denied, .restricted, .unavailable:
                 throw ScannerError.cameraPermissionDenied
-            }
-        case .denied, .restricted, .unavailable:
-            throw ScannerError.cameraPermissionDenied
         }
         
         // 3) Start capture session if not running
         await startCaptureSessionIfNeeded()
-        
-        // 4) Capture image
-        let capturedImage = try await captureImage()
-        
-        // 5) Process image
-        let processedImage = try await processImage(capturedImage, compressionEnabled: compressionEnabled)
-        
-        // 6) Perform OCR if enabled
-        var ocrText: String?
-        var confidence: Double?
-        var detectedRectangles: [DetectedRectangle]?
-        
-        if ocrEnabled {
-            let ocrResult = try await performOCR(on: processedImage)
-            ocrText = ocrResult.text
-            confidence = ocrResult.confidence
-            detectedRectangles = ocrResult.detectedRectangles
+
+        do {
+            // 4) Capture image
+            let capturedImage = try await captureImage()
+
+            // 5) Process image
+            let processedImage = try await processImage(capturedImage, compressionEnabled: compressionEnabled)
+
+            // 6) Perform OCR if enabled
+            var ocrText: String?
+            var confidence: Double?
+            var detectedRectangles: [DetectedRectangle]?
+
+            if ocrEnabled {
+                let ocrResult = try performOCR(on: processedImage)
+                ocrText = ocrResult.text
+                confidence = ocrResult.confidence
+                detectedRectangles = ocrResult.detectedRectangles
+            }
+
+            // 7) Create scanned page
+            let scannedPage = ScannedPage(
+                image: processedImage,
+                originalImage: capturedImage,
+                pageNumber: 1,
+                ocrText: ocrText,
+                confidence: confidence,
+                detectedRectangles: detectedRectangles,
+                capturedAt: Date()
+            )
+
+            // 8) Extract structured data from OCR
+            let extractedData = ocrEnabled && ocrText != nil
+                ? OCRParsing.extractData(from: ocrText!)
+                : ExtractedData()
+
+            // 9) Create processing metadata
+            let processingSteps = [
+                ImageProcessingStep(name: "Image Capture", description: "Captured image from camera", duration: 0.5),
+                ImageProcessingStep(
+                    name: "Image Processing",
+                    description: "Applied enhancement filters",
+                    duration: 0.8
+                ),
+                ImageProcessingStep(
+                    name: "OCR Processing",
+                    description: "Extracted text using Vision framework",
+                    duration: ocrEnabled ? 1.2 : 0.0
+                ),
+            ]
+
+            let processingMetadata = ProcessingMetadata(
+                processingTime: 2.0,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled,
+                compressionQuality: configuration.compressionQuality,
+                imageProcessingSteps: processingSteps
+            )
+
+            let scanResult = ScanResult(
+                scannedPages: [scannedPage],
+                extractedData: extractedData,
+                processingMetadata: processingMetadata
+            )
+            await stopCaptureSession()
+            return scanResult
+        } catch {
+            await stopCaptureSession()
+            throw error
         }
-        
-        // 7) Create scanned page
-        let scannedPage = ScannedPage(
-            image: processedImage,
-            originalImage: capturedImage,
-            pageNumber: 1,
-            ocrText: ocrText,
-            confidence: confidence,
-            detectedRectangles: detectedRectangles
-        )
-        
-        // 8) Extract structured data from OCR
-        let extractedData = ocrEnabled && ocrText != nil
-            ? OCRParsing.extractData(from: ocrText!)
-            : ExtractedData()
-        
-        // 9) Create processing metadata
-        let processingSteps = [
-            ImageProcessingStep(name: "Image Capture", description: "Captured image from camera", duration: 0.5),
-            ImageProcessingStep(name: "Image Processing", description: "Applied enhancement filters", duration: 0.8),
-            ImageProcessingStep(
-                name: "OCR Processing",
-                description: "Extracted text using Vision framework",
-                duration: ocrEnabled ? 1.2 : 0.0
-            ),
-        ]
-        
-        let processingMetadata = ProcessingMetadata(
-            processingTime: 2.0,
-            ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled,
-            compressionQuality: configuration.compressionQuality,
-            imageProcessingSteps: processingSteps
-        )
-        
-        return ScanResult(
-            scannedPages: [scannedPage],
-            extractedData: extractedData,
-            processingMetadata: processingMetadata
-        )
     }
     
     func requestCameraPermission() async -> Bool {
@@ -158,7 +170,7 @@ class RealScannerService: NSObject, ScannerService {
         var detectedRectangles: [DetectedRectangle]?
         
         if ocrEnabled {
-            let ocrResult = try await performOCR(on: processedImage)
+            let ocrResult = try performOCR(on: processedImage)
             ocrText = ocrResult.text
             confidence = ocrResult.confidence
             detectedRectangles = ocrResult.detectedRectangles
@@ -171,7 +183,8 @@ class RealScannerService: NSObject, ScannerService {
             pageNumber: 1,
             ocrText: ocrText,
             confidence: confidence,
-            detectedRectangles: detectedRectangles
+            detectedRectangles: detectedRectangles,
+            capturedAt: Date()
         )
         
         // Extract structured data from OCR
@@ -211,9 +224,13 @@ class RealScannerService: NSObject, ScannerService {
         captureSession = AVCaptureSession()
         captureSession?.sessionPreset = .photo
         
-        // Configure camera input
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition) else {
+        // Configure camera input (fallback for visionOS / single-lens devices)
+        let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
+            ?? AVCaptureDevice.default(for: .video)
+        guard let camera else {
+            #if DEBUG
             print("Failed to get camera device")
+            #endif
             return
         }
         
@@ -223,7 +240,9 @@ class RealScannerService: NSObject, ScannerService {
                 captureSession?.addInput(cameraInput)
             }
         } catch {
+            #if DEBUG
             print("Failed to create camera input: \(error)")
+            #endif
             return
         }
         
@@ -271,7 +290,9 @@ class RealScannerService: NSObject, ScannerService {
         
         return try await withCheckedThrowingContinuation { continuation in
             let settings = AVCapturePhotoSettings()
+            #if os(iOS) || os(visionOS)
             settings.flashMode = .auto
+            #endif
             
             // Retain the delegate until we resume the continuation
             self.currentPhotoDelegate = PhotoCaptureDelegate { image in
@@ -297,74 +318,24 @@ class RealScannerService: NSObject, ScannerService {
         return processedImage
     }
     
-    private func performOCR(on image: UIImage) async throws -> OCRResult {
-        guard let cgImage = image.cgImage else {
+    private func performOCR(on image: UIImage) throws -> OCRResult {
+        guard let cgImage = image.cgImage ?? image.rvCGImage else {
             throw ScannerError.ocrFailed
         }
-        
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = configuration.ocrRecognitionLevel == .fast ? .fast : .accurate
-        request.usesLanguageCorrection = true
-        request.recognitionLanguages = ["en-US"]
-        
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        try handler.perform([request])
-        
-        guard let results = request.results else {
-            throw ScannerError.ocrFailed
-        }
-        
-        // Extract text and confidence
-        let recognizedStrings = results.compactMap { observation in
-            observation.topCandidates(1).first?.string
-        }
-        
-        let ocrText = recognizedStrings.joined(separator: "\n")
-        let confidences = results.compactMap { observation in
-            observation.topCandidates(1).first?.confidence
-        }
-        let averageConfidence = confidences.isEmpty ? 0.0 : Double(confidences.reduce(0.0, +)) / Double(confidences.count)
-        
-        // Detect document rectangles
-        let detectedRectangles = try await detectDocumentRectangles(in: image)
-        
-        return OCRResult(
-            text: ocrText,
-            confidence: Double(averageConfidence),
-            detectedRectangles: detectedRectangles
+        let level: VNRequestTextRecognitionLevel = configuration.ocrRecognitionLevel == .fast ? .fast : .accurate
+        let (ocrText, confidence, rectangles) = try VisionReceiptAnalysis.analyzeReceipt(
+            cgImage: cgImage,
+            ocrEnabled: true,
+            textRecognitionLevel: level
         )
-    }
-    
-    private func detectDocumentRectangles(in image: UIImage) async throws -> [DetectedRectangle] {
-        guard let cgImage = image.cgImage else {
-            return []
+        guard let text = ocrText else {
+            throw ScannerError.ocrFailed
         }
-        
-        let request = VNDetectRectanglesRequest()
-        request.minimumAspectRatio = 0.5
-        request.maximumAspectRatio = 2.0
-        request.minimumSize = 0.1
-        request.maximumObservations = 5
-        
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        try handler.perform([request])
-        
-        guard let results = request.results else {
-            return []
-        }
-        
-        return results.map { observation in
-            DetectedRectangle(
-                boundingBox: observation.boundingBox,
-                confidence: Double(observation.confidence),
-                corners: [
-                    observation.topLeft,
-                    observation.topRight,
-                    observation.bottomRight,
-                    observation.bottomLeft,
-                ]
-            )
-        }.sorted { $0.confidence > $1.confidence }
+        return OCRResult(
+            text: text,
+            confidence: confidence ?? 0,
+            detectedRectangles: rectangles
+        )
     }
     
     // MARK: - Public Methods for UI Integration
@@ -379,7 +350,9 @@ class RealScannerService: NSObject, ScannerService {
     }
     
     func focusCamera(at point: CGPoint) {
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition) else {
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
+            ?? AVCaptureDevice.default(for: .video) else
+        {
             return
         }
         
@@ -398,7 +371,9 @@ class RealScannerService: NSObject, ScannerService {
             
             device.unlockForConfiguration()
         } catch {
+            #if DEBUG
             print("Failed to configure camera focus: \(error)")
+            #endif
         }
     }
 }
@@ -421,7 +396,8 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
         }
         
         guard let imageData = photo.fileDataRepresentation(),
-              let image = UIImage(data: imageData) else {
+              let image = UIImage.rv_decodedNormalizingEXIFOrientation(from: imageData) else
+        {
             onError(ScannerError.invalidImage)
             return
         }

@@ -1,0 +1,530 @@
+import SwiftData
+import SwiftUI
+
+/// **Sovereign Launchpad** — module grid + Forensic Pulse for iPhone / iPad command deck.
+struct RatioVitaHomeView: View {
+    @Environment(\.brandAccent) private var brandAccent
+    @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
+    @AppStorage("laborSentinelAgreementCode") private var laborSentinelAgreementCode: String = ""
+
+    @Query(sort: \ProductionProject.title) private var productionProjects: [ProductionProject]
+    @Query(sort: \LaborAgreement.title) private var laborAgreements: [LaborAgreement]
+    @Query(sort: \CrewTimecardDay.workDate, order: .reverse) private var crewDays: [CrewTimecardDay]
+    @Query(
+        filter: #Predicate<Receipt> { $0.pendingHumanReview == true && $0.trashedAt == nil },
+        sort: \Receipt.createdAt,
+        order: .reverse
+    )
+    private var pendingReviewReceipts: [Receipt]
+    @Query(sort: \BankTransaction.postedDate, order: .reverse) private var bankTransactions: [BankTransaction]
+    @Query private var equipmentAssets: [EquipmentAsset]
+
+    @State private var showQuickAddProduction = false
+    @State private var showCorporateRegistry = false
+    @State private var showProductionWorkspace = false
+    @State private var showSovereignAudit = false
+    @State private var showInventory = false
+    @State private var showInsurance = false
+    @State private var showCallSheetScan = false
+    @State private var showZeroLinkCleanup = false
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
+
+    private var activeProject: ProductionProject? {
+        guard let uuid = UUID(uuidString: forensicActiveProductionID) else { return nil }
+        return productionProjects.first { $0.id == uuid }
+    }
+
+    private var agreement: LaborAgreement? {
+        let trimmed = laborSentinelAgreementCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, let match = laborAgreements.first(where: { $0.code == trimmed }) {
+            return match
+        }
+        let def = LaborSentinelBootstrap.defaultAgreementCode
+        return laborAgreements.first { $0.code == def } ?? laborAgreements.first
+    }
+
+    private var overdueShortFormatInvoices: Int {
+        guard let p = activeProject else { return 0 }
+        return ForensicPulsePaymentSentinel.fifteenDayOverdueInvoiceCount(
+            projectID: p.id,
+            receipts: p.receipts
+        )
+    }
+
+    private var longFormatPayDepositAmber: Bool {
+        guard let p = activeProject, p.effectivePaymentTerms.isLongFormatCanada else { return false }
+        return ForensicPulsePaymentSentinel.longFormatThursdayDepositLooksMissing(
+            bankTransactions: bankTransactions
+        )
+    }
+
+    private var zeroLinkProductions: [ProductionProject] {
+        productionProjects.filter(\.hasZeroLinkedItems)
+    }
+
+    private var forensicPulseAttention: Bool {
+        overdueShortFormatInvoices > 0 || longFormatPayDepositAmber
+    }
+
+    private var activeProjectIsDormant: Bool {
+        activeProject?.isDormantUnused == true
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                forensicPulseCard
+                moduleGrid
+            }
+            .padding(DesignSystem.Spacing.md)
+        }
+        .background(Color.ratioVitaAdaptiveBackground.ignoresSafeArea())
+        .navigationTitle("RatioVita")
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.large)
+        #endif
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showQuickAddProduction = true
+                    } label: {
+                        Label("Quick add production", systemImage: "plus.circle.fill")
+                    }
+                    .accessibilityHint("Create a new show from the launchpad.")
+                }
+            }
+            .sheet(isPresented: $showQuickAddProduction) {
+                ProductionProjectAddSheet(
+                    onDismiss: { showQuickAddProduction = false },
+                    onCreated: { p in
+                        forensicActiveProductionID = p.id.uuidString
+                    },
+                    triggerSuccessHaptic: true
+                )
+            }
+            .sheet(isPresented: $showCorporateRegistry) {
+                NavigationStack {
+                    CorporateRegistryView()
+                }
+            }
+            .sheet(isPresented: $showProductionWorkspace) {
+                NavigationStack {
+                    ProductionWorkspaceView()
+                }
+            }
+            .sheet(isPresented: $showSovereignAudit) {
+                NavigationStack {
+                    SovereignAuditLogListView()
+                }
+            }
+            .sheet(isPresented: $showInventory) {
+                InventoryModuleView()
+            }
+            .sheet(isPresented: $showInsurance) {
+                NavigationStack {
+                    InsuranceWarrantiesPlaceholderView()
+                }
+            }
+            .sheet(isPresented: $showCallSheetScan) {
+                CallSheetScanSheet()
+            }
+            .sheet(isPresented: $showZeroLinkCleanup) {
+                ZeroLinkProductionCleanupSheet(
+                    projects: zeroLinkProductions,
+                    activeProductionIDString: $forensicActiveProductionID
+                )
+            }
+            .onChange(of: libraryNavigationCoordinator.homeNavigationSignal) { _, _ in
+                handleHomeNavigation()
+            }
+            .onAppear {
+                handleHomeNavigation()
+            }
+    }
+
+    private var forensicPulseCard: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("Today's Forensic Pulse")
+                .font(DesignSystem.Typography.title3.weight(.semibold))
+            if let p = activeProject {
+                LabeledContent("Active production") {
+                    Text(p.title)
+                        .multilineTextAlignment(.trailing)
+                }
+                if let occ = p.crewOccupationTitle ?? p.effectiveOccupationFromRateSheet(for: Date()) {
+                    LabeledContent("Position") {
+                        Text(occ)
+                    }
+                }
+                LabeledContent("Contract") {
+                    Text(p.productionContractKind.shortTitle)
+                }
+                if let pulse = sentinelPulse(for: p) {
+                    LabeledContent("Sentinel today") {
+                        Text(pulse)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+                if overdueShortFormatInvoices > 0 {
+                    LabeledContent("15-day AR vigilance") {
+                        Text("\(overdueShortFormatInvoices) overdue (no bank link)")
+                            .foregroundStyle(Color.orange)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+                if longFormatPayDepositAmber {
+                    LabeledContent("Long-format pay watch") {
+                        Text("No Thursday payroll credit detected yet — confirm the bank feed.")
+                            .foregroundStyle(Color.orange)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+                if p.isDormantUnused {
+                    LabeledContent("Workspace hygiene") {
+                        Text("Dormant — no linked receipts or crew days in 30+ days.")
+                            .foregroundStyle(Color.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            } else {
+                Text("Select a show in Labor Sentinel to pin your active production here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent("Vault") {
+                Text(
+                    pendingReviewReceipts.isEmpty
+                        ? "Review queue clear"
+                        : "\(pendingReviewReceipts.count) pending review"
+                )
+                .foregroundStyle(pendingReviewReceipts.isEmpty ? Color.ratioVitaSuccess : Color.orange)
+            }
+            Button {
+                showCallSheetScan = true
+            } label: {
+                Label("Scan call sheet (crew call + set)", systemImage: "doc.text.viewfinder")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(activeProject == nil)
+            .accessibilityHint(
+                "OCR page one of the daily call sheet, then open the matching work day in Labor Sentinel to apply crew call and location."
+            )
+            if !zeroLinkProductions.isEmpty {
+                Button {
+                    showZeroLinkCleanup = true
+                } label: {
+                    Label("Purge zero-link productions (\(zeroLinkProductions.count))", systemImage: "trash.circle")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg, style: .continuous)
+                .fill(Color.ratioVitaAdaptiveSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg, style: .continuous)
+                .stroke(
+                    forensicPulseAttention
+                        ? Color.orange.opacity(0.9)
+                        : (activeProjectIsDormant ? Color.secondary.opacity(0.55) : brandAccent.opacity(0.35)),
+                    lineWidth: forensicPulseAttention ? 2 : (activeProjectIsDormant ? 2 : 1)
+                )
+        )
+    }
+
+    private var moduleGrid: some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(HomeModuleDestination.allCases) { module in
+                Button {
+                    openModule(module)
+                } label: {
+                    HomeModuleTile(
+                        module: module,
+                        badgeCount: badgeCount(for: module)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func openModule(_ module: HomeModuleDestination) {
+        switch module {
+            case .productions:
+                #if os(macOS)
+                libraryNavigationCoordinator.navigateFromHome(.productions)
+                #else
+                if horizontalSizeClass == .regular {
+                    libraryNavigationCoordinator.navigateFromHome(.productions)
+                } else {
+                    showProductionWorkspace = true
+                }
+                #endif
+            case .corporateRegistry:
+                showCorporateRegistry = true
+            case .inventory:
+                showInventory = true
+            case .insurance:
+                showInsurance = true
+            case .sovereignAudit:
+                showSovereignAudit = true
+            case .contacts, .finances, .arcticVault, .laborSentinel:
+                libraryNavigationCoordinator.navigateFromHome(module)
+        }
+    }
+
+    private func badgeCount(for module: HomeModuleDestination) -> Int? {
+        switch module {
+            case .insurance:
+                let n = equipmentAssets.filter(\.isWarrantyExpiringSoon).count
+                return n > 0 ? n : nil
+            default:
+                return nil
+        }
+    }
+
+    private func handleHomeNavigation() {
+        if libraryNavigationCoordinator.consumeCorporateRegistryPresentationIfNeeded() {
+            showCorporateRegistry = true
+            return
+        }
+        if libraryNavigationCoordinator.consumeProductionRegistryPresentationIfNeeded() {
+            openProductionsModule()
+            return
+        }
+        if libraryNavigationCoordinator.consumeSovereignAuditPresentationIfNeeded() {
+            showSovereignAudit = true
+            return
+        }
+        guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
+        if dest == .productions {
+            openProductionsModule()
+        }
+    }
+
+    private func openProductionsModule() {
+        #if os(macOS)
+        libraryNavigationCoordinator.navigateFromHome(.productions)
+        #else
+        if horizontalSizeClass == .regular {
+            libraryNavigationCoordinator.navigateFromHome(.productions)
+        } else {
+            showProductionWorkspace = true
+        }
+        #endif
+    }
+
+    private func sentinelPulse(for project: ProductionProject) -> String? {
+        guard let agr = agreement else { return nil }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let todayDays = crewDays.filter {
+            $0.productionProject?.id == project.id && cal.startOfDay(for: $0.workDate) == today
+        }
+        guard !todayDays.isEmpty else { return "No crew day logged for today" }
+        let projectDays = crewDays.filter { $0.productionProject?.id == project.id }
+        let chain = SentinelPayrollEngine.estimatesWithTurnaround(projectDays: projectDays, agreement: agr)
+        var hours = 0.0
+        var mealUnits = 0
+        for d in todayDays {
+            let est = chain[d.id] ?? SentinelPayrollEngine.estimate(day: d, agreement: agr)
+            hours += est.straightHours + est.overtime8To12Hours + est.overtimeOver12Hours + est.travelHours
+            mealUnits += est.mealPenaltyHalfHours
+        }
+        var parts = [String(format: "%.1f h on clock", hours)]
+        if mealUnits > 0 {
+            parts.append("\(mealUnits)× meal ½h")
+        }
+        return parts.joined(separator: " · ")
+    }
+}
+
+private struct HomeModuleTile: View {
+    let module: HomeModuleDestination
+    var badgeCount: Int?
+    @Environment(\.brandAccent) private var brandAccent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: module.systemImage)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(brandAccent)
+                if let badgeCount, badgeCount > 0 {
+                    Text("\(badgeCount)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.red))
+                        .offset(x: 10, y: -8)
+                }
+            }
+            Text(module.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.ratioVitaAdaptiveText)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+            Text(module.subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            if module == .finances {
+                HStack(spacing: 8) {
+                    RatioVitaLabeledHint(title: "AR", term: .accountsReceivable)
+                    RatioVitaLabeledHint(title: "AP", term: .accountsPayable)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.ratioVitaAdaptiveSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+private struct ZeroLinkProductionCleanupSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    let projects: [ProductionProject]
+    @Binding var activeProductionIDString: String
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if projects.isEmpty {
+                    ContentUnavailableView(
+                        "No empty productions",
+                        systemImage: "checkmark.circle",
+                        description: Text(
+                            "Every show in your library has receipts, sessions, crew days, kit rows, or rate segments."
+                        )
+                    )
+                } else {
+                    List {
+                        Section {
+                            Text(
+                                "These titles have **zero** linked forensic rows (including auto rate segments). Purge removes them immediately — no tombstone."
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        }
+                        ForEach(projects) { p in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(p.title)
+                                    .font(.headline)
+                                Text("Tap Purge to delete this duplicate / dormant shell.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button("Purge", role: .destructive) {
+                                    purge(p)
+                                }
+                            }
+                            .contextMenu {
+                                Button("Purge…", role: .destructive) {
+                                    purge(p)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Zero-link productions")
+            #if os(iOS) || os(visionOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+    }
+
+    private func purge(_ p: ProductionProject) {
+        guard p.hasZeroLinkedItems else { return }
+        let sid = p.id.uuidString
+        if activeProductionIDString == sid {
+            activeProductionIDString = ""
+        }
+        modelContext.delete(p)
+        try? modelContext.save()
+    }
+}
+
+private struct InsuranceWarrantiesPlaceholderView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \EquipmentAsset.displayName) private var assets: [EquipmentAsset]
+
+    private var expiring: [EquipmentAsset] {
+        assets.filter(\.isWarrantyExpiringSoon)
+    }
+
+    var body: some View {
+        List {
+            if !expiring.isEmpty {
+                Section("Warranty expiry radar") {
+                    ForEach(expiring) { asset in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(asset.displayName)
+                                .font(.headline)
+                            if let d = asset.warrantyExpiryDate {
+                                Text("Expires \(d.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                }
+            }
+            Section {
+                ContentUnavailableView(
+                    "Policy scans",
+                    systemImage: "shield.checkered",
+                    description: Text(
+                        "File insurance policies and warranties from Review. Equipment warranties from Inventory appear above."
+                    )
+                )
+            }
+        }
+        .navigationTitle("Insurance")
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+    }
+}
+
+#Preview {
+    NavigationStack {
+        RatioVitaHomeView()
+    }
+    .environment(LibraryNavigationCoordinator())
+    .modelContainer(SampleData.previewContainer)
+}

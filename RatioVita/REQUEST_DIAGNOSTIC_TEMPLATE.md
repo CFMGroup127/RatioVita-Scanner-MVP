@@ -1,3 +1,7 @@
+**Location:** This template lives at **`RatioVita/REQUEST_DIAGNOSTIC_TEMPLATE.md`** (outside the Xcode file-system-synced app folder) so it is **not** copied into the `.app` bundle. When instructions say “overwrite REQUEST.md,” use **this file** instead.
+
+---
+
 # RatioVita – Single‑Paste Diagnostic Request (Strict, Overwrite This File)
 
 Goal: Fix the immediate launch crash (error 163) and ensure the RatioVita design system/theme is applied globally and consistently across all views.
@@ -5,7 +9,7 @@ Goal: Fix the immediate launch crash (error 163) and ensure the RatioVita design
 Instructions to Cursor (follow exactly):
 1) Gather EVERYTHING requested below.
 2) Produce ONE single reply that contains ALL requested content.
-3) OVERWRITE this REQUEST.md file with your reply (replace the entire file content).
+3) OVERWRITE **this file** (`RatioVita/REQUEST_DIAGNOSTIC_TEMPLATE.md`) with your reply (replace the entire file content).
 4) Follow the rules strictly:
    - Paste FULL file contents. If a file doesn’t exist, write “MISSING”.
    - Do NOT summarize. Do NOT truncate. Do NOT say “omitted for brevity”.
@@ -14,7 +18,7 @@ Instructions to Cursor (follow exactly):
    - Use the exact fenced code blocks below for each file.
    - Maintain section order and include every section (0 through 10).
 
-When finished, this file (REQUEST.md) must contain the complete diagnostic bundle.
+When finished, **`RatioVita/REQUEST_DIAGNOSTIC_TEMPLATE.md`** must contain the complete diagnostic bundle.
 
 ---
 

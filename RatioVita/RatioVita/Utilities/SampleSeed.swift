@@ -15,7 +15,7 @@ enum SampleSeed {
         var includeNotes: Bool = true
         var ocrEnabled: Bool = true
         var compressionQuality: CGFloat = 0.9
-        public init() {}
+        init() {}
     }
 
     static func insertSamples(into context: ModelContext, options: Options = .init()) {
@@ -47,10 +47,12 @@ enum SampleSeed {
             let merchant = merchants.randomElement() ?? "Sample Merchant"
             let base = Decimal(Int.random(in: 10...99))
             let cents = Decimal(Double.random(in: 0..<1))
-            let total = options.randomizeTotals ? (base + cents) : Decimal(19.99)
+            let rawTotal = options.randomizeTotals ? (base + cents) : Decimal(19.99)
+            let total = AccountingAmountPolarity.canonicalTotal(documentType: .receipt, amount: rawTotal)
 
             let dayOffset = Int.random(in: 0...20)
-            let createdAt = options.randomizeDates ? (calendar.date(byAdding: .day, value: -dayOffset, to: now) ?? now) : now
+            let createdAt = options
+                .randomizeDates ? (calendar.date(byAdding: .day, value: -dayOffset, to: now) ?? now) : now
 
             let currency = Locale.current.currency?.identifier ?? "USD"
             let notes = options.includeNotes ? notesPool.randomElement() : nil
@@ -68,7 +70,12 @@ enum SampleSeed {
 
             for page in 0..<pageCount {
                 let rv = placeholderReceiptImage(width: 900, height: 1400, title: merchant, page: page + 1)
-                let ocrText = options.ocrEnabled ? makeOCRText(merchant: merchant, total: total, date: createdAt, page: page + 1) : nil
+                let ocrText = options.ocrEnabled ? makeOCRText(
+                    merchant: merchant,
+                    total: total,
+                    date: createdAt,
+                    page: page + 1
+                ) : nil
 
                 let img = ReceiptImage(
                     pageIndex: page,
@@ -96,7 +103,10 @@ enum SampleSeed {
         let receipt = Receipt(
             createdAt: createdAt,
             merchant: "Sovereign Coffee Co.",
-            total: Decimal(string: "42.39") ?? 42.39,
+            total: AccountingAmountPolarity.canonicalTotal(
+                documentType: .receipt,
+                amount: Decimal(string: "42.39") ?? 42.39
+            ),
             currencyCode: Locale.current.currency?.identifier ?? "USD",
             notes: "Post-rehydration test scan"
         )
@@ -173,7 +183,10 @@ enum SampleSeed {
             ]
             for i in 0..<20 {
                 NSString(string: "Item \(i + 1)   1 x 3.99     3.99")
-                    .draw(in: CGRect(x: 40, y: 220 + i * 28, width: Int(size.width - 80), height: 24), withAttributes: lineAttrs)
+                    .draw(
+                        in: CGRect(x: 40, y: 220 + i * 28, width: Int(size.width - 80), height: 24),
+                        withAttributes: lineAttrs
+                    )
             }
         }
         #elseif canImport(AppKit)
@@ -189,13 +202,19 @@ enum SampleSeed {
             .font: NSFont.systemFont(ofSize: 56, weight: .bold),
             .foregroundColor: NSColor.labelColor,
         ]
-        NSString(string: title).draw(in: NSRect(x: 40, y: size.height - 140, width: size.width - 80, height: 80), withAttributes: titleAttrs)
+        NSString(string: title).draw(
+            in: NSRect(x: 40, y: size.height - 140, width: size.width - 80, height: 80),
+            withAttributes: titleAttrs
+        )
 
         let subtitleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 24, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
         ]
-        NSString(string: "Page \(page)").draw(in: NSRect(x: 40, y: size.height - 180, width: size.width - 80, height: 40), withAttributes: subtitleAttrs)
+        NSString(string: "Page \(page)").draw(
+            in: NSRect(x: 40, y: size.height - 180, width: size.width - 80, height: 40),
+            withAttributes: subtitleAttrs
+        )
 
         let lineAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 18, weight: .regular),
@@ -203,7 +222,10 @@ enum SampleSeed {
         ]
         for i in 0..<20 {
             NSString(string: "Item \(i + 1)   1 x 3.99     3.99")
-                .draw(in: NSRect(x: 40, y: size.height - 260 - CGFloat(i * 28), width: size.width - 80, height: 24), withAttributes: lineAttrs)
+                .draw(
+                    in: NSRect(x: 40, y: size.height - 260 - CGFloat(i * 28), width: size.width - 80, height: 24),
+                    withAttributes: lineAttrs
+                )
         }
 
         return image

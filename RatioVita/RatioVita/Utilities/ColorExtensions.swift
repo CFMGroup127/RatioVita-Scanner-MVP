@@ -12,19 +12,28 @@ extension Color {
     /// Initialize Color from hex string
     /// - Parameter hex: Hex color string (e.g., "#FF0000" or "FF0000")
     init(hex: String) {
-        let hex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
         var int: UInt64 = 0
-        Scanner(string: hex.hasPrefix("#") ? String(hex.dropFirst()) : hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 8: // ARGB
-            (a, r, g, b) = ((int & 0xFF000000) >> 24, (int & 0x00FF0000) >> 16, (int & 0x0000FF00) >> 8, int & 0x0000FF)
-        case 6: // RGB
-            (a, r, g, b) = (255, (int & 0xFF0000) >> 16, (int & 0x00FF00) >> 8, int & 0x0000FF)
-        default:
-            (a, r, g, b) = (255, 136, 136, 136)
+        guard Scanner(string: digits).scanHexInt64(&int) else {
+            self.init(.sRGB, red: 0.53, green: 0.53, blue: 0.53, opacity: 1)
+            return
         }
-        self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, opacity: Double(a)/255)
+        let a, r, g, b: UInt64
+        switch digits.count {
+            case 8: // AARRGGBB
+                (a, r, g, b) = (
+                    (int & 0xFF00_0000) >> 24,
+                    (int & 0x00FF_0000) >> 16,
+                    (int & 0x0000_FF00) >> 8,
+                    int & 0x0000FF
+                )
+            case 6: // RRGGBB
+                (a, r, g, b) = (255, (int & 0xFF0000) >> 16, (int & 0x00FF00) >> 8, int & 0x0000FF)
+            default:
+                (a, r, g, b) = (255, 136, 136, 136)
+        }
+        self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
     }
     
     /// Convert Color to hex string
@@ -36,7 +45,8 @@ extension Color {
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
         
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let resolved = uiColor.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+        resolved.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         
         return String(
             format: "#%02X%02X%02X",
@@ -45,14 +55,14 @@ extension Color {
             Int(blue * 255)
         )
         #elseif canImport(AppKit)
-        let nsColor = NSColor(self)
+        guard let nsColor = NSColor(self).usingColorSpace(.sRGB) else {
+            return "#888888"
+        }
         var red: CGFloat = 0
         var green: CGFloat = 0
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
-        
         nsColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        
         return String(
             format: "#%02X%02X%02X",
             Int(red * 255),
@@ -77,14 +87,22 @@ extension Color {
     static let ratioVitaError = Color(hex: "#F44336") // Red
     static let ratioVitaInfo = Color(hex: "#2196F3") // Blue
     
+    /// Positive amounts (income / credits) vs negative (expenses / debits) for signed currency display.
+    static func ratioVitaSignedCurrencyAmount(_ amount: Decimal) -> Color {
+        if amount > 0 { return ratioVitaSuccess }
+        if amount < 0 { return ratioVitaError }
+        return Color.secondary
+    }
+
     /// Neutral colors
     static let ratioVitaBackground = Color(hex: "#FAFAFA") // Light Gray
     static let ratioVitaSurface = Color(hex: "#FFFFFF") // White
     static let ratioVitaBorder = Color(hex: "#E0E0E0") // Light Gray
-    
-    /// Text colors
+
+    /// Text colors (light-mode defaults; prefer `ratioVitaTextSecondary` adaptive below for UI)
     static let ratioVitaTextPrimary = Color(hex: "#212121") // Dark Gray
-    static let ratioVitaTextSecondary = Color(hex: "#757575") // Medium Gray
+    static let ratioVitaTextPrimaryFixed = Color(hex: "#212121")
+    static let ratioVitaTextSecondaryFixed = Color(hex: "#757575")
     static let ratioVitaTextDisabled = Color(hex: "#BDBDBD") // Light Gray
 }
 
@@ -96,19 +114,19 @@ extension Color {
         #if canImport(UIKit)
         return Color(UIColor { traitCollection in
             switch traitCollection.userInterfaceStyle {
-            case .dark:
-                return UIColor(dark)
-            default:
-                return UIColor(light)
+                case .dark:
+                    UIColor(dark)
+                default:
+                    UIColor(light)
             }
         })
         #elseif canImport(AppKit)
         // Dynamic NSColor that adapts to appearance (darkAqua vs aqua)
         let dynamic = NSColor(name: NSColor.Name("Adaptive-\(UUID().uuidString)")) { appearance in
             if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return NSColor(dark)
+                NSColor(dark)
             } else {
-                return NSColor(light)
+                NSColor(light)
             }
         }
         return Color(dynamic)
@@ -116,19 +134,56 @@ extension Color {
     }
     
     /// RatioVita adaptive colors
+    #if os(iOS) || os(visionOS)
+    /// iPhone / iPad (OLED): true black in dark mode; cards rely on borders / overlays for separation.
+    static let ratioVitaAdaptiveBackground = adaptive(
+        light: Color(hex: "#FAFAFA"),
+        dark: Color(hex: "#000000")
+    )
+
+    static let ratioVitaAdaptiveSurface = adaptive(
+        light: Color(hex: "#FFFFFF"),
+        dark: Color(hex: "#000000")
+    )
+    #else
     static let ratioVitaAdaptiveBackground = adaptive(
         light: Color(hex: "#FAFAFA"),
         dark: Color(hex: "#121212")
     )
-    
+
     static let ratioVitaAdaptiveSurface = adaptive(
         light: Color(hex: "#FFFFFF"),
-        dark: Color(hex: "#1E1E1E")
+        dark: Color(hex: "#2C2C2E") // slightly elevated vs background for cards
     )
-    
+    #endif
+
     static let ratioVitaAdaptiveText = adaptive(
         light: Color(hex: "#212121"),
         dark: Color(hex: "#FFFFFF")
+    )
+
+    /// Secondary / supporting text (must stay legible on dark surfaces — not fixed #757575).
+    static let ratioVitaTextSecondary = adaptive(
+        light: Color(hex: "#616161"),
+        dark: Color(hex: "#C4C4C4")
+    )
+
+    /// Muted text (captions on tinted rows).
+    static let ratioVitaTextTertiary = adaptive(
+        light: Color(hex: "#9E9E9E"),
+        dark: Color(hex: "#9E9E9E")
+    )
+
+    /// Dividers and hairlines.
+    static let ratioVitaAdaptiveBorder = adaptive(
+        light: Color(hex: "#E0E0E0"),
+        dark: Color(hex: "#48484A")
+    )
+
+    /// Disabled controls (adaptive).
+    static let ratioVitaTextDisabledAdaptive = adaptive(
+        light: Color(hex: "#BDBDBD"),
+        dark: Color(hex: "#636366")
     )
 }
 

@@ -6,9 +6,9 @@
 //  macOS: AppleScript to Pages/Keynote. iOS: PDF fallback to Documents.
 //
 
+import CoreGraphics
 import Foundation
 import SwiftData
-import CoreGraphics
 
 #if canImport(UIKit)
 import UIKit
@@ -30,14 +30,16 @@ private func formattedAuditDate() -> String {
 /// Exports Receipt data to Pages (Sovereign Professional), Keynote (Sovereign Dark), and PDF.
 /// macOS: uses AppleScript to create .pages / .key and export PDF.
 /// iOS: writes PDF to Documents; Pages/Keynote require macOS.
-protocol AppleiWorkServiceProtocol: Sendable {
+/// MainActor: Receipt (SwiftData @Model) is not Sendable; protocol is main-actor so no cross-actor send.
+@MainActor
+protocol AppleiWorkServiceProtocol {
     func exportReceiptToPages(_ receipt: Receipt) async throws -> URL
     func exportReceiptToKeynote(_ receipt: Receipt) async throws -> URL
     func exportReceiptToPDF(_ receipt: Receipt) async throws -> URL
 }
 
+@MainActor
 final class AppleiWorkService: AppleiWorkServiceProtocol {
-
     /// Pages: SF Pro Display 12pt body, 24pt headers, 0.5pt table border (Sovereign Bureau Standard).
     func exportReceiptToPages(_ receipt: Receipt) async throws -> URL {
         #if os(macOS)
@@ -115,7 +117,7 @@ final class AppleiWorkService: AppleiWorkServiceProtocol {
         }
         var error: NSDictionary?
         scriptObject.executeAndReturnError(&error)
-        if let error = error {
+        if let error {
             throw AppleiWorkError.scriptFailed((error[NSAppleScript.errorMessage] as? String) ?? "Unknown")
         }
     }
@@ -169,19 +171,19 @@ final class AppleiWorkService: AppleiWorkServiceProtocol {
     #endif
 
     #if os(macOS)
-    private func generatePDFMacOS(_ receipt: Receipt) async throws -> URL {
+    private func generatePDFMacOS(_: Receipt) async throws -> URL {
         let pageWidth: CGFloat = 612
         let pageHeight: CGFloat = 792
         var mediaBox = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
         let pdfData = NSMutableData()
         guard let consumer = CGDataConsumer(data: pdfData),
-              let pdf = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
+              let pdf = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else
+        {
             throw AppleiWorkError.scriptFailed("Could not create PDF context")
         }
         pdf.beginPage(mediaBox: &mediaBox)
         pdf.setFillColor(NSColor.textColor.cgColor)
         pdf.endPage()
-        pdf.close()
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
         try (pdfData as Data).write(to: temp)
         return temp
@@ -207,8 +209,8 @@ enum AppleiWorkError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedPlatform(let msg): return msg
-        case .scriptFailed(let msg): return "AppleScript failed: \(msg)"
+            case let .unsupportedPlatform(msg): msg
+            case let .scriptFailed(msg): "AppleScript failed: \(msg)"
         }
     }
 }

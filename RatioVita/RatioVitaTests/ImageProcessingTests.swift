@@ -5,8 +5,8 @@
 //  Verifies ImageProcessing pipeline (Task 10).
 //
 
-import XCTest
 @testable import RatioVita
+import XCTest
 
 #if canImport(UIKit)
 import UIKit
@@ -15,7 +15,6 @@ import AppKit
 #endif
 
 final class ImageProcessingTests: XCTestCase {
-
     func testProcessImageReturnsImage() async throws {
         #if canImport(UIKit)
         let size = CGSize(width: 100, height: 100)
@@ -50,5 +49,28 @@ final class ImageProcessingTests: XCTestCase {
         #endif
 
         _ = try await ImageProcessing.processImage(img, with: .receiptDefault)
+    }
+
+    /// Sovereign enhancement should yield a valid bitmap (Core Image path exercised).
+    func testProcessImageProducesCGImage() async throws {
+        #if canImport(UIKit)
+        let size = CGSize(width: 32, height: 32)
+        let img = UIGraphicsImageRenderer(size: size).image { ctx in
+            UIColor.darkGray.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+        #elseif canImport(AppKit)
+        let size = NSSize(width: 32, height: 32)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        NSColor.darkGray.setFill()
+        NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+        img.unlockFocus()
+        #else
+        throw XCTSkip("No image type available")
+        #endif
+
+        let processed = try await ImageProcessing.processImage(img, with: .receiptDefault)
+        XCTAssertNotNil(processed.rvCGImage, "Core Image pipeline should produce a CGImage-backed result")
     }
 }

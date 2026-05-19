@@ -6,11 +6,10 @@
 //  (Task 10: RealScannerService correctly identifies Total and Merchant)
 //
 
-import XCTest
 @testable import RatioVita
+import XCTest
 
 final class OCRParsingTests: XCTestCase {
-
     func testExtractsMerchantFromFirstNonEmptyLine() {
         let text = """
         ACME Market

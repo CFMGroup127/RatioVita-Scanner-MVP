@@ -5,8 +5,8 @@
 //  Vision wrapper for document/receipt rectangle detection (VNRectangleObservation).
 //
 
-import Foundation
 import CoreGraphics
+import Foundation
 
 struct DetectedRectangle: Identifiable {
     let id: UUID
@@ -15,7 +15,7 @@ struct DetectedRectangle: Identifiable {
     let corners: [CGPoint]
 
     init(boundingBox: CGRect, confidence: Double, corners: [CGPoint]) {
-        self.id = UUID()
+        id = UUID()
         self.boundingBox = boundingBox
         self.confidence = confidence
         self.corners = corners

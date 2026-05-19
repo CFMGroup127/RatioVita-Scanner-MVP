@@ -1,6 +1,6 @@
+import CoreGraphics
 import Foundation
 import SwiftUI
-import CoreGraphics
 
 #if canImport(UIKit)
 import UIKit

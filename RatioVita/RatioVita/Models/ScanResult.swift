@@ -26,11 +26,11 @@ struct ScanResult {
         extractedData: ExtractedData,
         processingMetadata: ProcessingMetadata
     ) {
-        self.id = UUID()
+        id = UUID()
         self.scannedPages = scannedPages
         self.extractedData = extractedData
         self.processingMetadata = processingMetadata
-        self.createdAt = Date()
+        createdAt = Date()
     }
     
     // Computed properties
@@ -47,11 +47,11 @@ struct ScanResult {
     }
     
     var allImages: [RVImage] {
-        scannedPages.compactMap { $0.image }
+        scannedPages.compactMap(\.image)
     }
     
     var allOCRText: [String] {
-        scannedPages.compactMap { $0.ocrText }
+        scannedPages.compactMap(\.ocrText)
     }
     
     var combinedOCRText: String {
@@ -59,7 +59,7 @@ struct ScanResult {
     }
     
     var averageConfidence: Double {
-        let confidences = scannedPages.compactMap { $0.confidence }
+        let confidences = scannedPages.compactMap(\.confidence)
         guard !confidences.isEmpty else { return 0.0 }
         return confidences.reduce(0, +) / Double(confidences.count)
     }
@@ -71,19 +71,22 @@ struct LineItem {
     let quantity: Int?
     let unitPrice: Decimal?
     let totalPrice: Decimal?
+    let serialNumber: String?
     let confidence: Double?
-    
+
     init(
         description: String,
         quantity: Int? = nil,
         unitPrice: Decimal? = nil,
         totalPrice: Decimal? = nil,
+        serialNumber: String? = nil,
         confidence: Double? = nil
     ) {
         self.description = description
         self.quantity = quantity
         self.unitPrice = unitPrice
         self.totalPrice = totalPrice
+        self.serialNumber = serialNumber
         self.confidence = confidence
     }
 }

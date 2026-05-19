@@ -29,23 +29,23 @@ struct ScannerView: View {
             .padding(.top, DesignSystem.Layout.topMargin)
             .navigationTitle("Scanner")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                #if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
-                        dismiss()
+                .toolbar {
+                    #if os(iOS)
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
                     }
-                }
-                #else
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Cancel") {
-                        dismiss()
+                    #else
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
                     }
+                    #endif
                 }
-                #endif
-            }
         }
     }
 }

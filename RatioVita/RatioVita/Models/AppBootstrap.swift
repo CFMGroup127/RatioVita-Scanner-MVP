@@ -11,7 +11,7 @@ import SwiftUI
 
 @MainActor
 struct AppBootstrap {
-    static func initializeSovereignVault(context: ModelContext) {
+    static func initializeSovereignVault(context _: ModelContext) {
         // Ensures the Filing Cabinet and Ledger services are ready
         print("[Sovereign] Initializing Vault at Origin Y: 144.0")
     }

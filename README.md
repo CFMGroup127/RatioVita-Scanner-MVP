@@ -17,6 +17,8 @@ Cross-platform SwiftUI app for receipt scanning and OCR.
    - **iOS target**: includes camera capture (guarded with `#if os(iOS)`).
    - **macOS target**: builds without camera code.
 
+To include **DEBUG bundled receipt PDFs** for the Samples menu importer, put files in **`Scanned receips PDF format?/`** at the repo root, then run **`./Scripts/sync_bundled_scanned_receipts.sh`** before building (see `RatioVita/RatioVita/Docs/BUILD_AND_TOOLS.md`).
+
 ## Notes
 
 - **iOS-only files** are wrapped with `#if os(iOS)`:

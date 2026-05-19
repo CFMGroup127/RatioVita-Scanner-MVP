@@ -1,13 +1,15 @@
 import SwiftUI
+#if os(iOS) || os(visionOS)
+import UIKit
+#endif
 
 // MARK: - RatioVita Design System
 
 /// Comprehensive design system for RatioVita_v2
-struct DesignSystem {
-    
+enum DesignSystem {
     // MARK: - Typography
     
-    struct Typography {
+    enum Typography {
         static let largeTitle = Font.largeTitle.weight(.bold)
         static let title = Font.title.weight(.semibold)
         static let title2 = Font.title2.weight(.semibold)
@@ -24,7 +26,7 @@ struct DesignSystem {
     
     // MARK: - Spacing
     
-    struct Spacing {
+    enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
         static let md: CGFloat = 16
@@ -36,7 +38,7 @@ struct DesignSystem {
     
     // MARK: - Corner Radius
     
-    struct CornerRadius {
+    enum CornerRadius {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
         static let md: CGFloat = 12
@@ -47,7 +49,7 @@ struct DesignSystem {
     
     // MARK: - Shadows
     
-    struct Shadow {
+    enum Shadow {
         static let small = ShadowStyle(
             color: Color.black.opacity(0.1),
             radius: 2,
@@ -72,7 +74,7 @@ struct DesignSystem {
     
     // MARK: - Animation
     
-    struct Animation {
+    enum Animation {
         static let fast = SwiftUI.Animation.easeInOut(duration: 0.2)
         static let medium = SwiftUI.Animation.easeInOut(duration: 0.3)
         static let slow = SwiftUI.Animation.easeInOut(duration: 0.5)
@@ -82,9 +84,47 @@ struct DesignSystem {
     // MARK: - Sovereign Layout (Monday Ignition)
 
     /// 144.0 pt ceiling for Scanner and Receipts list headers (Sovereign Theme).
-    struct Layout {
+    enum Layout {
         static let topMargin: CGFloat = 144.0
         static let sovereignHeaderHeight: CGFloat = 144.0
+
+        /// Narrow macOS sidebar: full Sovereign height reads as empty dead space.
+        static var receiptsHeaderMinHeight: CGFloat {
+            #if os(macOS)
+            76
+            #else
+            sovereignHeaderHeight
+            #endif
+        }
+    }
+
+    // MARK: - Touch feedback (iPhone / iPad)
+
+    /// Haptics for filing, verification, and reconciliation actions.
+    enum TouchFeedback {
+        /// Medium “click” on successful commit (ProMotion-safe: single generator burst).
+        static func impactMedium() {
+            #if os(iOS) || os(visionOS)
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.prepare()
+            generator.impactOccurred()
+            #endif
+        }
+
+        /// Short burst of medium impacts (bulk verify / stack actions).
+        static func impactMediumBurst(count: Int) async {
+            #if os(iOS) || os(visionOS)
+            let n = min(max(count, 1), 8)
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.prepare()
+            for i in 0..<n {
+                generator.impactOccurred(intensity: 0.88)
+                if i < n - 1 {
+                    try? await Task.sleep(nanoseconds: 42_000_000)
+                }
+            }
+            #endif
+        }
     }
 }
 
@@ -100,7 +140,7 @@ struct ShadowStyle {
 extension View {
     /// Apply a shadow style
     func shadow(_ style: ShadowStyle) -> some View {
-        self.shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
+        shadow(color: style.color, radius: style.radius, x: style.x, y: style.y)
     }
 }
 
@@ -151,7 +191,7 @@ extension View {
             trailing: DesignSystem.Spacing.md
         )
     ) -> some View {
-        self.modifier(CardStyle(
+        modifier(CardStyle(
             backgroundColor: backgroundColor,
             cornerRadius: cornerRadius,
             shadow: shadow,
@@ -298,7 +338,7 @@ struct TagView: View {
     init(
         text: String,
         color: Color = Color.ratioVitaAdaptiveText,
-        backgroundColor: Color = Color.ratioVitaBorder,
+        backgroundColor: Color = Color.ratioVitaAdaptiveBorder,
         onTap: (() -> Void)? = nil
     ) {
         self.text = text
@@ -349,16 +389,16 @@ struct SectionHeader: View {
                     .font(DesignSystem.Typography.headline)
                     .foregroundColor(Color.ratioVitaAdaptiveText)
                 
-                if let subtitle = subtitle {
+                if let subtitle {
                     Text(subtitle)
                         .font(DesignSystem.Typography.caption)
-                        .foregroundColor(Color.ratioVitaTextSecondary)
+                        .foregroundStyle(Color.ratioVitaTextSecondary)
                 }
             }
             
             Spacer()
             
-            if let action = action, let actionText = actionText {
+            if let action, let actionText {
                 Button(action: action) {
                     Text(actionText)
                         .font(DesignSystem.Typography.callout)

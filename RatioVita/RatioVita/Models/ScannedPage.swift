@@ -22,6 +22,8 @@ struct ScannedPage {
     let confidence: Double?
     let detectedRectangles: [DetectedRectangle]?
     let processingNotes: String?
+    /// Wall-clock time when this page was captured or imported (used for Photos metadata).
+    let capturedAt: Date?
 
     init(
         image: RVImage,
@@ -30,9 +32,10 @@ struct ScannedPage {
         ocrText: String? = nil,
         confidence: Double? = nil,
         detectedRectangles: [DetectedRectangle]? = nil,
-        processingNotes: String? = nil
+        processingNotes: String? = nil,
+        capturedAt: Date? = nil
     ) {
-        self.id = UUID()
+        id = UUID()
         self.image = image
         self.originalImage = originalImage
         self.pageNumber = pageNumber
@@ -40,6 +43,7 @@ struct ScannedPage {
         self.confidence = confidence
         self.detectedRectangles = detectedRectangles
         self.processingNotes = processingNotes
+        self.capturedAt = capturedAt
     }
 
     var hasOCRResults: Bool {

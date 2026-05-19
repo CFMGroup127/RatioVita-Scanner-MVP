@@ -5,17 +5,18 @@
 //  Created by CFM Group International on 2025-09-02.
 //
 
+import Combine
 import Foundation
 import SwiftUI
-import Combine
 
 #if os(iOS)
-import UIKit
 import AVFoundation
+import UIKit
 #endif
 
 #if os(iOS)
 /// Coordinates camera capture operations and bridges AVFoundation with SwiftUI
+@MainActor
 class ScannerCoordinator: NSObject, ObservableObject {
     // MARK: - Published Properties
 
@@ -88,13 +89,13 @@ class ScannerCoordinator: NSObject, ObservableObject {
     }
     
     /// Focuses the camera at a specific point
-    func focusCamera(at point: CGPoint) {
+    func focusCamera(at _: CGPoint) {
         // Mock implementation
     }
     
     /// Gets the video preview layer for camera preview
     func getVideoPreviewLayer() -> AVCaptureVideoPreviewLayer? {
-        return nil
+        nil
     }
     
     /// Processes the captured image with OCR and returns ScanResult
@@ -112,7 +113,8 @@ class ScannerCoordinator: NSObject, ObservableObject {
             originalImage: image,
             pageNumber: 1,
             ocrText: "Mock OCR Text",
-            confidence: 0.9
+            confidence: 0.9,
+            capturedAt: Date()
         )
         
         let extractedData = ExtractedData(

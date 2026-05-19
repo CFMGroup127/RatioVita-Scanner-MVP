@@ -1,6 +1,6 @@
+import CoreGraphics
 import Foundation
 import SwiftData
-import CoreGraphics
 
 #if canImport(UIKit)
 import UIKit
@@ -39,6 +39,23 @@ final class ReceiptImage {
         imageData = ReceiptImage.encodeJPEG(image: image, quality: compressionQuality)
         self.receipt = receipt
     }
+
+    /// Restore / import path when JPEG bytes are already persisted (Sovereign Master Archive round-trip).
+    init(
+        id: UUID,
+        pageIndex: Int,
+        jpegData: Data,
+        ocrText: String?,
+        createdAt: Date,
+        receipt: Receipt?
+    ) {
+        self.id = id
+        self.pageIndex = pageIndex
+        self.ocrText = ocrText
+        self.createdAt = createdAt
+        imageData = jpegData
+        self.receipt = receipt
+    }
     
     // MARK: - Platform helpers
     
@@ -46,9 +63,47 @@ final class ReceiptImage {
         ReceiptImage.decodeImage(from: imageData)
     }
     
+    /// Re-encodes a full raster (e.g. after rotation or sharpen) and clears OCR until re-run.
+    func replaceEncodedImage(_ image: RVImage, compressionQuality: CGFloat = 0.92) {
+        imageData = ReceiptImage.encodeJPEG(image: image, quality: compressionQuality)
+        ocrText = nil
+    }
+
+    /// Replace pixels **and** OCR together (region crop / rescan replace).
+    func replaceRasterAndOCR(image: RVImage, ocrText: String?, compressionQuality: CGFloat = 0.92) {
+        imageData = ReceiptImage.encodeJPEG(image: image, quality: compressionQuality)
+        self.ocrText = ocrText
+    }
+
+    func applyRotationQuarterTurnsClockwise(_ delta: Int) {
+        guard let plat = platformImage,
+              let rotated = plat.rv_rotatedQuarterTurnsClockwise(delta) else { return }
+        replaceEncodedImage(rotated)
+    }
+
+    func applyFlipHorizontal() {
+        guard let plat = platformImage,
+              let flipped = plat.rv_flippedHorizontally() else { return }
+        replaceEncodedImage(flipped)
+    }
+
+    func applyFlipVertical() {
+        guard let plat = platformImage,
+              let flipped = plat.rv_flippedVertically() else { return }
+        replaceEncodedImage(flipped)
+    }
+
+    /// Runs the same receipt enhancement pass used on import (sharpen + contrast).
+    @MainActor
+    func applyReceiptSharpening() async throws {
+        guard let plat = platformImage else { return }
+        let processed = try await ImageProcessing.processImage(plat, with: .receiptDefault)
+        replaceEncodedImage(processed)
+    }
+
     // MARK: - Encoding/Decoding
-    
-    private static func encodeJPEG(image: RVImage, quality: CGFloat) -> Data {
+
+    static func encodeJPEG(image: RVImage, quality: CGFloat) -> Data {
         #if canImport(UIKit)
         return image.jpegData(compressionQuality: quality) ?? Data()
         #elseif canImport(AppKit)
@@ -59,14 +114,16 @@ final class ReceiptImage {
             return Data()
         }
         return jpeg
+        #else
+        return Data()
         #endif
     }
     
     private static func decodeImage(from data: Data) -> RVImage? {
         #if canImport(UIKit)
-        return UIImage(data: data)
+        RVImage.rv_decodedNormalizingEXIFOrientation(from: data)
         #elseif canImport(AppKit)
-        return NSImage(data: data)
+        return RVImage.rv_decodedNormalizingEXIFOrientation(from: data) ?? NSImage(data: data)
         #endif
     }
 }

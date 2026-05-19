@@ -26,6 +26,8 @@
 	<string>RatioVita needs camera access to scan receipts and extract text from them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>RatioVita needs photo library access to import receipt images from your photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>RatioVita can save scanned receipts into a RatioVita album in your library so they sync with iCloud Photos across your devices.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

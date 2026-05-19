@@ -10,7 +10,7 @@ final class CurrencyFormatter {
     private init() {}
     
     func format(_ amount: Decimal, currencyCode: String) -> String {
-        return queue.sync {
+        queue.sync {
             if let formatter = formatters[currencyCode] {
                 return formatter.string(from: amount as NSDecimalNumber) ?? "\(amount)"
             }
