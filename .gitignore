@@ -52,6 +52,15 @@ docs/
 Cursor/Editor state (optional)
 .cursor/
 
+# Agent automation secrets (never commit)
+agents_system/token.json
+agents_system/token.json.backup*
+agents_system/credentials.json
+agents_system/.env
+
+# Bundled receipt samples (sync via Scripts/sync_bundled_scanned_receipts.sh)
+RatioVita/RatioVita/Resources/RVArchive2020__*
+
 # Sovereign Vault: generated exports (private data); track .swift and template logic
 Vault/Exports/
 Vault/Exports/**/*.numbers
