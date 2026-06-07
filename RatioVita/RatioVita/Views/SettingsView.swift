@@ -646,6 +646,11 @@ struct SettingsView: View {
                     Button("Reset SetOS onboarding wizard", role: .destructive) {
                         SetOSOnboardingCoordinator.shared.resetForFactoryTest()
                     }
+                    Button("Reseed New Horizons Burlington sample data") {
+                        _Concurrency.Task { @MainActor in
+                            _ = try? NewHorizonsSampleDataGenerator.reseedBurlingtonEstate(modelContext: modelContext)
+                        }
+                    }
                     Toggle(
                         "Developer role override (all hats)",
                         isOn: Binding(
