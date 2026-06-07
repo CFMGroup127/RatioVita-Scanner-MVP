@@ -17,7 +17,8 @@ enum AccountingAmountPolarity {
                 .mustBePositive
             case .receipt, .invoice, .fuel:
                 .mustBeNegative
-            case .statement, .timeSheet, .warranty, .insurance, .maintenanceLog, .canadianTaxSlip, .dealMemo:
+            case .statement, .timeSheet, .warranty, .insurance, .maintenanceLog, .canadianTaxSlip, .dealMemo,
+                 .manuscript:
                 .unspecified
         }
     }

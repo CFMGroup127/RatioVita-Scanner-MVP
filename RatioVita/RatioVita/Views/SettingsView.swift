@@ -162,12 +162,19 @@ struct SettingsView: View {
                             Toggle("", isOn: $mirrorScannedReceiptsToPhotoLibrary)
                                 .labelsHidden()
                         }
+
+                        #if os(iOS)
+                        PhotoLibraryImportSettingsSection(
+                            ocrEnabled: ocrEnabled,
+                            compressionEnabled: compressionEnabled
+                        )
+                        #endif
                     }
                     .padding(DesignSystem.Spacing.md)
                 } header: {
                     SectionHeader(
                         title: "Photo library",
-                        subtitle: "Optional mirror into Apple Photos"
+                        subtitle: "Import from Photos and optional mirror out"
                     )
                 }
 
@@ -324,6 +331,42 @@ struct SettingsView: View {
                     SectionHeader(
                         title: "Receipt accounting repair",
                         subtitle: "Align historical rows with current sign rules"
+                    )
+                }
+
+                Section {
+                    NavigationLink("Sovereign identity profile") {
+                        OnboardingMasterSetupView()
+                    }
+                    NavigationLink("Module control cockpit") {
+                        MainSettingsCockpitView()
+                    }
+                    NavigationLink("Production operations hub") {
+                        ProductionOperationsHubView()
+                    }
+                    NavigationLink("Accounting approval protocols") {
+                        AccountingProtocolSetupView()
+                    }
+                    NavigationLink("Approvals inbox") {
+                        ApprovalsInboxView()
+                    }
+                    NavigationLink("Feedback & OTA dashboard") {
+                        InHouseFeedbackDashboardView()
+                    }
+                    NavigationLink("Expert consultant program") {
+                        ExpertOnboardingHubView()
+                    }
+                    NavigationLink("AP · Payroll portal") {
+                        APPayrollPortalView()
+                    }
+                    NavigationLink("Script breakdown hub") {
+                        ScriptBreakdownHubView()
+                    }
+                } header: {
+                    Text("Sovereign setup")
+                } footer: {
+                    Text(
+                        "Register name variants, family isolation, and optional feature modules. Corporations link from My corporations."
                     )
                 }
 
@@ -576,6 +619,16 @@ struct SettingsView: View {
                     )
                 }
 
+                Section {
+                    CloudVaultTransportSettingsSection()
+                        .padding(DesignSystem.Spacing.md)
+                } header: {
+                    SectionHeader(
+                        title: "Vault transport",
+                        subtitle: "Cross-device `.rvvault` snapshots"
+                    )
+                }
+
                 #if DEBUG
                 Section {
                     Toggle(
@@ -590,6 +643,16 @@ struct SettingsView: View {
                     Button("Factory reset library…", role: .destructive) {
                         showFactoryResetConfirm = true
                     }
+                    Button("Reset SetOS onboarding wizard", role: .destructive) {
+                        SetOSOnboardingCoordinator.shared.resetForFactoryTest()
+                    }
+                    Toggle(
+                        "Developer role override (all hats)",
+                        isOn: Binding(
+                            get: { SetOSOnboardingCoordinator.shared.developerRoleOverrideEnabled },
+                            set: { SetOSOnboardingCoordinator.shared.developerRoleOverrideEnabled = $0 }
+                        )
+                    )
                 } header: {
                     SectionHeader(
                         title: "Developer",

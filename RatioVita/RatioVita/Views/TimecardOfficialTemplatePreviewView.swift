@@ -91,7 +91,7 @@ struct PayrollPDFFitPageView: View {
                 .frame(width: geo.size.width, height: height)
         }
         .aspectRatio(PayrollPDFPreviewLayout.landscapeAspect, contentMode: .fit)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: SafeLayoutBounds.maxTimecardPreviewWidth)
     }
 }
 
@@ -113,7 +113,11 @@ struct PDFKitDocumentView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: PDFView, context _: Context) {
-        nsView.document = PDFDocument(url: url)
+        let document = PDFDocument(url: url)
+        if fitSinglePage, let document {
+            PDFFormFieldStyle.reinforceGridWidgetTypography(document: document)
+        }
+        nsView.document = document
         nsView.displayMode = fitSinglePage ? .singlePage : .singlePageContinuous
         nsView.displaysPageBreaks = false
         if fitSinglePage, let page = nsView.document?.page(at: 0) {

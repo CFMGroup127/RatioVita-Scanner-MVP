@@ -55,6 +55,25 @@ final class CrewTimecardDay {
 
     var notes: String?
 
+    /// Accounts-driven approval chain (dept head → PM → accounting).
+    var approvalStateRaw: Int = 0
+    var crewSignerInitials: String?
+    var crewSignedAt: Date?
+    var deptHeadSignerName: String?
+    var deptHeadSignerInitials: String?
+    var deptHeadSignedAt: Date?
+    var pmSignerName: String?
+    var pmSignerInitials: String?
+    var pmSignedAt: Date?
+    var accountingSignerName: String?
+    var accountingSignerInitials: String?
+    var accountingSignedAt: Date?
+
+    var approvalState: ApprovalState {
+        get { ApprovalState(rawValue: approvalStateRaw) ?? .drafted }
+        set { approvalStateRaw = newValue.rawValue }
+    }
+
     init(
         id: UUID = UUID(),
         workDate: Date,
@@ -88,7 +107,19 @@ final class CrewTimecardDay {
         ancillaryTabletRateCAD: Decimal? = nil,
         ancillaryVehicleRateCAD: Decimal? = nil,
         kitRentalFullTimeMode: Bool = false,
-        notes: String? = nil
+        notes: String? = nil,
+        approvalState: ApprovalState = .drafted,
+        crewSignerInitials: String? = nil,
+        crewSignedAt: Date? = nil,
+        deptHeadSignerName: String? = nil,
+        deptHeadSignerInitials: String? = nil,
+        deptHeadSignedAt: Date? = nil,
+        pmSignerName: String? = nil,
+        pmSignerInitials: String? = nil,
+        pmSignedAt: Date? = nil,
+        accountingSignerName: String? = nil,
+        accountingSignerInitials: String? = nil,
+        accountingSignedAt: Date? = nil
     ) {
         self.id = id
         self.workDate = workDate
@@ -123,5 +154,17 @@ final class CrewTimecardDay {
         self.ancillaryVehicleRateCAD = ancillaryVehicleRateCAD
         self.kitRentalFullTimeMode = kitRentalFullTimeMode
         self.notes = notes
+        approvalStateRaw = approvalState.rawValue
+        self.crewSignerInitials = crewSignerInitials
+        self.crewSignedAt = crewSignedAt
+        self.deptHeadSignerName = deptHeadSignerName
+        self.deptHeadSignerInitials = deptHeadSignerInitials
+        self.deptHeadSignedAt = deptHeadSignedAt
+        self.pmSignerName = pmSignerName
+        self.pmSignerInitials = pmSignerInitials
+        self.pmSignedAt = pmSignedAt
+        self.accountingSignerName = accountingSignerName
+        self.accountingSignerInitials = accountingSignerInitials
+        self.accountingSignedAt = accountingSignedAt
     }
 }

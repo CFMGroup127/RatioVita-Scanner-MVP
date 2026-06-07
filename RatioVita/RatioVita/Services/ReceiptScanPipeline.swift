@@ -25,7 +25,8 @@ enum ReceiptScanPipeline {
         ocrEnabled: Bool,
         compressionEnabled: Bool
     ) async throws -> ScanResult {
-        let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(image: image, ocrEnabled: ocrEnabled)
+        let normalized = ReceiptImageRasterOps.prepareForPersistence(image) ?? image
+        let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(image: normalized, ocrEnabled: ocrEnabled)
         let processed = try await ImageProcessing.processImage(oriented, with: .receiptDefault)
 
         guard let cgImage = processed.rv_cgImageForVisionAnalysis ?? processed.rvCGImage else {

@@ -49,15 +49,20 @@ struct TimecardWeeklyMatrixView: View {
                             Text(header)
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                                .frame(minWidth: headerMinWidth(header), alignment: .leading)
+                                .frame(
+                                    width: FixedColumnWidths.matrixColumnWidth(header: header),
+                                    alignment: .leading
+                                )
                         }
                     }
                     ForEach(weekDays, id: \.id) { day in
                         dayMatrixRow(day)
                     }
                 }
+                .frame(width: SafeLayoutBounds.weeklyMatrixTotalWidth, alignment: .leading)
                 .padding(.vertical, 4)
             }
+            .frame(maxWidth: SafeLayoutBounds.maxTimecardPreviewWidth)
             .background(Color.ratioVitaAdaptiveSurface.opacity(0.35))
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md))
 
@@ -69,14 +74,6 @@ struct TimecardWeeklyMatrixView: View {
             .adaptiveDetailText()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func headerMinWidth(_ header: String) -> CGFloat {
-        switch header {
-            case "Day", "Date": 52
-            case "Work h": 44
-            default: 56
-        }
     }
 
     @ViewBuilder
@@ -97,19 +94,22 @@ struct TimecardWeeklyMatrixView: View {
 
         GridRow {
             Text(day.workDate.formatted(.dateTime.weekday(.abbreviated)))
-                .font(.caption.monospacedDigit())
+                .font(Self.gridCellFont)
+                .frame(width: FixedColumnWidths.dayDateWidth, alignment: .leading)
             Text(day.workDate.formatted(date: .numeric, time: .omitted))
-                .font(.caption.monospacedDigit())
-            cell(day.travelLeaveZoneStart, tf: tf)
-            cell(effCall, tf: tf)
-            cell(day.meal1Start, tf: tf)
-            cell(day.meal1End, tf: tf)
-            cell(day.meal2Start, tf: tf)
-            cell(day.meal2End, tf: tf)
-            cell(effWrap, tf: tf)
-            cell(day.travelReturnHome, tf: tf)
+                .font(Self.gridCellFont)
+                .frame(width: FixedColumnWidths.dayDateWidth, alignment: .leading)
+            cell(day.travelLeaveZoneStart, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(effCall, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(day.meal1Start, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(day.meal1End, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(day.meal2Start, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(day.meal2End, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(effWrap, width: FixedColumnWidths.timeCellWidth, tf: tf)
+            cell(day.travelReturnHome, width: FixedColumnWidths.timeCellWidth, tf: tf)
             Text(workH.map { String(format: "%.2f", $0) } ?? "—")
-                .font(.caption.monospacedDigit())
+                .font(Self.gridCellFont)
+                .frame(width: FixedColumnWidths.workHoursWidth, alignment: .leading)
         }
         .background(
             day.id == focusDay.id
@@ -118,12 +118,13 @@ struct TimecardWeeklyMatrixView: View {
         )
     }
 
-    private func cell(_ date: Date?, tf: DateFormatter) -> some View {
+    private static let gridCellFont = Font.system(size: 7.5, weight: .bold, design: .monospaced)
+
+    private func cell(_ date: Date?, width: CGFloat, tf: DateFormatter) -> some View {
         Text(date.map { tf.string(from: $0) } ?? "—")
-            .font(.caption.monospacedDigit())
+            .font(Self.gridCellFont)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .frame(minWidth: 52, alignment: .leading)
+            .frame(width: width, alignment: .leading)
     }
 
     private var timeFormatter: DateFormatter {

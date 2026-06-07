@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Edit one deal-memo rate tier (department, occupation, rates, effective date).
+/// Edit one deal-memo rate tier (occupation, department, effective date, rates).
 struct ShowLaborPositionRateEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -9,91 +9,51 @@ struct ShowLaborPositionRateEditSheet: View {
 
     @State private var baseRateText = ""
     @State private var premiumRateText = ""
-    @State private var selectedDepartment = ""
-    @State private var selectedOccupation = ""
-    @State private var customOccupation = ""
-    @State private var useCustomOccupation = false
-    @State private var useCustomDepartment = false
-
-    private var occupationOptions: [String] {
-        let dept = useCustomDepartment
-            ? selectedDepartment
-            : (selectedDepartment.isEmpty ? (rate.department ?? "") : selectedDepartment)
-        return ProductionDepartmentOccupationCatalog.occupations(for: dept)
-    }
+    @State private var rentalDrafts: [RentalAllowanceDraft] = []
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    if useCustomDepartment {
-                        TextField("Department", text: $selectedDepartment)
-                    } else {
-                        Picker("Department", selection: $selectedDepartment) {
-                            Text("Select department").tag("")
-                            ForEach(ProductionDepartmentOccupationCatalog.departmentPresets, id: \.self) { dept in
-                                Text(dept).tag(dept)
-                            }
-                            Text(ProductionDepartmentOccupationCatalog.otherDepartment).tag(
-                                ProductionDepartmentOccupationCatalog.otherDepartment
-                            )
-                        }
-                    }
-                    Toggle("Custom department name", isOn: $useCustomDepartment)
-                } header: {
-                    Text("Department")
-                } footer: {
-                    Text("Choose Costumes to see the 873 feature-film wardrobe role list.")
-                        .font(.caption)
+                Section("Department & position") {
+                    LaborRateTierEditorFields(
+                        rate: rate,
+                        baseRateText: $baseRateText,
+                        premiumRateText: $premiumRateText
+                    )
                 }
 
                 Section {
-                    if useCustomOccupation {
-                        TextField("Occupation / classification", text: $customOccupation)
+                    if rentalDrafts.isEmpty {
+                        Text("No rental lines yet — add cell, tablet, laptop, vehicle, or kit.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     } else {
-                        Picker("Occupation / classification", selection: $selectedOccupation) {
-                            Text("Select occupation").tag("")
-                            ForEach(occupationOptions, id: \.self) { title in
-                                Text(title).tag(title)
+                        ForEach($rentalDrafts) { $draft in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Picker("Type", selection: $draft.kind) {
+                                    ForEach(RentalAllowanceKind.allCases) { k in
+                                        Text(k.label).tag(k)
+                                    }
+                                }
+                                TextField("Rate (CAD/day)", text: $draft.rateText)
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
                             }
                         }
-                        .disabled(selectedDepartment.isEmpty && !useCustomDepartment)
+                        .onDelete { rentalDrafts.remove(atOffsets: $0) }
                     }
-                    Toggle("Custom occupation", isOn: $useCustomOccupation)
-                } header: {
-                    Text("Occupation / classification")
-                }
-
-                Section("Rates (CAD)") {
-                    TextField("Base hourly", text: $baseRateText)
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
-                    TextField("Premium add-on hourly", text: $premiumRateText)
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
-                    Text(
-                        "Combined: \(rate.combinedHourlyRateCAD.formatted(.number.precision(.fractionLength(2)))) CAD/hr"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    DatePicker("Effective from", selection: $rate.effectiveFromDate, displayedComponents: .date)
-                } header: {
-                    Text("Effective from")
-                }
-
-                Section {
-                    Text(
-                        "Itemized kit & rental allowances (cell, tablet, laptop, vehicle, costume truck kit) will link here and to Cabinets → Kits. Deal-memo import will pre-fill rates when available."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Button {
+                        rentalDrafts.append(RentalAllowanceDraft())
+                    } label: {
+                        Label("Add rental item", systemImage: "plus.circle")
+                    }
                 } header: {
                     Text("Rental items & kit allowances")
+                } footer: {
+                    Text(
+                        "Stored on this tier until the brand → model → serial cascade ships. Deal-memo import will pre-fill later."
+                    )
                 }
 
                 Section {
@@ -116,24 +76,10 @@ struct ShowLaborPositionRateEditSheet: View {
                         Button("Save") { commitAndDismiss() }
                     }
                 }
-                .onAppear { syncFields() }
-                .onChange(of: selectedDepartment) { _, newDept in
-                    if newDept == ProductionDepartmentOccupationCatalog.otherDepartment {
-                        useCustomDepartment = true
-                    }
-                    if !useCustomOccupation, !occupationOptions.contains(selectedOccupation) {
-                        selectedOccupation = ""
-                    }
-                }
-                .onChange(of: useCustomDepartment) { _, on in
-                    if !on, selectedDepartment == ProductionDepartmentOccupationCatalog.otherDepartment {
-                        selectedDepartment = ""
-                    }
-                }
-                .onChange(of: selectedOccupation) { _, occ in
-                    if occ == CostumesDepartmentOccupationCatalog.otherTitle {
-                        useCustomOccupation = true
-                    }
+                .onAppear {
+                    baseRateText = "\(rate.baseHourlyRateCAD)"
+                    premiumRateText = "\(rate.premiumHourlyRateCAD)"
+                    syncRentalDraftsFromNotes()
                 }
         }
         #if os(macOS)
@@ -141,75 +87,59 @@ struct ShowLaborPositionRateEditSheet: View {
         #endif
     }
 
-    private func syncFields() {
-        baseRateText = "\(rate.baseHourlyRateCAD)"
-        premiumRateText = "\(rate.premiumHourlyRateCAD)"
-
-        let dept = rate.department?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if ProductionDepartmentOccupationCatalog.departmentPresets.contains(dept) {
-            selectedDepartment = dept
-            useCustomDepartment = false
-        } else if dept.isEmpty {
-            selectedDepartment = ""
-            useCustomDepartment = false
-        } else {
-            selectedDepartment = dept
-            useCustomDepartment = true
-        }
-
-        let occ = rate.occupationTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let options = ProductionDepartmentOccupationCatalog.occupations(
-            for: useCustomDepartment ? selectedDepartment : (selectedDepartment.isEmpty ? dept : selectedDepartment)
-        )
-        if options.contains(occ) {
-            selectedOccupation = occ
-            useCustomOccupation = false
-            customOccupation = ""
-        } else if occ.isEmpty {
-            selectedOccupation = ""
-            useCustomOccupation = false
-        } else {
-            customOccupation = occ
-            useCustomOccupation = true
+    private func syncRentalDraftsFromNotes() {
+        guard let notes = rate.allowanceNotes, !notes.isEmpty else { return }
+        rentalDrafts = notes.split(separator: "\n").compactMap { line in
+            let parts = line.split(separator: "|", omittingEmptySubsequences: true)
+            guard parts.count >= 2 else { return nil }
+            let kind = RentalAllowanceKind(rawValue: String(parts[0])) ?? .cell
+            return RentalAllowanceDraft(kind: kind, rateText: String(parts[1]))
         }
     }
 
     private func commitAndDismiss() {
-        let dept = selectedDepartment.trimmingCharacters(in: .whitespacesAndNewlines)
-        rate.department = dept.isEmpty ? nil : dept
-
-        if useCustomOccupation {
-            let occ = customOccupation.trimmingCharacters(in: .whitespacesAndNewlines)
-            rate.occupationTitle = occ.isEmpty ? rate.occupationTitle : occ
-        } else if !selectedOccupation.isEmpty,
-                  selectedOccupation != CostumesDepartmentOccupationCatalog.otherTitle
-        {
-            rate.occupationTitle = selectedOccupation
+        if let d = Decimal(string: baseRateText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(
+            of: ",",
+            with: "."
+        )) {
+            rate.baseHourlyRateCAD = d
         }
-
-        commitBase()
-        commitPremium()
-        touch()
+        if let d = Decimal(string: premiumRateText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(
+            of: ",",
+            with: "."
+        )) {
+            rate.premiumHourlyRateCAD = d
+        }
+        rate.allowanceNotes = rentalDrafts.isEmpty
+            ? nil
+            : rentalDrafts.map { "\($0.kind.rawValue)|\($0.rateText)" }.joined(separator: "\n")
+        rate.updatedAt = .now
         try? modelContext.save()
         dismiss()
     }
+}
 
-    private func commitBase() {
-        let trimmed = baseRateText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let d = Decimal(string: trimmed.replacingOccurrences(of: ",", with: ".")) {
-            rate.baseHourlyRateCAD = d
+private enum RentalAllowanceKind: String, CaseIterable, Identifiable {
+    case cell
+    case tablet
+    case laptop
+    case vehicle
+    case kit
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+            case .cell: "Cell / mobile"
+            case .tablet: "Tablet / iPad"
+            case .laptop: "Laptop / computer"
+            case .vehicle: "Car / vehicle"
+            case .kit: "Kit rental"
         }
     }
+}
 
-    private func commitPremium() {
-        let trimmed = premiumRateText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let d = Decimal(string: trimmed.replacingOccurrences(of: ",", with: ".")) {
-            rate.premiumHourlyRateCAD = d
-        }
-    }
-
-    private func touch() {
-        rate.updatedAt = .now
-        try? modelContext.save()
-    }
+private struct RentalAllowanceDraft: Identifiable {
+    let id = UUID()
+    var kind: RentalAllowanceKind = .cell
+    var rateText: String = "5"
 }

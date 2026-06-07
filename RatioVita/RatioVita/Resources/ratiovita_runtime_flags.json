@@ -1,0 +1,12 @@
+{
+  "changelog" : "Default bundled runtime flags",
+  "deployedAt" : null,
+  "experimentalViewFlags" : {
+    "approvalsInboxProminent" : true
+  },
+  "featureFlags" : {
+    "com.ratiovita.feature.transportRunnerRouting" : false
+  },
+  "pettyCashAutoApproveCAD" : 50,
+  "schemaVersion" : 1
+}

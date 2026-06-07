@@ -17,6 +17,8 @@ enum DocumentTypeOption: String, CaseIterable, Identifiable, Codable, Hashable {
     case canadianTaxSlip = "Canadian Tax Slip"
     /// EP / production deal memo — rates archive, not a purchase receipt.
     case dealMemo = "Deal Memo"
+    /// Chat logs, blueprints, and unedited manuscripts (bypasses receipt OCR).
+    case manuscript = "Manuscript"
 
     var id: String { rawValue }
 
@@ -30,7 +32,7 @@ enum DocumentTypeOption: String, CaseIterable, Identifiable, Codable, Hashable {
     /// Matches receipt detail / edit UX: hide business-use % for income-like document types.
     var showsBusinessUsePercentControls: Bool {
         switch self {
-            case .incomeOrCheck, .outgoingInvoice, .paycheck, .statement, .canadianTaxSlip, .dealMemo:
+            case .incomeOrCheck, .outgoingInvoice, .paycheck, .statement, .canadianTaxSlip, .dealMemo, .manuscript:
                 false
             default:
                 true
@@ -40,7 +42,7 @@ enum DocumentTypeOption: String, CaseIterable, Identifiable, Codable, Hashable {
     /// Standard subtotal / tax / total block (hidden for deal memos and time sheets).
     var showsRetailFinancialFields: Bool {
         switch self {
-            case .dealMemo, .timeSheet:
+            case .dealMemo, .timeSheet, .manuscript:
                 false
             default:
                 true

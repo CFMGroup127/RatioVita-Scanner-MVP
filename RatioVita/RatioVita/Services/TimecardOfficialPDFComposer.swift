@@ -39,7 +39,8 @@ enum TimecardOfficialPDFComposer {
         workRecords: [WorkRecord],
         agreement: LaborAgreement,
         estimateByDayID: [UUID: SentinelPayEstimate],
-        production: ProductionProject?
+        production: ProductionProject?,
+        splitSheetTag: String? = nil
     ) throws -> URL {
         #if canImport(PDFKit)
         guard let templateURL = Bundle.main.url(
@@ -63,10 +64,20 @@ enum TimecardOfficialPDFComposer {
                 occupation: occupation,
                 days: days,
                 production: production,
+                compliance: compliance,
+                estimateByDayID: estimateByDayID
+            )
+            case .castAndCrewCrewCanada:
+            CastAndCrewPDFFormFiller.fill(
+                document: document,
+                productionTitle: productionTitle,
+                occupation: occupation,
+                days: days,
+                production: production,
                 compliance: compliance
             )
-            case .castAndCrewCrewCanada, .castAndCrewTalentToronto:
-            CastAndCrewPDFFormFiller.fill(
+            case .castAndCrewTalentToronto:
+            CastAndCrewTalentPDFFormFiller.fill(
                 document: document,
                 productionTitle: productionTitle,
                 occupation: occupation,
@@ -81,7 +92,14 @@ enum TimecardOfficialPDFComposer {
         _ = estimateByDayID
 
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let stem = template.bundleResourceName.replacingOccurrences(of: " ", with: "_")
+        var stem = template.bundleResourceName.replacingOccurrences(of: " ", with: "_")
+        if let tag = splitSheetTag?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !tag.isEmpty
+        {
+            let safe = tag.replacingOccurrences(of: " ", with: "_")
+            stem += "_\(safe)"
+        }
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(stem)_filled_\(stamp).pdf")
         guard document.write(to: url) else {

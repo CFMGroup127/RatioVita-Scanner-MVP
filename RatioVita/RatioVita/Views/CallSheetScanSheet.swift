@@ -14,6 +14,7 @@ import PhotosUI
 /// Home-dashboard **call sheet sniper**: OCR page 1, then pre-fills Labor Sentinel for the matching calendar day.
 struct CallSheetScanSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
     @AppStorage("ocrEnabled") private var ocrEnabled = true
@@ -116,6 +117,12 @@ struct CallSheetScanSheet: View {
                     "Could not find a **CREW CALL** time in the OCR. Try a sharper crop of the header block."
                 return
             }
+            _ = try? CallSheetIngestionService.ingestFromOCR(
+                context: modelContext,
+                ocrText: ocr,
+                anchorDay: pref.anchorDay,
+                productionProjectID: nil
+            )
             libraryNavigationCoordinator.offerCallSheetLaborPrefill(pref)
             libraryNavigationCoordinator.navigateFromHome(.laborSentinel)
             dismiss()

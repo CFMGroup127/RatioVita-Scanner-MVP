@@ -56,7 +56,7 @@ final class ReceiptsViewModel: ObservableObject {
             r.trashedAt = now
         }
         do {
-            try context.save()
+            try ModelContextMainActorSave.saveThrows(context)
         } catch {
             UserMessageCenter.shared.present(
                 title: "Couldn't update library",
@@ -71,6 +71,29 @@ final class ReceiptsViewModel: ObservableObject {
         showScanner = true
     }
     
+    func importManuscriptFile(at url: URL, vaultPathPrefix: String? = nil) async {
+        isScanning = true
+        defer { isScanning = false }
+        do {
+            let summary = try ManuscriptVaultImportService.importManuscriptFile(
+                at: url,
+                vaultPathPrefix: vaultPathPrefix,
+                context: context
+            )
+            UserMessageCenter.shared.present(
+                title: "Manuscript archived",
+                message:
+                "“\(summary.title)” is in the Manuscript Vault and Media Core knowledge graph. Vault path: \(ManuscriptVaultImportService.defaultVaultPrefix)."
+            )
+            showScanner = false
+        } catch {
+            UserMessageCenter.shared.present(
+                title: "Manuscript import failed",
+                message: error.ratioVitaUserDescription
+            )
+        }
+    }
+
     func handleScanResult(_ result: ScanResult, options: ReceiptIngestOptions) async {
         guard !ingestSaveInFlight else {
             UserMessageCenter.shared.present(

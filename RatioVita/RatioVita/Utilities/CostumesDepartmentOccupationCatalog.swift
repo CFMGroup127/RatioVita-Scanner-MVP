@@ -45,6 +45,9 @@ enum ProductionDepartmentOccupationCatalog {
     static let departmentPresets: [String] = [
         "Costumes",
         "Transport",
+        "Performers",
+        "Locations",
+        "Assistant Directors",
         "Set Dec",
         "Grip & Electric",
         "Hair & Makeup",
@@ -64,6 +67,12 @@ enum ProductionDepartmentOccupationCatalog {
                 return CostumesDepartmentOccupationCatalog.pickerOptions
             case "Transport":
                 return transportTitles + [CostumesDepartmentOccupationCatalog.otherTitle]
+            case "Performers":
+                return performerTitles + [CostumesDepartmentOccupationCatalog.otherTitle]
+            case "Locations":
+                return locationTitles + [CostumesDepartmentOccupationCatalog.otherTitle]
+            case "Assistant Directors":
+                return adTitles + [CostumesDepartmentOccupationCatalog.otherTitle]
             default:
                 return IATSE873PositionCatalog.pickerOptions
         }
@@ -74,5 +83,25 @@ enum ProductionDepartmentOccupationCatalog {
         "Truck Supervisor",
         "Driver",
         "Loader",
+    ]
+
+    private static let performerTitles: [String] = [
+        "BG Tanker Driver (Special Skills)",
+        "BG Skateboard Stunt",
+        "Background Performer",
+        "Stand-In",
+    ]
+
+    private static let locationTitles: [String] = [
+        "Set PA / Lockup Support",
+        "Location Manager",
+        "Assistant Location Manager",
+    ]
+
+    private static let adTitles: [String] = [
+        "3rd AD / Background Marshall",
+        "2nd AD",
+        "1st AD",
+        "Key 2nd AD",
     ]
 }

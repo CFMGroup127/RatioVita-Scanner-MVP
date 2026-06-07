@@ -1,3 +1,4 @@
+import Combine
 import CoreData
 import SwiftData
 import SwiftUI
@@ -11,10 +12,11 @@ struct SwiftDataRemoteSyncRefreshModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
-                Task { @MainActor in
-                    modelContext.processPendingChanges()
-                }
+            .onReceive(
+                NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)
+                    .receive(on: DispatchQueue.main)
+            ) { _ in
+                modelContext.processPendingChanges()
             }
     }
 }

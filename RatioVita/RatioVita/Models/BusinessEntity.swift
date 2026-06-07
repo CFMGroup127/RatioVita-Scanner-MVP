@@ -22,9 +22,11 @@ final class BusinessEntity {
     var articlesDocumentFilename: String?
     var notes: String?
     /// `PaymentTermsMode.rawValue` — default payroll / AR cadence for productions that inherit from this entity.
-    var paymentTermsRaw: String
+    /// Inline default lets SwiftData populate legacy rows during lightweight migration.
+    var paymentTermsRaw: String = ""
     /// When true, this is **your** corporation (AR polarity, excluded from external Contacts).
-    var isOwnedCorporation: Bool
+    /// Inline default is required so older on-disk stores migrate instead of failing (Code 134110).
+    var isOwnedCorporation: Bool = false
     var createdAt: Date
     var updatedAt: Date
 

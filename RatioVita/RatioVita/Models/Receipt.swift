@@ -56,6 +56,10 @@ final class Receipt {
     var productionProject: ProductionProject?
     /// Department or crew role summary for the document (e.g. Craft Services, Costumes).
     var department: String?
+    /// CapEx / culinary / media tier for high-volume production hubs (New Horizons).
+    var expenseClassificationRaw: String?
+    /// Physical zone at 176 Yonge (e.g. Floor 2 Terrace, Rooftop Canopy).
+    var physicalZoneTag: String?
 
     /// 0…100 suggested or user-edited business-use allocation for tax prep (nil = unset).
     var businessUsePercent: Double?
@@ -182,6 +186,8 @@ final class Receipt {
         productionType: String? = nil,
         productionProject: ProductionProject? = nil,
         department: String? = nil,
+        expenseClassificationRaw: String? = nil,
+        physicalZoneTag: String? = nil,
         businessUsePercent: Double? = nil,
         businessUseSuggestedPercent: Double? = nil,
         businessUseVerifiedByTimeSheet: Bool = false,
@@ -240,6 +246,8 @@ final class Receipt {
         self.productionType = productionType
         self.productionProject = productionProject
         self.department = department
+        self.expenseClassificationRaw = expenseClassificationRaw
+        self.physicalZoneTag = physicalZoneTag
         self.businessUsePercent = businessUsePercent
         self.businessUseSuggestedPercent = businessUseSuggestedPercent
         self.businessUseVerifiedByTimeSheet = businessUseVerifiedByTimeSheet

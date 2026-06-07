@@ -30,6 +30,11 @@ struct RatioVitaHomeView: View {
     @State private var showInsurance = false
     @State private var showCallSheetScan = false
     @State private var showZeroLinkCleanup = false
+    @State private var showEmergencyShuttle = false
+    @State private var showProductionOperations = false
+
+    @AppStorage(SovereignFeatureFlags.transportRunnerRoutingKey) private var transportRunnerRouting = false
+    @AppStorage(SovereignFeatureFlags.craftLogisticsMeshKey) private var craftLogisticsMesh = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -82,6 +87,15 @@ struct RatioVitaHomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                 forensicPulseCard
+                if transportRunnerRouting || craftLogisticsMesh {
+                    productionLogisticsCard
+                }
+                SetOSAppShellView(
+                    department: SetOSOnboardingCoordinator.shared.activeIndustryScope,
+                    tier: nil
+                ) { intent in
+                    NativeLauncherShortcutManager.launch(intent)
+                }
                 moduleGrid
             }
             .padding(DesignSystem.Spacing.md)
@@ -135,6 +149,14 @@ struct RatioVitaHomeView: View {
             }
             .sheet(isPresented: $showCallSheetScan) {
                 CallSheetScanSheet()
+            }
+            .sheet(isPresented: $showEmergencyShuttle) {
+                EmergencyShuttleRequestSheet()
+            }
+            .sheet(isPresented: $showProductionOperations) {
+                NavigationStack {
+                    ProductionOperationsHubView()
+                }
             }
             .sheet(isPresented: $showZeroLinkCleanup) {
                 ZeroLinkProductionCleanupSheet(
@@ -240,6 +262,54 @@ struct RatioVitaHomeView: View {
                         : (activeProjectIsDormant ? Color.secondary.opacity(0.55) : brandAccent.opacity(0.35)),
                     lineWidth: forensicPulseAttention ? 2 : (activeProjectIsDormant ? 2 : 1)
                 )
+        )
+    }
+
+    private var productionLogisticsCard: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label("Production logistics", systemImage: "car.2.fill")
+                .font(DesignSystem.Typography.bodyEmphasized)
+            Text("Request a wrap shuttle when walkies are out of range, or open the transport board.")
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                if transportRunnerRouting {
+                    Button {
+                        showEmergencyShuttle = true
+                    } label: {
+                        Label("Request shuttle", systemImage: "location.circle.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                Button {
+                    showProductionOperations = true
+                } label: {
+                    Label("Operations hub", systemImage: "list.bullet.rectangle")
+                }
+                .buttonStyle(.bordered)
+            }
+            HStack(spacing: 12) {
+                NavigationLink {
+                    ApprovalsInboxView()
+                } label: {
+                    Label("Approvals inbox", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.bordered)
+                #if os(iOS)
+                Button {
+                    LiveFeedbackManager.shared.presentFeedback(context: "Home launchpad")
+                } label: {
+                    Label("Feedback", systemImage: "hand.raised")
+                }
+                .buttonStyle(.bordered)
+                #endif
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg, style: .continuous)
+                .fill(Color.ratioVitaAdaptiveSurface)
         )
     }
 

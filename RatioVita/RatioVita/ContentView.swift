@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject private var userMessages = UserMessageCenter.shared
+    @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
@@ -156,6 +157,10 @@ struct ContentView: View {
             #endif
         }
         .swiftDataCloudKitRemoteMergeRefresh()
+        .shakeToFeedback(context: "RatioVita")
+        .sheet(isPresented: $feedbackManager.showOverlay) {
+            CrewFeedbackOverlayView()
+        }
         .alert(userMessages.title, isPresented: $userMessages.isPresented) {
             Button("OK", role: .cancel) {
                 userMessages.dismiss()
@@ -201,6 +206,8 @@ struct ContentView: View {
 // MARK: - Sidebar split shell (macOS + iPad)
 
 private enum SidebarPane: Hashable {
+    case operationsCommand
+    case expertProgram
     case home
     case productions
     case receipts
@@ -208,6 +215,7 @@ private enum SidebarPane: Hashable {
     case laborSentinel
     case timeSheets
     case mediaCore
+    case fieldOps
     case contacts
     case myCorporations
     case review
@@ -223,6 +231,8 @@ private enum SidebarPane: Hashable {
 
     var title: String {
         switch self {
+            case .operationsCommand: return "Dispatch & approvals"
+            case .expertProgram: return "Expert program"
             case .home: return "Home"
             case .productions: return "Productions"
             case .receipts: return "Receipts"
@@ -230,6 +240,7 @@ private enum SidebarPane: Hashable {
             case .laborSentinel: return "Labor Sentinel"
             case .timeSheets: return "Time Sheets"
             case .mediaCore: return "Media Core"
+            case .fieldOps: return "Field ops"
             case .contacts: return "Contacts"
             case .myCorporations: return "My corporations"
             case .review: return "Review"
@@ -247,6 +258,8 @@ private enum SidebarPane: Hashable {
 
     var systemImage: String {
         switch self {
+            case .operationsCommand: return "checkmark.seal.fill"
+            case .expertProgram: return "person.badge.shield.checkmark.fill"
             case .home: return "square.grid.2x2.fill"
             case .productions: return "film.stack"
             case .receipts: return "doc.text.fill"
@@ -254,6 +267,7 @@ private enum SidebarPane: Hashable {
             case .laborSentinel: return "shield.lefthalf.filled"
             case .timeSheets: return "calendar.day.timeline.left"
             case .mediaCore: return "waveform.circle"
+            case .fieldOps: return "car.2.fill"
             case .contacts: return "person.2"
             case .myCorporations: return "building.2.crop.circle"
             case .review: return "tray.full"
@@ -274,6 +288,7 @@ private struct SidebarSplitShell: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.brandAccent) private var brandAccent
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
+    @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
 
     let pendingReviewCount: Int
     let trashCount: Int
@@ -362,6 +377,13 @@ private struct SidebarSplitShell: View {
         .onAppear {
             InternalIdentityRegistry.syncOwnedEntities(context: modelContext)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            TestingMissionBannerView()
+        }
+        .shakeToFeedback(context: "Sidebar · \(selection.title)")
+        .sheet(isPresented: $feedbackManager.showOverlay) {
+            CrewFeedbackOverlayView()
+        }
     }
 
     private func applyHomeNavigationSplit() {
@@ -390,6 +412,19 @@ private struct SidebarSplitShell: View {
         }
     }
 
+    private var sidebarSettingsFooter: some View {
+        Button {
+            selection = .settings
+        } label: {
+            Label("Settings", systemImage: "gearshape")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.ratioVitaAdaptiveSurface.opacity(0.95))
+    }
+
     #if os(macOS)
     private var sidebarListMac: some View {
         List(selection: $selection) {
@@ -402,19 +437,6 @@ private struct SidebarSplitShell: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             sidebarSettingsFooter
         }
-    }
-
-    private var sidebarSettingsFooter: some View {
-        Button {
-            selection = .settings
-        } label: {
-            Label("Settings", systemImage: "gearshape")
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.ratioVitaAdaptiveSurface.opacity(0.95))
     }
     #endif
 
@@ -434,6 +456,14 @@ private struct SidebarSplitShell: View {
     private var libraryColumn: some View {
         Group {
             switch selection {
+                case .operationsCommand:
+                    NavigationStack {
+                        OperationsCommandCenterView()
+                    }
+                case .expertProgram:
+                    NavigationStack {
+                        ExpertOnboardingHubView()
+                    }
                 case .home:
                     NavigationStack {
                         RatioVitaHomeView()
@@ -456,6 +486,10 @@ private struct SidebarSplitShell: View {
                     TimeSheetsHubView()
                 case .mediaCore:
                     MediaCoreHubView()
+                case .fieldOps:
+                    NavigationStack {
+                        ProductionOperationsHubView()
+                    }
                 case .contacts:
                     NavigationStack {
                         ProductionContactsLibraryView()
@@ -491,6 +525,8 @@ private struct SidebarSplitShell: View {
     @ViewBuilder
     private var sidebarLibrarySection: some View {
         Section {
+            sidebarRow(.operationsCommand)
+            sidebarRow(.expertProgram)
             sidebarRow(.home)
             sidebarRow(.productions)
             sidebarRow(.receipts)
@@ -498,6 +534,7 @@ private struct SidebarSplitShell: View {
             sidebarRow(.laborSentinel)
             sidebarRow(.timeSheets)
             sidebarRow(.mediaCore)
+            sidebarRow(.fieldOps)
             sidebarRow(.review, trailingCount: pendingReviewCount)
             sidebarRow(.reconciliation, trailingCount: unmatchedBankCount)
             sidebarRow(.bankImport)

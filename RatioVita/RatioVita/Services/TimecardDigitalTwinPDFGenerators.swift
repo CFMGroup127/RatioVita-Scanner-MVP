@@ -31,7 +31,8 @@ enum TimecardDigitalTwinPDFGenerators {
         workRecords: [WorkRecord],
         agreement: LaborAgreement,
         estimateByDayID: [UUID: SentinelPayEstimate],
-        production: ProductionProject?
+        production: ProductionProject?,
+        splitSheetTag: String? = nil
     ) throws -> URL {
         do {
             return try TimecardOfficialPDFComposer.writeFilledTimecard(
@@ -42,7 +43,8 @@ enum TimecardDigitalTwinPDFGenerators {
                 workRecords: workRecords,
                 agreement: agreement,
                 estimateByDayID: estimateByDayID,
-                production: production
+                production: production,
+                splitSheetTag: splitSheetTag
             )
         } catch {
             throw TwinError.couldNotCreatePDF

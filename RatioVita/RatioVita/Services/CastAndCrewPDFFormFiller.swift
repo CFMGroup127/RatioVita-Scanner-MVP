@@ -73,41 +73,35 @@ enum CastAndCrewPDFFormFiller {
                 calendar: cal
             )
 
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.matrixDateString(from: day.workDate),
                 on: page,
-                named: "Date\(dayName)",
-                style: .grid
+                named: "Date\(dayName)"
             )
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: effCall),
                 on: page,
-                named: "Call time\(dayName)",
-                style: .grid
+                named: "Call time\(dayName)"
             )
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.meal1Start),
                 on: page,
-                named: "Meal Out\(dayName)",
-                style: .grid
+                named: "Meal Out\(dayName)"
             )
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: wrap),
                 on: page,
-                named: "Wrap Time\(dayName)",
-                style: .grid
+                named: "Wrap Time\(dayName)"
             )
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.travelLeaveZoneStart),
                 on: page,
-                named: "Travel\(dayName)",
-                style: .grid
+                named: "Travel\(dayName)"
             )
-            PDFFormFieldStyle.setValue(
+            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.travelReturnHome ?? day.travelReturnLeaveSet),
                 on: page,
-                named: "Travel\(dayName)_2",
-                style: .grid
+                named: "Travel\(dayName)_2"
             )
         }
     }

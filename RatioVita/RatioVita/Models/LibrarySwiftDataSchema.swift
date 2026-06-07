@@ -4,7 +4,7 @@ import SwiftData
 enum LibrarySwiftDataSchema {
     /// Stable fingerprint for store-recovery messaging when the schema grows.
     static var schemaFingerprint: String {
-        "v2026-05-19-vehicle-days-optional-migration"
+        "v2026-05-22-hardware-rtls-ingestion"
     }
 
     static func makeSchema() -> Schema {
@@ -39,6 +39,43 @@ enum LibrarySwiftDataSchema {
             HistoricalKnowledgeNode.self,
             MaatDeclaration.self,
             MediaProductionBeat.self,
+            MasterUserIdentity.self,
+            CraftMenuItem.self,
+            ShuttleDeliveryOrder.self,
+            ProductionApprovalRule.self,
+            ProductionPurchaseOrder.self,
+            CateringSupplyItem.self,
+            RunRequestTicket.self,
+            TransportDispatchTicket.self,
+            VenueCheckoutSession.self,
+            CraftMicroPurchase.self,
+            CrewFeedbackTicket.self,
+            ProductionCallSheetDay.self,
+            TransportVehicleRun.self,
+            CrossVentureOrderTicket.self,
+            CrewCommsNotice.self,
+            ExpertConsultantProfile.self,
+            ConsultationTimecard.self,
+            InvitationNode.self,
+            ExpertDiagnosticSubmission.self,
+            DepartmentForumPost.self,
+            DailyTimeReportEntry.self,
+            FrictionEventLog.self,
+            ScriptSceneBreakdown.self,
+            RFIDAssetItem.self,
+            TrailerOperationalUnit.self,
+            WorkerPayrollWeekStatus.self,
+            TemporalRoleGrant.self,
+            CreativeFirstLookSnapshot.self,
+            ProductionUnitCrisisNode.self,
+            SpatialBeaconAsset.self,
+            SpatialCrewPosition.self,
+            LocationsEquipmentAsset.self,
+            LocationsTruckManifest.self,
+            LocationsGreenZone.self,
+            ExecutiveLogisticsSnapshot.self,
+            RTLSReceiverNode.self,
+            ActiveTransitToken.self,
         ])
     }
 }

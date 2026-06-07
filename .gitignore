@@ -67,3 +67,15 @@ Vault/Exports/**/*.numbers
 Vault/Exports/**/*.pages
 Vault/Exports/**/*.key
 Vault/Exports/**/*.pdf
+
+# Private data & local binaries (never commit — large/sensitive)
+/Scanned receips PDF format?/
+_ph_probe
+# Agent automation: keep tracked docs/scripts, exclude bulk data & secrets
+agents_system/**/.env
+agents_system/**/token.json
+agents_system/**/credentials.json
+agents_system/credential_issue_report.txt
+agents_system/**/venv/
+agents_system/**/__pycache__/
+agents_system/**/*.log

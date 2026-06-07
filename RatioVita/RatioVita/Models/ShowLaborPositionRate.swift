@@ -17,6 +17,8 @@ final class ShowLaborPositionRate {
     var flatDailyRateCAD: Decimal?
     var flatGuaranteeHours: Int?
     var department: String?
+    /// Interim storage for rental allowance lines (`type|rate` per line) until full kit vault ships.
+    var allowanceNotes: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -33,6 +35,7 @@ final class ShowLaborPositionRate {
         flatDailyRateCAD: Decimal? = nil,
         flatGuaranteeHours: Int? = nil,
         department: String? = nil,
+        allowanceNotes: String? = nil,
         createdAt: Date = .now,
         updatedAt: Date = .now,
         productionProject: ProductionProject? = nil
@@ -46,6 +49,7 @@ final class ShowLaborPositionRate {
         self.flatDailyRateCAD = flatDailyRateCAD
         self.flatGuaranteeHours = flatGuaranteeHours
         self.department = department
+        self.allowanceNotes = allowanceNotes
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.productionProject = productionProject

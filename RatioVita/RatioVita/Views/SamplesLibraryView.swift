@@ -42,6 +42,22 @@ struct SamplesLibraryView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(brandAccent)
 
+                    Button {
+                        do {
+                            _ = try MultiHatPayWeekSeedService.seed(
+                                modelContext: modelContext,
+                                forceReload: true
+                            )
+                        } catch {
+                            #if DEBUG
+                            print("MultiHatPayWeekSeedService: \(error)")
+                            #endif
+                        }
+                    } label: {
+                        Label(MultiHatPayWeekSeedService.productionTitle, systemImage: "calendar.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+
                     Menu {
                         Button("Smoke (10 files)") {
                             Task { await viewModel.importBundledHistoricalArchive(limit: 10) }

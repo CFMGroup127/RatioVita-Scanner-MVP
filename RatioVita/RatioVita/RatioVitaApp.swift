@@ -73,6 +73,12 @@ struct RatioVitaApp: App {
             ContentView()
                 .ratioVitaTheme()
                 .environment(libraryNavigationCoordinator)
+                .sovereignOnboardingGate()
+                .setOSOnboardingGate()
+                .consultantProgramGate()
+                .onOpenURL { url in
+                    _ = NativeLauncherShortcutManager.handleIncomingURL(url)
+                }
                 .task { @MainActor in
                     let ctx = ModelContext(sharedModelContainer)
                     if let recovery = ReceiptWorkspaceBatchGuard.consumePendingRecoveryAlert() {
@@ -87,14 +93,30 @@ struct RatioVitaApp: App {
                         )
                     }
                     LibraryPersistenceMonitor.recordSnapshot(context: ctx, reason: "launch")
+                    RatioVitaBackupManager.runScheduledAutoArchiveIfNeeded(modelContext: ctx)
+                    #if os(iOS)
+                    await PhotoLibraryLaunchAutoScan.runIfEnabled(modelContext: ctx)
+                    #endif
+                    await VaultLaunchSyncPrompt.checkAndNotify(modelContext: ctx)
+                    await RemoteConfigSynchronizer.shared.syncIfNeeded(trigger: "launch")
                 }
                 .modifier(DailyLedger5PMTrigger(container: sharedModelContainer))
                 .modifier(FinanceAgentsPeriodicTrigger(container: sharedModelContainer))
                 .modifier(GeminiLaunchAndVaultBankInboxModifier(container: sharedModelContainer))
+                .payrollLockSchedulerTick(container: sharedModelContainer)
+                .temporalAuthExpirationTick(container: sharedModelContainer)
         }
         #if os(macOS)
         .defaultSize(width: 1180, height: 760)
-        .windowResizability(.contentSize)
+        .windowResizability(.automatic)
+        .commands {
+            CommandMenu("Tester") {
+                Button("Send feedback…") {
+                    LiveFeedbackManager.shared.presentFeedback(context: "Menu · Tester")
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+            }
+        }
         #endif
         .modelContainer(sharedModelContainer)
     }

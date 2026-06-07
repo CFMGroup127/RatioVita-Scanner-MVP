@@ -11,7 +11,7 @@ import AppKit
 /// Keeps AcroForm text inside narrow EP / Cast & Crew cells.
 enum PDFFormFieldStyle {
     #if canImport(PDFKit)
-    static let gridFontSize: CGFloat = 7
+    static let gridFontSize: CGFloat = 7.5
     static let headerFontSize: CGFloat = 8
     /// EP grid cells clip at ~7pt; vendor default is ~18pt when filled manually in Preview.
     static let gridOverlayVerticalLift: CGFloat = 2
@@ -56,14 +56,38 @@ enum PDFFormFieldStyle {
         }
     }
 
-    /// Draws 7pt monospaced text inside the widget box (avoids EP’s oversized default appearance).
+    /// Writes 7pt monospaced text into the AcroForm widget (editable in Preview; import reads widget + overlay).
     static func setGridOverlayValue(_ value: String, on page: PDFPage, named fieldName: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         for ann in page.annotations where ann.fieldName == fieldName {
-            ann.widgetStringValue = ""
-            ann.isReadOnly = true
-            stampTextOverlay(trimmed, on: page, in: ann.bounds, fontSize: gridFontSize, monospaced: true)
+            applyGridStyle(to: ann)
+            ann.widgetStringValue = trimmed
+            ann.isReadOnly = false
+        }
+    }
+
+    /// Cast & Crew talent rows use `FIELD.0` … `FIELD.8` widget names.
+    static func setIndexedGridValue(
+        _ value: String,
+        on page: PDFPage,
+        baseName: String,
+        index: Int
+    ) {
+        setGridOverlayValue(value, on: page, named: "\(baseName).\(index)")
+    }
+
+    /// Applies 7.5pt monospaced typography to grid widgets in the in-app preview (keeps cells editable).
+    static func reinforceGridWidgetTypography(document: PDFDocument) {
+        guard let page = document.page(at: 0) else { return }
+        reinforceGridWidgetTypography(on: page)
+    }
+
+    static func reinforceGridWidgetTypography(on page: PDFPage) {
+        for ann in page.annotations {
+            guard let name = ann.fieldName, gridFieldNames.contains(name) else { continue }
+            applyGridStyle(to: ann)
+            ann.isReadOnly = false
         }
     }
 
@@ -101,26 +125,27 @@ enum PDFFormFieldStyle {
     }
 
     static func lockGridWidgetsForDisplay(on page: PDFPage) {
-        let gridNames: Set<String> = [
-            "DATESUN", "DATEMON", "DATETUE", "DATEWED", "DATETHU", "DATEFRI", "DATESAT",
-            "TRAVEL STARTSUN", "TRAVEL STARTMON", "TRAVEL STARTTUE", "TRAVEL STARTWED",
-            "TRAVEL STARTTHU", "TRAVEL STARTFRI", "TRAVEL STARTSAT",
-            "CALL TIMESUN", "CALL TIMEMON", "CALL TIMETUE", "CALL TIMEWED",
-            "CALL TIMETHU", "CALL TIMEFRI", "CALL TIMESAT",
-            "STARTSUN", "STARTMON", "STARTTUE", "STARTWED", "STARTTHU", "STARTFRI", "STARTSAT",
-            "ENDSUN", "ENDMON", "ENDTUE", "ENDWED", "ENDTHU", "ENDFRI", "ENDSAT",
-            "STARTSUN_2", "STARTMON_2", "STARTTUE_2", "STARTWED_2", "STARTTHU_2", "STARTFRI_2", "STARTSAT_2",
-            "ENDSUN_2", "ENDMON_2", "ENDTUE_2", "ENDWED_2", "ENDTHU_2", "ENDFRI_2", "ENDSAT_2",
-            "WRAP TIMESUN", "WRAP TIMEMON", "WRAP TIMETUE", "WRAP TIMEWED",
-            "WRAP TIMETHU", "WRAP TIMEFRI", "WRAP TIMESAT",
-            "TRAVEL ENDSUN", "TRAVEL ENDMON", "TRAVEL ENDTUE", "TRAVEL ENDWED",
-            "TRAVEL ENDTHU", "TRAVEL ENDFRI", "TRAVEL ENDSAT",
-        ]
         for ann in page.annotations {
-            guard let name = ann.fieldName, gridNames.contains(name) else { continue }
+            guard let name = ann.fieldName, gridFieldNames.contains(name) else { continue }
             ann.isReadOnly = true
         }
     }
+
+    private static let gridFieldNames: Set<String> = [
+        "DATESUN", "DATEMON", "DATETUE", "DATEWED", "DATETHU", "DATEFRI", "DATESAT",
+        "TRAVEL STARTSUN", "TRAVEL STARTMON", "TRAVEL STARTTUE", "TRAVEL STARTWED",
+        "TRAVEL STARTTHU", "TRAVEL STARTFRI", "TRAVEL STARTSAT",
+        "CALL TIMESUN", "CALL TIMEMON", "CALL TIMETUE", "CALL TIMEWED",
+        "CALL TIMETHU", "CALL TIMEFRI", "CALL TIMESAT",
+        "STARTSUN", "STARTMON", "STARTTUE", "STARTWED", "STARTTHU", "STARTFRI", "STARTSAT",
+        "ENDSUN", "ENDMON", "ENDTUE", "ENDWED", "ENDTHU", "ENDFRI", "ENDSAT",
+        "STARTSUN_2", "STARTMON_2", "STARTTUE_2", "STARTWED_2", "STARTTHU_2", "STARTFRI_2", "STARTSAT_2",
+        "ENDSUN_2", "ENDMON_2", "ENDTUE_2", "ENDWED_2", "ENDTHU_2", "ENDFRI_2", "ENDSAT_2",
+        "WRAP TIMESUN", "WRAP TIMEMON", "WRAP TIMETUE", "WRAP TIMEWED",
+        "WRAP TIMETHU", "WRAP TIMEFRI", "WRAP TIMESAT",
+        "TRAVEL ENDSUN", "TRAVEL ENDMON", "TRAVEL ENDTUE", "TRAVEL ENDWED",
+        "TRAVEL ENDTHU", "TRAVEL ENDFRI", "TRAVEL ENDSAT",
+    ]
 
     static func stampTextOverlay(
         _ text: String,
@@ -139,8 +164,8 @@ enum PDFFormFieldStyle {
         let mark = PDFAnnotation(bounds: box, forType: .freeText, withProperties: nil)
         mark.contents = text
         mark.font = monospaced
-            ? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-            : NSFont.systemFont(ofSize: fontSize, weight: .regular)
+            ? NSFont.monospacedSystemFont(ofSize: fontSize, weight: fontSize >= 10 ? .bold : .regular)
+            : NSFont.systemFont(ofSize: fontSize, weight: fontSize >= 10 ? .bold : .regular)
         mark.color = .clear
         mark.fontColor = .black
         page.addAnnotation(mark)

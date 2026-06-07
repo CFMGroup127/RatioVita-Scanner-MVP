@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "brandMarkAsset": "RatioVitaLogoMark",
+  "shortcuts": [
+    {
+      "label": "RV · Driver",
+      "url": "ratiovita://launch/driver",
+      "moduleIntent": "LAUNCH_DRIVER_CONSOLE",
+      "glyph": "GLYPH_STEERING_ORANGE",
+      "hideFromStandardCrew": false
+    },
+    {
+      "label": "RV · Timecard",
+      "url": "ratiovita://launch/timecard",
+      "moduleIntent": "LAUNCH_TIMECARD_OVERLAY",
+      "glyph": "GLYPH_STOPWATCH_BLUE",
+      "hideFromStandardCrew": false
+    },
+    {
+      "label": "RV · Costume",
+      "url": "ratiovita://launch/costume",
+      "moduleIntent": "LAUNCH_COSTUME_MATRIX",
+      "glyph": "GLYPH_HANGER_PURPLE",
+      "hideFromStandardCrew": false
+    },
+    {
+      "label": "RV · First Looks",
+      "url": "ratiovita://launch/firstlooks",
+      "moduleIntent": "LAUNCH_FIRST_LOOKS",
+      "glyph": "GLYPH_CAMERA_PURPLE",
+      "hideFromStandardCrew": false
+    },
+    {
+      "label": "RV · AP Payroll",
+      "url": "ratiovita://launch/ap",
+      "moduleIntent": "LAUNCH_AP_PAYROLL",
+      "glyph": "GLYPH_VAULT_EMERALD",
+      "hideFromStandardCrew": true
+    },
+    {
+      "label": "RV · TAD",
+      "url": "ratiovita://launch/tad",
+      "moduleIntent": "LAUNCH_TAD_CONSOLE",
+      "glyph": "GLYPH_RADAR_YELLOW",
+      "hideFromStandardCrew": false
+    },
+    {
+      "label": "RV · Swamper",
+      "url": "ratiovita://launch/swamper",
+      "moduleIntent": "LAUNCH_SWAMPER_TERMINAL",
+      "glyph": "GLYPH_SPARKLES_SILVER",
+      "hideFromStandardCrew": false
+    }
+  ]
+}

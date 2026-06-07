@@ -49,7 +49,7 @@ enum ReceiptGeminiBackgroundRefinement {
                     receiptID: receiptID,
                     context: context
                 )
-                try context.save()
+                try ModelContextMainActorSave.saveThrows(context)
             } catch {
                 #if DEBUG
                 print("RatioVita: Gemini background refinement failed: \(error.localizedDescription)")

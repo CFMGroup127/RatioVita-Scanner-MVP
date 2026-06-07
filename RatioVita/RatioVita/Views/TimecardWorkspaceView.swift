@@ -17,11 +17,6 @@ struct TimecardWorkspaceView: View {
     @Query(sort: \LaborAgreement.title) private var laborAgreements: [LaborAgreement]
     @AppStorage("laborSentinelAgreementCode") private var laborSentinelAgreementCode: String = ""
 
-    private static let departmentPresets = [
-        "Costumes", "Transport", "Set Dec", "Grip & Electric", "Hair & Makeup", "Production Office",
-    ]
-    private static let unitPresets = ["Main Unit", "2nd Unit", "Splinter Unit", "Office"]
-
     private var agreement: LaborAgreement? {
         let trimmed = laborSentinelAgreementCode.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty, let match = laborAgreements.first(where: { $0.code == trimmed }) {
@@ -46,7 +41,13 @@ struct TimecardWorkspaceView: View {
             .padding(.vertical, DesignSystem.Spacing.sm)
         }
         .scrollContentBackground(.hidden)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(
+            minWidth: LaborSentinelLayout.detailMinWidth,
+            idealWidth: LaborSentinelLayout.detailIdealWidth,
+            maxWidth: LaborSentinelLayout.detailMaxWidth,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
         .onAppear {
             applyCallSheetLaborPrefillIfNeeded()
             applyHarvestedRateTierIfNeeded()
@@ -122,12 +123,12 @@ struct TimecardWorkspaceView: View {
             LeftAlignedFormSection("Classification") {
                 Picker("Unit", selection: unitBinding) {
                     Text("Unset").tag("")
-                    ForEach(Self.unitPresets, id: \.self) { Text($0).tag($0) }
+                    ForEach(unitPickerOptions, id: \.self) { Text($0).tag($0) }
                 }
                 .frame(maxWidth: 280, alignment: .leading)
                 Picker("Department", selection: departmentBinding) {
                     Text("Unset").tag("")
-                    ForEach(Self.departmentPresets, id: \.self) { Text($0).tag($0) }
+                    ForEach(departmentPickerOptions, id: \.self) { Text($0).tag($0) }
                 }
                 .frame(maxWidth: 280, alignment: .leading)
                 TextField(
@@ -282,11 +283,11 @@ struct TimecardWorkspaceView: View {
             Section {
                 Picker("Unit", selection: unitBinding) {
                     Text("Unset").tag("")
-                    ForEach(Self.unitPresets, id: \.self) { Text($0).tag($0) }
+                    ForEach(unitPickerOptions, id: \.self) { Text($0).tag($0) }
                 }
                 Picker("Department", selection: departmentBinding) {
                     Text("Unset").tag("")
-                    ForEach(Self.departmentPresets, id: \.self) { Text($0).tag($0) }
+                    ForEach(departmentPickerOptions, id: \.self) { Text($0).tag($0) }
                 }
                 TextField(
                     "Occupation (EP line)",
@@ -401,14 +402,26 @@ struct TimecardWorkspaceView: View {
                 )
             }
         }
-        try? modelContext.save()
+        ModelContextMainActorSave.save(modelContext)
         onToolbarDone()
+    }
+
+    private var departmentPickerOptions: [String] {
+        TimecardClassificationCatalog.departmentOptions(stored: day.department)
+    }
+
+    private var unitPickerOptions: [String] {
+        TimecardClassificationCatalog.unitOptions(stored: day.unitType)
     }
 
     private var departmentBinding: Binding<String> {
         Binding(
             get: { day.department ?? "" },
-            set: { day.department = $0.isEmpty ? nil : $0 }
+            set: { newValue in
+                day.department = newValue.isEmpty ? nil : newValue
+                day.updatedAt = .now
+                Task { @MainActor in ModelContextMainActorSave.save(modelContext) }
+            }
         )
     }
 
@@ -432,7 +445,11 @@ struct TimecardWorkspaceView: View {
     private var unitBinding: Binding<String> {
         Binding(
             get: { day.unitType ?? "" },
-            set: { day.unitType = $0.isEmpty ? nil : $0 }
+            set: { newValue in
+                day.unitType = newValue.isEmpty ? nil : newValue
+                day.updatedAt = .now
+                Task { @MainActor in ModelContextMainActorSave.save(modelContext) }
+            }
         )
     }
 

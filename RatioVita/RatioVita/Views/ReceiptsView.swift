@@ -416,6 +416,9 @@ struct ReceiptsView: View {
                 compressionEnabled: compressionEnabled,
                 onSubmit: { scanResult, options in
                     await viewModel.handleScanResult(scanResult, options: options)
+                },
+                onManuscriptFile: { url in
+                    await viewModel.importManuscriptFile(at: url, vaultPathPrefix: libraryScanVaultPathPrefix)
                 }
             )
             #elseif os(macOS)
@@ -425,6 +428,9 @@ struct ReceiptsView: View {
                 compressionEnabled: compressionEnabled,
                 onSubmit: { scanResult, options in
                     await viewModel.handleScanResult(scanResult, options: options)
+                },
+                onManuscriptFile: { url in
+                    await viewModel.importManuscriptFile(at: url, vaultPathPrefix: libraryScanVaultPathPrefix)
                 }
             )
             #else

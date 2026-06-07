@@ -12,15 +12,14 @@ import AppKit
 /// Fills the bundled **EP Canada Crew Weekly Timesheet** using native AcroForm field positions (exact alignment).
 enum EPCanadaPDFFormFiller {
     #if canImport(PDFKit)
-    private static let weekdaySuffixes = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-
     static func fill(
         document: PDFDocument,
         productionTitle: String,
         occupation: String?,
         days: [CrewTimecardDay],
         production: ProductionProject?,
-        compliance: PayrollComplianceProfile
+        compliance: PayrollComplianceProfile,
+        estimateByDayID: [UUID: SentinelPayEstimate] = [:]
     ) {
         guard let page = document.page(at: 0) else { return }
         let projectTitle = production?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -44,26 +43,27 @@ enum EPCanadaPDFFormFiller {
             PDFFormFieldStyle.setValue(ctx.productionCompany, on: page, named: "PROD COMPANY")
         }
 
-        let sorted = FraturdayCalendar.sortedForPayrollChain(days, calendar: .current)
-        if let last = sorted.last {
-            let cal = Calendar.current
-            let anchor = FraturdayCalendar.payrollAnchorStartOfDay(for: last, calendar: cal)
-            let weekday = cal.component(.weekday, from: anchor)
-            let daysToSaturday = (7 - weekday) % 7
-            let end = cal.date(byAdding: .day, value: daysToSaturday, to: anchor) ?? anchor
+        let cal = Calendar.current
+        let payWeekDays = EPPayWeekGrid.filterToPayWeek(days, calendar: cal)
+
+        if let weekEnd = EPPayWeekGrid.weekEndingSaturday(for: payWeekDays, calendar: cal) {
             PDFFormFieldStyle.setValue(
-                TimecardPayrollFormatters.weekEndingString(from: end),
+                TimecardPayrollFormatters.weekEndingString(from: weekEnd),
                 on: page,
                 named: "WEEK ENDING"
             )
         }
 
         let schedule = EPOccupationWeekScheduleBuilder.build(
-            days: days,
+            days: payWeekDays,
             fallbackOccupation: fallbackOcc.isEmpty ? nil : fallbackOcc
         )
 
-        if let dept = resolveDepartment(days: days, production: production, occupation: schedule.occupationLine) {
+        if let dept = resolveDepartment(
+            days: payWeekDays,
+            production: production,
+            occupation: schedule.occupationLine
+        ) {
             PDFFormFieldStyle.setValue(dept, on: page, named: "DEPARTMENT")
         }
         if !schedule.occupationLine.isEmpty {
@@ -80,10 +80,26 @@ enum EPCanadaPDFFormFiller {
         }
 
         stampResidencyAndGuild(on: page, compliance: ctx.compliance)
-        stampDayGrid(on: page, days: days, production: production)
-        stampOtherRatesKitLines(on: page, days: days, production: production)
+        stampDayGrid(on: page, days: payWeekDays, production: production, calendar: cal)
+        let rateTiers = production?.laborPositionRates ?? []
+        stampOtherRatesKitLines(on: page, days: payWeekDays, production: production, rateTiers: rateTiers)
+        stampGrossTotals(
+            on: page,
+            days: payWeekDays,
+            production: production,
+            rateTiers: rateTiers,
+            estimateByDayID: estimateByDayID
+        )
         stampApprovals(on: page, ctx: ctx)
-        PDFFormFieldStyle.lockGridWidgetsForDisplay(on: page)
+        lockPSTWidgetsReadOnly(on: page)
+    }
+
+    /// EP links **OTHER RATES** and **PST#** — keep both widgets empty and read-only after overlay stamp.
+    private static func lockPSTWidgetsReadOnly(on page: PDFPage) {
+        for ann in page.annotations where ann.fieldName == "PST" {
+            ann.widgetStringValue = ""
+            ann.isReadOnly = true
+        }
     }
 
     private static func stampNameBlock(
@@ -150,15 +166,15 @@ enum EPCanadaPDFFormFiller {
             return t.isEmpty ? nil : t
         }
 
-        if let production, let profileDept = cleaned(production.payrollDepartment) {
-            return profileDept
-        }
-
         let dayDepartments = days.compactMap { cleaned($0.department) }
             .filter { occKey.isEmpty || $0.lowercased() != occKey }
 
         if let fromDays = dayDepartments.mostCommon() {
             return fromDays
+        }
+
+        if let production, let profileDept = cleaned(production.payrollDepartment) {
+            return profileDept
         }
 
         if let production {
@@ -179,67 +195,68 @@ enum EPCanadaPDFFormFiller {
     private static func stampDayGrid(
         on page: PDFPage,
         days: [CrewTimecardDay],
-        production: ProductionProject?
+        production: ProductionProject?,
+        calendar: Calendar
     ) {
-        let cal = Calendar.current
-        for day in days {
-            let weekday = cal.component(.weekday, from: day.workDate)
-            guard weekday >= 1, weekday <= 7 else { continue }
-            let suffix = weekdaySuffixes[weekday - 1]
+        guard let weekEnd = EPPayWeekGrid.weekEndingSaturday(for: days, calendar: calendar) else { return }
+
+        for row in EPPayWeekGrid.weekRows(weekEndingSaturday: weekEnd, calendar: calendar) {
+            PDFFormFieldStyle.setGridOverlayValue(
+                TimecardPayrollFormatters.matrixDateString(from: row.date),
+                on: page,
+                named: "DATE\(row.suffix)"
+            )
+
+            guard let day = EPPayWeekGrid.crewDay(on: row.date, in: days, calendar: calendar) else { continue }
 
             let effCall = SentinelEffectiveClock.effectiveCall(day: day, project: production)
             let wrap = FraturdayCalendar.normalizedWrapAfterCall(
                 call: effCall,
                 wrap: SentinelEffectiveClock.effectiveWrapRaw(day: day, project: production),
-                workDateStart: cal.startOfDay(for: day.workDate),
-                calendar: cal
+                workDateStart: calendar.startOfDay(for: day.workDate),
+                calendar: calendar
             )
             let travelEnd = day.travelReturnHome ?? day.travelReturnLeaveSet
 
             PDFFormFieldStyle.setGridOverlayValue(
-                TimecardPayrollFormatters.matrixDateString(from: day.workDate),
-                on: page,
-                named: "DATE\(suffix)"
-            )
-            PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.travelLeaveZoneStart),
                 on: page,
-                named: "TRAVEL START\(suffix)"
+                named: "TRAVEL START\(row.suffix)"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: effCall),
                 on: page,
-                named: "CALL TIME\(suffix)"
+                named: "CALL TIME\(row.suffix)"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.meal1Start),
                 on: page,
-                named: "START\(suffix)"
+                named: "START\(row.suffix)"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.meal1End),
                 on: page,
-                named: "END\(suffix)"
+                named: "END\(row.suffix)"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.meal2Start),
                 on: page,
-                named: "START\(suffix)_2"
+                named: "START\(row.suffix)_2"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: day.meal2End),
                 on: page,
-                named: "END\(suffix)_2"
+                named: "END\(row.suffix)_2"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: wrap),
                 on: page,
-                named: "WRAP TIME\(suffix)"
+                named: "WRAP TIME\(row.suffix)"
             )
             PDFFormFieldStyle.setGridOverlayValue(
                 TimecardPayrollFormatters.militaryTimeString(from: travelEnd),
                 on: page,
-                named: "TRAVEL END\(suffix)"
+                named: "TRAVEL END\(row.suffix)"
             )
         }
     }
@@ -248,12 +265,34 @@ enum EPCanadaPDFFormFiller {
     ///
     /// EP’s bundled PDF maps **OTHER RATES** and **PST#** to the same AcroForm name (`PST`) with two widgets —
     /// filling one mirrors the other. We draw an overlay in the upper (wide) widget and leave both widgets empty.
+    private static func stampGrossTotals(
+        on page: PDFPage,
+        days: [CrewTimecardDay],
+        production: ProductionProject?,
+        rateTiers: [ShowLaborPositionRate],
+        estimateByDayID: [UUID: SentinelPayEstimate]
+    ) {
+        let laborTotal = days.compactMap { estimateByDayID[$0.id]?.modelTotalCAD }.reduce(0, +)
+        let kitTotal = EPKitOtherRatesAggregator.totalKitAllowanceCAD(
+            from: days,
+            project: production,
+            rateTiers: rateTiers
+        )
+        let gross = laborTotal + kitTotal
+        guard gross > 0 else { return }
+
+        let text = String(format: "%.2f", NSDecimalNumber(decimal: gross).doubleValue)
+        PDFFormFieldStyle.setValue(text, on: page, named: "TOTAL CALCULATED GROSS EARNINGS")
+        PDFFormFieldStyle.setValue(text, on: page, named: "TOTAL")
+    }
+
     private static func stampOtherRatesKitLines(
         on page: PDFPage,
         days: [CrewTimecardDay],
-        production: ProductionProject?
+        production: ProductionProject?,
+        rateTiers: [ShowLaborPositionRate]
     ) {
-        let lines = EPKitOtherRatesAggregator.lines(from: days, project: production)
+        let lines = EPKitOtherRatesAggregator.lines(from: days, project: production, rateTiers: rateTiers)
         guard !lines.isEmpty else { return }
 
         guard let otherRatesBox = page.annotations.first(where: {
@@ -265,13 +304,22 @@ enum EPCanadaPDFFormFiller {
             ann.widgetStringValue = ""
         }
 
+        let text = lines.joined(separator: "  ")
+        let clipped = clipForOtherRatesBox(text, bounds: otherRatesBox.bounds)
         PDFFormFieldStyle.stampTextOverlay(
-            lines.joined(separator: "  "),
+            clipped,
             on: page,
             in: otherRatesBox.bounds,
             fontSize: PDFFormFieldStyle.gridFontSize,
-            lift: PDFFormFieldStyle.gridOverlayVerticalLift + 1
+            monospaced: true,
+            lift: PDFFormFieldStyle.gridOverlayVerticalLift + 3
         )
+    }
+
+    private static func clipForOtherRatesBox(_ text: String, bounds: CGRect) -> String {
+        let maxChars = max(12, Int(bounds.width / 4.2))
+        if text.count <= maxChars { return text }
+        return String(text.prefix(max(0, maxChars - 1))) + "…"
     }
 
     private static func stampApprovals(on page: PDFPage, ctx: ProductionPayrollResolver.ExportContext) {
@@ -302,30 +350,36 @@ enum EPCanadaPDFFormFiller {
     }
 
     private static func stampCheckboxX(on page: PDFPage, over field: PDFAnnotation) {
-        // Line-drawn X stays centered in the ~8pt box; freeText “X” sat on the top edge.
         let box = field.bounds
-        let pad: CGFloat = 1.2
-        let yLift: CGFloat = 2.2
+        #if canImport(AppKit)
+        let inset = box.insetBy(dx: box.width * 0.08, dy: box.height * 0.08)
+        PDFFormFieldStyle.stampTextOverlay(
+            "X",
+            on: page,
+            in: inset,
+            fontSize: 16,
+            monospaced: true,
+            lift: 0.5
+        )
+        #else
+        let pad: CGFloat = 0.4
         let x0 = box.minX + pad
         let x1 = box.maxX - pad
-        let y0 = box.minY + pad + yLift
-        let y1 = box.maxY - pad + yLift - 0.5
-        let segments: [(CGPoint, CGPoint)] = [
+        let y0 = box.minY + pad
+        let y1 = box.maxY - pad
+        for (start, end) in [
             (CGPoint(x: x0, y: y0), CGPoint(x: x1, y: y1)),
             (CGPoint(x: x1, y: y0), CGPoint(x: x0, y: y1)),
-        ]
-        for (start, end) in segments {
+        ] {
             let line = PDFAnnotation(bounds: box, forType: .line, withProperties: nil)
             line.startPoint = start
             line.endPoint = end
-            #if canImport(AppKit)
-            line.color = .black
-            #endif
             let border = PDFBorder()
-            border.lineWidth = 1.1
+            border.lineWidth = 1.8
             line.border = border
             page.addAnnotation(line)
         }
+        #endif
     }
     #endif
 }

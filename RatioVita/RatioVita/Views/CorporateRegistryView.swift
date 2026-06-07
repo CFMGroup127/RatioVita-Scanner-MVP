@@ -375,7 +375,7 @@ private struct BusinessEntityEditorSheet: View {
                 }
                 LocationVaultAddressPicker(savedAddresses: savedAddresses, address: $address)
                 Section("Address") {
-                    AddressSearchField(address: $address, placeholder: "Street, city, province, postal")
+                    StandardizedAddressStringEditor(rawAddress: $address, streetPlaceholder: "Street, city, province")
                 }
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)

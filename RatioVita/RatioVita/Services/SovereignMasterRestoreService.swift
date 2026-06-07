@@ -45,7 +45,17 @@ enum SovereignMasterRestoreService {
 
         let unpacked = work.appendingPathComponent("unpacked", isDirectory: true)
         try ZipStoreReader.unzip(data: zipBytes, to: unpacked)
+        return try mergeUnpackedBundle(at: unpacked, into: modelContext, auditKind: "sovereign.archive.restored")
+    }
 
+    /// Shared merge path for `.rvsovereign` (decrypted) and `.rvvault` cleartext packages.
+    @MainActor
+    static func mergeUnpackedBundle(
+        at unpacked: URL,
+        into modelContext: ModelContext,
+        auditKind: String = "vault.archive.merged"
+    ) throws -> Summary {
+        let fm = FileManager.default
         let manifestURL = unpacked.appendingPathComponent("manifest.json")
         guard fm.fileExists(atPath: manifestURL.path) else { throw RestoreError.missingManifest }
         let manifestData = try Data(contentsOf: manifestURL)
@@ -54,8 +64,10 @@ enum SovereignMasterRestoreService {
         let storeSrcDir = unpacked.appendingPathComponent("swiftdata_store", isDirectory: true)
         guard fm.fileExists(atPath: storeSrcDir.path) else { throw RestoreError.missingSwiftDataStoreDirectory }
 
-        let storeRWParent = work.appendingPathComponent("store_rw", isDirectory: true)
+        let work = unpacked.deletingLastPathComponent()
+        let storeRWParent = work.appendingPathComponent("store_rw-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: storeRWParent, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: storeRWParent) }
         for item in try fm.contentsOfDirectory(at: storeSrcDir, includingPropertiesForKeys: nil) {
             let dest = storeRWParent.appendingPathComponent(item.lastPathComponent)
             try fm.copyItem(at: item, to: dest)
@@ -124,16 +136,16 @@ enum SovereignMasterRestoreService {
             rulesImported += 1
         }
 
-        try modelContext.save()
+        try ModelContextMainActorSave.saveThrows(modelContext)
 
         FilingCoordinator.appendAudit(
             context: modelContext,
-            kindRaw: "sovereign.archive.restored",
-            title: "Restored from Sovereign archive",
+            kindRaw: auditKind,
+            title: "Merged vault archive",
             detail:
             "rid:merge·imported:\(imported)·skipped:\(skipped)·rules:\(rulesImported)·from:\(manifest.createdAt.formatted(date: .abbreviated, time: .shortened))"
         )
-        try modelContext.save()
+        try ModelContextMainActorSave.saveThrows(modelContext)
 
         return Summary(
             receiptsImported: imported,

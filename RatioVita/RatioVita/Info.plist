@@ -24,11 +24,28 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>RatioVita needs camera access to scan receipts and extract text from them.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>RatioVita uses the microphone for Vita Voice hands-free, role-insulated push-to-talk on set.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>RatioVita needs photo library access to import receipt images from your photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>RatioVita can save scanned receipts into a RatioVita album in your library so they sync with iCloud Photos across your devices.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.ratiovita.launch</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ratiovita</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>

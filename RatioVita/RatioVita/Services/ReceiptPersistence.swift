@@ -39,6 +39,8 @@ enum ReceiptPersistence {
             receipt.documentType = DocumentTypeOption.statement.rawValue
         } else if dk == "deal_memo" || dk.contains("deal_memo") || dk.contains("deal memo") {
             receipt.documentType = DocumentTypeOption.dealMemo.rawValue
+        } else if dk == "project_manuscript" || dk.contains("manuscript") {
+            receipt.documentType = DocumentTypeOption.manuscript.rawValue
         }
     }
 
@@ -195,8 +197,9 @@ enum ReceiptPersistence {
             _ = DealMemoOnboardingService.processIfDealMemo(receipt: receipt, context: context)
         }
         ReceiptWorkspaceBatchGuard.pinMultiPageBatchIfNeeded(receipt)
-        try context.save()
+        try ModelContextMainActorSave.saveThrows(context)
         LibraryPersistenceMonitor.recordSnapshot(context: context, reason: "ingest")
+        RatioVitaBackupManager.archiveAfterSignificantWrite(modelContext: context)
 
         if receipt.images.count >= 2 {
             try? ReceiptMultiPageStructuralIntegrity.evaluatePersistedReceipt(receipt: receipt, context: context)

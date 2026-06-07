@@ -19,6 +19,11 @@ struct LaborSentinelHubView: View {
     @State private var exportError: String?
     @State private var exportFormat: TimecardPDFFormatKind = .epCanadaCrewWeekly
     @State private var showAddProductionSheet = false
+    @State private var multiHatSeedMessage: String?
+    @State private var expandedCrewDepartments: Set<String> = []
+    #if os(macOS)
+    @State private var splitColumnVisibility = NavigationSplitViewVisibility.all
+    #endif
     @State private var weeklyAuditRows: [WeeklyPayCycleAuditService.Discrepancy] = []
     @AppStorage("payCycleLastAutoSweepWeekToken") private var payCycleLastAutoSweepWeekToken: String = ""
     @AppStorage("laborSentinelAgreementCode") private var laborSentinelAgreementCode: String = ""
@@ -45,6 +50,21 @@ struct LaborSentinelHubView: View {
         return crewDays.filter { $0.productionProject?.id == p.id }
     }
 
+    /// Crew days grouped under department headers (multi-hat weeks).
+    private var crewDaysByDepartment: [(department: String, days: [CrewTimecardDay])] {
+        guard let project = selectedProject else { return [] }
+        let grouped = Dictionary(grouping: daysForProject) { day -> String in
+            let trimmed = day.department?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !trimmed.isEmpty { return trimmed }
+            let fallback = project.payrollDepartment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return fallback.isEmpty ? "Unassigned" : fallback
+        }
+        return grouped.keys.sorted().map { key in
+            let rows = grouped[key] ?? []
+            return (key, rows.sorted { $0.workDate > $1.workDate })
+        }
+    }
+
     private var workRecordsForProject: [WorkRecord] {
         guard let p = selectedProject else { return [] }
         return workRecordsLibrary.filter { $0.productionProject?.id == p.id }
@@ -53,6 +73,11 @@ struct LaborSentinelHubView: View {
     private var sentinelChainByDayID: [UUID: SentinelPayEstimate] {
         guard let agr = agreement, selectedProject != nil, !daysForProject.isEmpty else { return [:] }
         return SentinelPayrollEngine.estimatesWithTurnaround(projectDays: daysForProject, agreement: agr)
+    }
+
+    private var payrollSplitSheetKeys: [PayrollSplitSheetKey] {
+        guard let project = selectedProject else { return [] }
+        return PayrollSplitSheetGrouper.keys(from: daysForProject, project: project)
     }
 
     @ViewBuilder
@@ -79,6 +104,28 @@ struct LaborSentinelHubView: View {
             }
         } header: {
             Text("Link days to a production")
+        }
+
+        Section {
+            Button {
+                loadMultiHatSeedWeek(forceReload: true)
+            } label: {
+                Label(MultiHatPayWeekSeedService.productionTitle, systemImage: "calendar.badge.plus")
+            }
+            if let multiHatSeedMessage {
+                Text(multiHatSeedMessage)
+                    .font(.footnote)
+                    .foregroundStyle(multiHatSeedMessage.contains("Loaded") ? Color.ratioVitaSuccess : .secondary)
+            }
+        } header: {
+            Text("Payroll stress-test")
+        } footer: {
+            Text(
+                "Creates or refreshes the full Mon–Sun sample week (Collin Morris / Bespoke Corp): "
+                    + "6 rate tiers with kit allowances, 11 crew days across Costumes, Performers, Transport, "
+                    + "Locations, and ADs — including Wed/Thu split-hat rows and May 13 reference times."
+            )
+            .font(.footnote)
         }
 
         if let p = selectedProject {
@@ -223,62 +270,52 @@ struct LaborSentinelHubView: View {
         }
 
         Section {
-            if selectedProject == nil {
-                Text("Pick a production to add or list crew days.")
-                    .foregroundStyle(.secondary)
-            } else {
-                let chain = sentinelChainByDayID
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(daysForProject) { day in
-                        Button {
-                            editingDay = day
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(day.workDate.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.headline)
-                                if let agr = agreement {
-                                    let est = chain[day.id] ?? SentinelPayrollEngine.estimate(
-                                        day: day,
-                                        agreement: agr
-                                    )
-                                    Text(
-                                        verbatim: "Model gross ≈ \(est.modelTotalCAD.formatted(.number.precision(.fractionLength(2)))) CAD"
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    if let proj = selectedProject,
-                                       let portalLine = portalClockReadout(day: day, project: proj)
-                                    {
-                                        Text(portalLine)
-                                            .font(.caption2)
-                                            .foregroundStyle(Color.ratioVitaAdaptiveText.opacity(0.85))
+            Group {
+                if selectedProject == nil {
+                    Text("Pick a production to add or list crew days.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    let chain = sentinelChainByDayID
+                    if crewDaysByDepartment.isEmpty {
+                        Text(
+                            "No crew days yet — tap “\(MultiHatPayWeekSeedService.productionTitle)” above to load the sample week."
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(crewDaysByDepartment, id: \.department) { group in
+                            DisclosureGroup(
+                                isExpanded: departmentExpandedBinding(group.department),
+                                content: {
+                                    ForEach(group.days) { day in
+                                        crewDayRow(day: day, chain: chain)
                                     }
-                                    if est.turnaroundInfringementApplied {
-                                        Text(
-                                            "Turnaround gold ×\(String(format: "%.2f", est.turnaroundGoldMultiplier))"
-                                        )
-                                        .font(.caption2)
-                                        .foregroundStyle(Color.orange)
-                                    }
-                                    if FraturdayCalendar.wrapsPastMidnight(day: day, calendar: .current) {
-                                        Text("Fraturday wrap (past midnight)")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if est.appliedDailyFloor {
-                                        Text("Daily floor applied (411)")
-                                            .font(.caption2)
-                                            .foregroundStyle(Color.ratioVitaSuccess)
-                                    }
+                                },
+                                label: {
+                                    Text("\(group.department) (\(group.days.count))")
+                                        .font(.subheadline.weight(.semibold))
                                 }
-                            }
+                            )
                         }
                     }
+                    Button("Add day") { addBlankDay() }
                 }
-                Button("Add day") { addBlankDay() }
+            }
+            .onAppear {
+                if expandedCrewDepartments.isEmpty {
+                    expandedCrewDepartments = Set(crewDaysByDepartment.map(\.department))
+                }
+            }
+            .onChange(of: selectedProjectID) { _, _ in
+                expandedCrewDepartments = Set(crewDaysByDepartment.map(\.department))
             }
         } header: {
             Text("Crew timecard days")
+        } footer: {
+            Text(
+                "Collapsed by department — split-hat days (e.g. Costumes + Performers on May 20) appear under each header."
+            )
+            .font(.footnote)
         }
 
         if let p = selectedProject, !p.isIndependentContractor {
@@ -309,12 +346,35 @@ struct LaborSentinelHubView: View {
                         Text(fmt.rawValue).tag(fmt)
                     }
                 }
-                Button {
-                    exportPDFTapped()
-                } label: {
-                    Label("Export digital twin PDF", systemImage: "square.and.arrow.up")
+                if payrollSplitSheetKeys.count <= 1 {
+                    Button {
+                        if let only = payrollSplitSheetKeys.first {
+                            exportPDF(for: only)
+                        } else {
+                            exportPDF(for: nil)
+                        }
+                    } label: {
+                        Label("Export digital twin PDF", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(selectedProject == nil || agreement == nil || daysForProject.isEmpty)
+                } else {
+                    Menu {
+                        ForEach(payrollSplitSheetKeys) { key in
+                            Button {
+                                exportPDF(for: key)
+                            } label: {
+                                Text(key.menuTitle)
+                            }
+                        }
+                        Divider()
+                        Button("Export all \(payrollSplitSheetKeys.count) sheets") {
+                            exportAllSplitPDFs()
+                        }
+                    } label: {
+                        Label("Export digital twin PDF", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(selectedProject == nil || agreement == nil || daysForProject.isEmpty)
                 }
-                .disabled(selectedProject == nil || agreement == nil || daysForProject.isEmpty)
             }
             if let exportError {
                 Text(exportError)
@@ -328,7 +388,7 @@ struct LaborSentinelHubView: View {
                 )
             } else {
                 Text(
-                    "Uses this show’s default payroll document from Productions. One combined pay-week sheet lists each role and unit in the occupation block. After editing an export PDF, use Import grid on the export sheet — it is not automatic."
+                    "Each department + unit (e.g. Costumes — Main Unit, Performers — Main Splinter) exports as its own PDF with only that slice of days. After editing in Preview, use Save & close on the export sheet to import grid times back."
                 )
             }
         }
@@ -357,14 +417,29 @@ struct LaborSentinelHubView: View {
     @ViewBuilder
     private var laborHubRoot: some View {
         #if os(macOS)
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $splitColumnVisibility) {
             List { laborHubSections }
                 .navigationTitle("Labor Sentinel")
-                .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 460)
+                .navigationSplitViewColumnWidth(
+                    min: LaborSentinelLayout.sidebarMinWidth,
+                    ideal: LaborSentinelLayout.sidebarIdealWidth,
+                    max: LaborSentinelLayout.sidebarMaxWidth
+                )
         } detail: {
             macLaborTimecardDetail
-                .navigationSplitViewColumnWidth(min: 450, ideal: 650, max: 900)
+                .frame(
+                    minWidth: LaborSentinelLayout.detailMinWidth,
+                    idealWidth: LaborSentinelLayout.detailIdealWidth,
+                    maxWidth: LaborSentinelLayout.detailMaxWidth,
+                    maxHeight: .infinity
+                )
+                .navigationSplitViewColumnWidth(
+                    min: LaborSentinelLayout.detailMinWidth,
+                    ideal: LaborSentinelLayout.detailIdealWidth,
+                    max: LaborSentinelLayout.detailMaxWidth
+                )
         }
+        .navigationSplitViewStyle(.balanced)
         .resetsNavigationSplitColumnsOnLaunch()
         #else
         List { laborHubSections }
@@ -428,14 +503,20 @@ struct LaborSentinelHubView: View {
                 NavigationStack {
                     TimecardExportResultSheet(
                         item: item,
-                        crewDays: daysForProject,
+                        crewDays: item.exportedCrewDays,
                         modelContext: modelContext
                     ) {
                         exportItem = nil
                     }
                 }
                 #if os(macOS)
-                .frame(minWidth: 820, idealWidth: 900, minHeight: 640, idealHeight: 720)
+                .frame(
+                    minWidth: 820,
+                    idealWidth: min(900, LaborSentinelLayout.maxSafeWindowWidth),
+                    maxWidth: LaborSentinelLayout.maxSafeWindowWidth,
+                    minHeight: 640,
+                    idealHeight: 720
+                )
                 #endif
             }
     }
@@ -465,7 +546,7 @@ struct LaborSentinelHubView: View {
             set: { newVal in
                 project.productionContractKind = newVal
                 project.updatedAt = .now
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             }
         )
     }
@@ -481,7 +562,7 @@ struct LaborSentinelHubView: View {
                 }
                 project.syncPayrollLoanoutFromCorporateEntityIfEmpty()
                 project.updatedAt = .now
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             }
         )
     }
@@ -496,7 +577,7 @@ struct LaborSentinelHubView: View {
             set: { newVal in
                 project.paymentTermsRaw = newVal == .unspecified ? "" : newVal.rawValue
                 project.updatedAt = .now
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             }
         )
     }
@@ -506,7 +587,7 @@ struct LaborSentinelHubView: View {
             get: { project.automationGovernance },
             set: { newVal in
                 project.automationGovernance = newVal
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             }
         )
     }
@@ -553,39 +634,102 @@ struct LaborSentinelHubView: View {
         return end.formatted(date: .abbreviated, time: .omitted)
     }
 
-    private func exportPDFTapped() {
+    private func exportPDF(for splitKey: PayrollSplitSheetKey?) {
         exportError = nil
         guard let p = selectedProject, let agr = agreement, !daysForProject.isEmpty else { return }
+        let slice: [CrewTimecardDay] = if let splitKey {
+            PayrollSplitSheetGrouper.days(in: daysForProject, matching: splitKey, project: p)
+        } else {
+            daysForProject
+        }
+        guard !slice.isEmpty else {
+            exportError = "No crew days for this department / unit slice."
+            return
+        }
+        do {
+            try KitCheckoutService.applyActiveCheckoutsToCrewDays(
+                project: p,
+                days: slice,
+                context: modelContext
+            )
+            let sliceIDs = Set(slice.map(\.id))
+            let chain = sentinelChainByDayID.filter { sliceIDs.contains($0.key) }
+            let format = splitKey.map {
+                PayrollSplitSheetGrouper.suggestedFormat(for: $0, defaultFormat: exportFormat)
+            } ?? exportFormat
+            let occLine = slice.compactMap(\.occupationTitle).first { !$0.isEmpty }
+                ?? p.crewOccupationTitle
+                ?? ""
+            let url = try TimecardDigitalTwinPDFGenerators.writeTwinPDF(
+                kind: format,
+                productionTitle: p.title,
+                occupation: occLine,
+                days: slice,
+                workRecords: workRecordsForProject,
+                agreement: agr,
+                estimateByDayID: chain,
+                production: p,
+                splitSheetTag: splitKey?.exportFileTag
+            )
+            exportItem = PayrollExportSheetItem(
+                url: url,
+                productionTitle: p.title,
+                exportFormat: format,
+                occupationLine: occLine,
+                weekEndingLabel: exportWeekEndingLabel(days: slice),
+                splitSheetLabel: splitKey?.menuTitle,
+                exportedCrewDays: slice,
+                isContractorInvoice: false
+            )
+        } catch {
+            exportError = error.localizedDescription
+        }
+    }
+
+    private func exportAllSplitPDFs() {
+        exportError = nil
+        guard let p = selectedProject, let agr = agreement else { return }
+        let keys = payrollSplitSheetKeys
+        guard !keys.isEmpty else { return }
+        var urls: [URL] = []
         do {
             try KitCheckoutService.applyActiveCheckoutsToCrewDays(
                 project: p,
                 days: daysForProject,
                 context: modelContext
             )
-            let chain = sentinelChainByDayID
-            // One combined pay-week sheet; roles + units are summarized in OCCUPATION / LOANOUT.
-            let url = try TimecardDigitalTwinPDFGenerators.writeTwinPDF(
-                kind: exportFormat,
-                productionTitle: p.title,
-                occupation: p.crewOccupationTitle,
-                days: daysForProject,
-                workRecords: workRecordsForProject,
-                agreement: agr,
-                estimateByDayID: chain,
-                production: p
-            )
-            let urls = [url]
+            for key in keys {
+                let slice = PayrollSplitSheetGrouper.days(in: daysForProject, matching: key, project: p)
+                guard !slice.isEmpty else { continue }
+                let sliceIDs = Set(slice.map(\.id))
+                let chain = sentinelChainByDayID.filter { sliceIDs.contains($0.key) }
+                let format = PayrollSplitSheetGrouper.suggestedFormat(for: key, defaultFormat: exportFormat)
+                let occLine = slice.compactMap(\.occupationTitle).first { !$0.isEmpty }
+                    ?? p.crewOccupationTitle
+                    ?? ""
+                let url = try TimecardDigitalTwinPDFGenerators.writeTwinPDF(
+                    kind: format,
+                    productionTitle: p.title,
+                    occupation: occLine,
+                    days: slice,
+                    workRecords: workRecordsForProject,
+                    agreement: agr,
+                    estimateByDayID: chain,
+                    production: p,
+                    splitSheetTag: key.exportFileTag
+                )
+                urls.append(url)
+            }
             guard let first = urls.first else { return }
-            let occLine = daysForProject.compactMap(\.occupationTitle).first { !$0.isEmpty }
-                ?? p.crewOccupationTitle
-                ?? ""
             exportItem = PayrollExportSheetItem(
                 url: first,
                 extraURLs: Array(urls.dropFirst()),
                 productionTitle: p.title,
                 exportFormat: exportFormat,
-                occupationLine: occLine,
+                occupationLine: p.crewOccupationTitle ?? "",
                 weekEndingLabel: exportWeekEndingLabel(days: daysForProject),
+                splitSheetLabel: "All \(urls.count) department sheets",
+                exportedCrewDays: daysForProject,
                 isContractorInvoice: false
             )
         } catch {
@@ -599,7 +743,7 @@ struct LaborSentinelHubView: View {
             set: { newVal in
                 project.laborCateringPortalMode = newVal
                 project.updatedAt = .now
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             }
         )
     }
@@ -613,23 +757,36 @@ struct LaborSentinelHubView: View {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let base = project.effectiveLaborBaseRate(for: today, calendar: cal) ?? agr.baseHourlyRateCAD
+        let prior = project.activeRateSegment(for: today, calendar: cal)
         let title =
             project.effectiveOccupationFromRateSheet(for: today, calendar: cal)
                 ?? project.crewOccupationTitle
                 ?? "Classification"
+        let dept =
+            prior?.department
+                ?? project.payrollDepartment
         let rate = ShowLaborPositionRate(
             effectiveFromDate: today,
             occupationTitle: title,
             baseHourlyRateCAD: base,
+            department: dept,
             productionProject: project
         )
         modelContext.insert(rate)
-        try? modelContext.save()
+        ModelContextMainActorSave.save(modelContext)
     }
 
     private func addBlankDay() {
         guard let p = selectedProject else { return }
-        let day = CrewTimecardDay(workDate: Calendar.current.startOfDay(for: Date()), productionProject: p)
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let tier = p.activeRateSegment(for: today, calendar: cal)
+        let day = CrewTimecardDay(
+            workDate: today,
+            productionProject: p,
+            department: tier?.department ?? p.payrollDepartment,
+            occupationTitle: tier?.occupationTitle ?? p.crewOccupationTitle
+        )
         if day.ancillaryPhoneRateCAD == nil { day.ancillaryPhoneRateCAD = p.defaultKitPhoneRateCAD }
         if day.ancillaryLaptopRateCAD == nil { day.ancillaryLaptopRateCAD = p.defaultKitLaptopRateCAD }
         if day.ancillaryTabletRateCAD == nil { day.ancillaryTabletRateCAD = p.defaultKitTabletRateCAD }
@@ -638,7 +795,99 @@ struct LaborSentinelHubView: View {
         }
         modelContext.insert(day)
         editingDay = day
-        try? modelContext.save()
+        ModelContextMainActorSave.save(modelContext)
+    }
+
+    private func departmentExpandedBinding(_ department: String) -> Binding<Bool> {
+        Binding(
+            get: { expandedCrewDepartments.contains(department) },
+            set: { expanded in
+                if expanded {
+                    expandedCrewDepartments.insert(department)
+                } else {
+                    expandedCrewDepartments.remove(department)
+                }
+            }
+        )
+    }
+
+    private func loadMultiHatSeedWeek(forceReload: Bool) {
+        do {
+            let project = try MultiHatPayWeekSeedService.seed(
+                modelContext: modelContext,
+                forceReload: forceReload
+            )
+            selectedProjectID = project.id
+            forensicActiveProductionID = project.id.uuidString
+            let departments = Set(
+                project.crewTimecardDays.map { day in
+                    let trimmed = day.department?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    return trimmed.isEmpty ? (project.payrollDepartment ?? "Unassigned") : trimmed
+                }
+            )
+            expandedCrewDepartments = departments
+            let tierCount = project.laborPositionRates.count
+            let dayCount = project.crewTimecardDays.count
+            multiHatSeedMessage =
+                "Loaded “\(project.title)” — \(tierCount) rate tiers, \(dayCount) crew days (kit + split-hat notes)."
+        } catch {
+            multiHatSeedMessage = error.localizedDescription
+        }
+    }
+
+    @ViewBuilder
+    private func crewDayRow(day: CrewTimecardDay, chain: [UUID: SentinelPayEstimate]) -> some View {
+        Button {
+            editingDay = day
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(day.workDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.headline)
+                    if let occ = day.occupationTitle, !occ.isEmpty {
+                        Text(occ)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if let unit = day.unitType, !unit.isEmpty {
+                        Text(unit)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                if let agr = agreement {
+                    let est = chain[day.id] ?? SentinelPayrollEngine.estimate(day: day, agreement: agr)
+                    Text(
+                        verbatim: "Model gross ≈ \(est.modelTotalCAD.formatted(.number.precision(.fractionLength(2)))) CAD"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    if let proj = selectedProject,
+                       let portalLine = portalClockReadout(day: day, project: proj)
+                    {
+                        Text(portalLine)
+                            .font(.caption2)
+                            .foregroundStyle(Color.ratioVitaAdaptiveText.opacity(0.85))
+                    }
+                    if est.turnaroundInfringementApplied {
+                        Text("Turnaround gold ×\(String(format: "%.2f", est.turnaroundGoldMultiplier))")
+                            .font(.caption2)
+                            .foregroundStyle(Color.orange)
+                    }
+                    if FraturdayCalendar.wrapsPastMidnight(day: day, calendar: .current) {
+                        Text("Fraturday wrap (past midnight)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if est.appliedDailyFloor {
+                        Text("Daily floor applied (411)")
+                            .font(.caption2)
+                            .foregroundStyle(Color.ratioVitaSuccess)
+                    }
+                }
+            }
+        }
     }
 
     private func maybeAutoSaturdayPayCycleSweep() {
@@ -668,6 +917,8 @@ private struct PayrollExportSheetItem: Identifiable {
     let exportFormat: TimecardPDFFormatKind
     var occupationLine: String = ""
     var weekEndingLabel: String = ""
+    var splitSheetLabel: String?
+    var exportedCrewDays: [CrewTimecardDay] = []
     var isContractorInvoice: Bool = false
 }
 
@@ -689,11 +940,17 @@ private struct TimecardExportResultSheet: View {
                 .adaptiveDetailText()
 
             if !item.isContractorInvoice {
+                if let split = item.splitSheetLabel, !split.isEmpty {
+                    Text(split)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.ratioVitaSuccess)
+                        .adaptiveDetailText()
+                }
                 Text(item.exportFormat.rawValue)
                     .font(.subheadline.weight(.semibold))
                     .adaptiveDetailText()
                 Text(
-                    "Official blank form PDF from payroll vendor — your hours are stamped on the bundled template."
+                    "Official blank form PDF from payroll vendor — only the selected department / unit days are stamped on this sheet."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -787,7 +1044,7 @@ private struct TimecardExportResultSheet: View {
         }
         do {
             let count = try EPCanadaPDFFormImporter.apply(parsed: parsed, to: crewDays)
-            try modelContext.save()
+            ModelContextMainActorSave.save(modelContext)
             importMessage = "Updated \(count) day(s) from the PDF. Check notes for [EP PDF import] tags."
         } catch {
             importError = error.localizedDescription
@@ -801,27 +1058,16 @@ private struct TimecardExportResultSheet: View {
 private struct ShowLaborPositionRateEditorRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var rate: ShowLaborPositionRate
-    @State private var baseRateText: String = ""
-    @State private var premiumRateText: String = ""
+    @State private var baseRateText = ""
+    @State private var premiumRateText = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            DatePicker("Effective from", selection: $rate.effectiveFromDate, displayedComponents: .date)
-            TextField("Occupation", text: $rate.occupationTitle)
-            TextField("Base CAD/hr", text: $baseRateText)
-            #if os(iOS)
-                .keyboardType(.decimalPad)
-            #endif
-                .onAppear { syncBaseText() }
-                .onSubmit { commitBase() }
-                .onChange(of: baseRateText) { _, _ in commitBase() }
-            TextField("Premium add-on CAD/hr", text: $premiumRateText)
-            #if os(iOS)
-                .keyboardType(.decimalPad)
-            #endif
-                .onAppear { syncPremiumText() }
-                .onSubmit { commitPremium() }
-                .onChange(of: premiumRateText) { _, _ in commitPremium() }
+            LaborRateTierEditorFields(
+                rate: rate,
+                baseRateText: $baseRateText,
+                premiumRateText: $premiumRateText
+            )
             Text(
                 verbatim: "Combined: \(rate.combinedHourlyRateCAD.formatted(.number.precision(.fractionLength(2)))) CAD/hr (OT uses total)"
             )
@@ -830,45 +1076,21 @@ private struct ShowLaborPositionRateEditorRow: View {
 
             Button(role: .destructive) {
                 modelContext.delete(rate)
-                try? modelContext.save()
+                ModelContextMainActorSave.save(modelContext)
             } label: {
                 Text("Remove segment")
             }
         }
         .padding(.vertical, 4)
-        .onChange(of: rate.effectiveFromDate) { _, _ in
-            rate.updatedAt = .now
-            try? modelContext.save()
-        }
-        .onChange(of: rate.occupationTitle) { _, _ in
-            rate.updatedAt = .now
-            try? modelContext.save()
-        }
+        .onChange(of: rate.effectiveFromDate) { _, _ in persistRate() }
+        .onChange(of: rate.occupationTitle) { _, _ in persistRate() }
+        .onChange(of: rate.department) { _, _ in persistRate() }
+        .onChange(of: baseRateText) { _, _ in persistRate() }
+        .onChange(of: premiumRateText) { _, _ in persistRate() }
     }
 
-    private func syncBaseText() {
-        baseRateText = "\(rate.baseHourlyRateCAD)"
-    }
-
-    private func commitBase() {
-        let trimmed = baseRateText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let d = Decimal(string: trimmed.replacingOccurrences(of: ",", with: ".")) {
-            rate.baseHourlyRateCAD = d
-            rate.updatedAt = .now
-            try? modelContext.save()
-        }
-    }
-
-    private func syncPremiumText() {
-        premiumRateText = "\(rate.premiumHourlyRateCAD)"
-    }
-
-    private func commitPremium() {
-        let trimmed = premiumRateText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let d = Decimal(string: trimmed.replacingOccurrences(of: ",", with: ".")) {
-            rate.premiumHourlyRateCAD = d
-            rate.updatedAt = .now
-            try? modelContext.save()
-        }
+    private func persistRate() {
+        rate.updatedAt = .now
+        Task { @MainActor in ModelContextMainActorSave.save(modelContext) }
     }
 }

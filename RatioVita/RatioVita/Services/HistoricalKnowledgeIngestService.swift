@@ -33,7 +33,7 @@ enum HistoricalKnowledgeIngestService {
             governance: governance
         )
         context.insert(node)
-        try context.save()
+        try ModelContextMainActorSave.saveThrows(context)
         return IngestResult(node: node, parsedTags: merged)
     }
 

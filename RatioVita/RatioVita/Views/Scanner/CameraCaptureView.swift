@@ -34,6 +34,7 @@ struct CameraCaptureView: View {
     /// MainActor: `ScanResult` holds platform images (`UIImage` / `NSImage`), which must not cross arbitrary `async`
     /// isolation boundaries.
     let onSubmit: @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
+    let onManuscriptFile: @MainActor (URL) async -> Void
 
     @State private var draftPages: [ScannedPage] = []
     @State private var errorMessage: String?
@@ -55,6 +56,8 @@ struct CameraCaptureView: View {
     @State private var showMultiPhotoPrompt = false
 
     @State private var importStatus: String?
+    @State private var showPhotoLibraryScanConfirm = false
+    @State private var pendingPhotoLibraryCount = 0
 
     /// Prevents overlapping “Send to review” work (double taps / duplicate actions).
     @State private var isSubmittingReview = false
@@ -81,12 +84,14 @@ struct CameraCaptureView: View {
         scanner: any ScannerService,
         ocrEnabled: Bool,
         compressionEnabled: Bool,
-        onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
+        onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void,
+        onManuscriptFile: @escaping @MainActor (URL) async -> Void
     ) {
         self.scanner = scanner
         self.ocrEnabled = ocrEnabled
         self.compressionEnabled = compressionEnabled
         self.onSubmit = onSubmit
+        self.onManuscriptFile = onManuscriptFile
     }
 
     var body: some View {
@@ -155,7 +160,7 @@ struct CameraCaptureView: View {
                 }
                 .fileImporter(
                     isPresented: $showImporter,
-                    allowedContentTypes: [.image, .jpeg, .png, .heic, .tiff, .gif, .webP, .pdf],
+                    allowedContentTypes: ManuscriptVaultImportService.libraryFileImporterContentTypes,
                     allowsMultipleSelection: true
                 ) { result in
                     Task { await importFromPickerResult(result) }
@@ -236,6 +241,20 @@ struct CameraCaptureView: View {
                 } message: {
                     Text("Combine every file into one draft receipt, or save each file as its own receipt in Review.")
                 }
+                .confirmationDialog(
+                    "Import from Photos library",
+                    isPresented: $showPhotoLibraryScanConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Import \(pendingPhotoLibraryCount) new photo(s)") {
+                        Task { await runPhotoLibraryBulkScan() }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text(
+                        "Imports every library image not yet in RatioVita’s registry—one receipt per photo, oldest first. Reset the registry in Settings to re-import."
+                    )
+                }
         }
     }
 
@@ -284,11 +303,21 @@ struct CameraCaptureView: View {
 
                 PhotosPicker(
                     selection: $photoPickerItems,
-                    maxSelectionCount: 40,
+                    maxSelectionCount: nil,
                     matching: .images,
                     preferredItemEncoding: .automatic
                 ) {
                     Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isBusy)
+
+                Button {
+                    Task { await preparePhotoLibraryBulkScan() }
+                } label: {
+                    Label("Import new from Photos library", systemImage: "sparkles.rectangle.stack")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -493,6 +522,48 @@ struct CameraCaptureView: View {
     }
 
     @MainActor
+    private func preparePhotoLibraryBulkScan() async {
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        let pending = await PhotoLibraryScanManager.pendingAssetCount()
+        guard pending > 0 else {
+            UserMessageCenter.shared.present(
+                title: "Nothing new to import",
+                message:
+                "Every image in your Photo Library is already recorded in RatioVita’s import registry, or Photos access is off. Use “Select from Photos” for a manual pick, or reset the registry in Settings → Photo library."
+            )
+            return
+        }
+        pendingPhotoLibraryCount = pending
+        showPhotoLibraryScanConfirm = true
+    }
+
+    @MainActor
+    private func runPhotoLibraryBulkScan() async {
+        errorMessage = nil
+        isBusy = true
+        defer {
+            isBusy = false
+            importStatus = nil
+        }
+        let summary = await PhotoLibraryScanManager.importPending(
+            ocrEnabled: ocrEnabled,
+            compressionEnabled: compressionEnabled,
+            options: reviewQueueImportOptions(camera: false),
+            ingest: onSubmit,
+            onProgress: { processed, total, _ in
+                importStatus = total > 0 ? "Photos \(processed)/\(total)…" : nil
+            }
+        )
+        if summary.imported > 0 {
+            dismiss()
+        } else if summary.failed > 0 {
+            errorMessage = "Could not import \(summary.failed) photo(s). Try again or import manually."
+        }
+    }
+
+    @MainActor
     private func loadPhotosMerged(_ items: [PhotosPickerItem]) async {
         errorMessage = nil
         isBusy = true
@@ -564,6 +635,10 @@ struct CameraCaptureView: View {
                     errorMessage = "No file selected."
                     return
                 }
+                if ManuscriptVaultImportService.urlsAreAllManuscripts(urls) {
+                    await importManuscriptBatch(urls)
+                    return
+                }
                 if urls.count > 1 {
                     pendingMultiURLs = urls
                     showMultiURLPrompt = true
@@ -571,6 +646,26 @@ struct CameraCaptureView: View {
                     await appendImportedURLs(urls)
                 }
         }
+    }
+
+    @MainActor
+    private func importManuscriptBatch(_ urls: [URL]) async {
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        importStatus = "Archiving manuscripts…"
+        for (idx, url) in urls.enumerated() {
+            importStatus = "Manuscript \(idx + 1)/\(urls.count)…"
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            await onManuscriptFile(url)
+        }
+        importStatus = nil
+        dismiss()
     }
 
     @MainActor
@@ -589,6 +684,10 @@ struct CameraCaptureView: View {
                 }
             }
             do {
+                if ManuscriptVaultImportService.isManuscriptFile(url) {
+                    await onManuscriptFile(url)
+                    continue
+                }
                 if url.pathExtension.lowercased() == "pdf" {
                     let scan = try await ReceiptScanPipeline.processImportedPDF(
                         at: url,
@@ -615,6 +714,8 @@ struct CameraCaptureView: View {
         importStatus = nil
         if !failures.isEmpty {
             errorMessage = "Could not import: \(failures.prefix(3).joined(separator: ", "))"
+        } else if ManuscriptVaultImportService.urlsAreAllManuscripts(urls), draftPages.isEmpty {
+            dismiss()
         }
     }
 
@@ -632,6 +733,10 @@ struct CameraCaptureView: View {
                 }
             }
             do {
+                if ManuscriptVaultImportService.isManuscriptFile(url) {
+                    await onManuscriptFile(url)
+                    continue
+                }
                 let scan: ScanResult
                 if url.pathExtension.lowercased() == "pdf" {
                     scan = try await ReceiptScanPipeline.processImportedPDF(
@@ -718,7 +823,8 @@ struct CameraCaptureView: View {
         scanner: PreviewScannerService(),
         ocrEnabled: true,
         compressionEnabled: false,
-        onSubmit: { @MainActor _, _ in }
+        onSubmit: { @MainActor _, _ in },
+        onManuscriptFile: { @MainActor _ in }
     )
 }
 
@@ -735,6 +841,7 @@ struct CameraCaptureView: View {
     /// MainActor: `ScanResult` holds platform images (`UIImage` / `NSImage`), which must not cross arbitrary `async`
     /// isolation boundaries.
     let onSubmit: @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
+    let onManuscriptFile: @MainActor (URL) async -> Void
 
     @State private var draftPages: [ScannedPage] = []
     @State private var showImporter = false
@@ -776,12 +883,14 @@ struct CameraCaptureView: View {
         scanner: any ScannerService,
         ocrEnabled: Bool,
         compressionEnabled: Bool,
-        onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
+        onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void,
+        onManuscriptFile: @escaping @MainActor (URL) async -> Void
     ) {
         self.scanner = scanner
         self.ocrEnabled = ocrEnabled
         self.compressionEnabled = compressionEnabled
         self.onSubmit = onSubmit
+        self.onManuscriptFile = onManuscriptFile
     }
 
     var body: some View {
@@ -846,7 +955,7 @@ struct CameraCaptureView: View {
             }
             .fileImporter(
                 isPresented: $showImporter,
-                allowedContentTypes: [.image, .jpeg, .png, .heic, .tiff, .gif, .webP, .pdf],
+                allowedContentTypes: ManuscriptVaultImportService.libraryFileImporterContentTypes,
                 allowsMultipleSelection: true
             ) { result in
                 Task { await importFromPickerResult(result) }
@@ -1132,6 +1241,10 @@ struct CameraCaptureView: View {
                     errorMessage = "No file selected."
                     return
                 }
+                if ManuscriptVaultImportService.urlsAreAllManuscripts(urls) {
+                    await importManuscriptBatch(urls)
+                    return
+                }
                 if urls.count > 1 {
                     pendingMultiURLs = urls
                     showMultiURLPrompt = true
@@ -1139,6 +1252,26 @@ struct CameraCaptureView: View {
                     await appendImportedURLs(urls)
                 }
         }
+    }
+
+    @MainActor
+    private func importManuscriptBatch(_ urls: [URL]) async {
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        importStatus = "Archiving manuscripts…"
+        for (idx, url) in urls.enumerated() {
+            importStatus = "Manuscript \(idx + 1)/\(urls.count)…"
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            await onManuscriptFile(url)
+        }
+        importStatus = nil
+        dismiss()
     }
 
     @MainActor
@@ -1157,6 +1290,10 @@ struct CameraCaptureView: View {
                 }
             }
             do {
+                if ManuscriptVaultImportService.isManuscriptFile(url) {
+                    await onManuscriptFile(url)
+                    continue
+                }
                 if url.pathExtension.lowercased() == "pdf" {
                     let scan = try await ReceiptScanPipeline.processImportedPDF(
                         at: url,
@@ -1189,6 +1326,8 @@ struct CameraCaptureView: View {
                 title: "Some files were skipped",
                 message: failures.joined(separator: ", ")
             )
+        } else if ManuscriptVaultImportService.urlsAreAllManuscripts(urls), draftPages.isEmpty {
+            dismiss()
         }
     }
 
@@ -1206,6 +1345,10 @@ struct CameraCaptureView: View {
                 }
             }
             do {
+                if ManuscriptVaultImportService.isManuscriptFile(url) {
+                    await onManuscriptFile(url)
+                    continue
+                }
                 let scan: ScanResult
                 if url.pathExtension.lowercased() == "pdf" {
                     scan = try await ReceiptScanPipeline.processImportedPDF(
@@ -1261,7 +1404,8 @@ struct CameraCaptureView: View {
         scanner: PreviewScannerService(),
         ocrEnabled: true,
         compressionEnabled: false,
-        onSubmit: { @MainActor _, _ in }
+        onSubmit: { @MainActor _, _ in },
+        onManuscriptFile: { @MainActor _ in }
     )
 }
 #endif

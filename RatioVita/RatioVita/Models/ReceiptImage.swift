@@ -104,10 +104,11 @@ final class ReceiptImage {
     // MARK: - Encoding/Decoding
 
     static func encodeJPEG(image: RVImage, quality: CGFloat) -> Data {
+        let prepared = ReceiptImageRasterOps.prepareForPersistence(image) ?? image
         #if canImport(UIKit)
-        return image.jpegData(compressionQuality: quality) ?? Data()
+        return prepared.jpegData(compressionQuality: quality) ?? Data()
         #elseif canImport(AppKit)
-        guard let tiff = image.tiffRepresentation,
+        guard let tiff = prepared.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff),
               let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: quality]) else
         {

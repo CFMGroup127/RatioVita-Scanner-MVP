@@ -22,6 +22,18 @@ private enum MediaCoreSection: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Compact label for menu picker (iPhone / iPad).
+    var shortTitle: String {
+        switch self {
+            case .assets: "Assets"
+            case .wisdom: "Wisdom"
+            case .maat: "Ma'at"
+            case .book: "Book"
+            case .storyboard: "Beats"
+            case .tempoLab: "Tempo"
+        }
+    }
+
     var systemImage: String {
         switch self {
             case .assets: "waveform.circle"
@@ -48,6 +60,11 @@ struct MediaCoreHubView: View {
         order: .reverse
     ) private var knowledgeNodes: [HistoricalKnowledgeNode]
     @Query(sort: \MediaProductionBeat.sortIndex) private var productionBeats: [MediaProductionBeat]
+    @Query(
+        filter: #Predicate<Receipt> { $0.documentKind == "project_manuscript" && $0.trashedAt == nil },
+        sort: \Receipt.createdAt,
+        order: .reverse
+    ) private var manuscriptReceipts: [Receipt]
 
     @State private var section: MediaCoreSection = .assets
     @State private var selectedAssetID: UUID?
@@ -61,18 +78,43 @@ struct MediaCoreHubView: View {
     @State private var ingestBody = ""
     @State private var ingestMessage: String?
 
+    /// New Horizons / 176 Yonge imports surface first in Book assembly.
+    private var sortedKnowledgeNodes: [HistoricalKnowledgeNode] {
+        knowledgeNodes.sorted { lhs, rhs in
+            let lhsNH = Self.isNewHorizonsNode(lhs)
+            let rhsNH = Self.isNewHorizonsNode(rhs)
+            if lhsNH != rhsNH { return lhsNH && !rhsNH }
+            return lhs.updatedAt > rhs.updatedAt
+        }
+    }
+
+    private nonisolated static func isNewHorizonsNode(_ node: HistoricalKnowledgeNode) -> Bool {
+        let tags = node.tags.map { $0.lowercased() }
+        if tags.contains(where: { $0.contains("newhorizons") || $0.contains("176yonge") }) { return true }
+        let title = node.title.lowercased()
+        return title.contains("newhorizons") || title.contains("176") || title.contains("horizons")
+    }
+
     var body: some View {
         #if os(macOS)
         NavigationSplitView {
-            mediaCoreSidebar
-                .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 360)
+            mediaCoreMacSidebar
+                .frame(width: MediaCoreLayout.macSidebarWidth)
+                .layoutPriority(0)
         } detail: {
             mediaCoreDetail
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationSplitViewColumnWidth(min: 480, ideal: 720, max: 1200)
+                .frame(minWidth: MediaCoreLayout.detailMinWidth, maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
         }
+        .navigationSplitViewStyle(.balanced)
         .navigationTitle("Media Core")
-        .onAppear(perform: seedLibraryIfNeeded)
+        .onAppear {
+            seedLibraryIfNeeded()
+            focusBookAssemblyIfManuscriptsPresent()
+        }
+        .onChange(of: section) { _, _ in
+            ensureDefaultSelectionForSection()
+        }
         #else
         NavigationStack {
             mediaCoreSidebar
@@ -98,83 +140,176 @@ struct MediaCoreHubView: View {
                 .padding()
             }
         }
-        .onAppear(perform: seedLibraryIfNeeded)
+        .onAppear {
+            seedLibraryIfNeeded()
+            focusBookAssemblyIfManuscriptsPresent()
+        }
         #endif
     }
+
+    private var showCreativityCompilePrompt: Bool {
+        !manuscriptReceipts.isEmpty || sortedKnowledgeNodes.count >= 2
+    }
+
+    @ViewBuilder
+    private var bookAssemblyListSections: some View {
+        if showCreativityCompilePrompt {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Compile your book", systemImage: "sparkles")
+                        .font(.headline)
+                    Text(
+                        "New manuscript material detected. Select a knowledge node and use Ingest, or import more chapters from Receipts → Import."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        if !manuscriptReceipts.isEmpty {
+            Section("Manuscript vault (\(manuscriptReceipts.count))") {
+                ForEach(manuscriptReceipts, id: \.id) { receipt in
+                    Button {
+                        if let match = sortedKnowledgeNodes.first(where: {
+                            $0.title == receipt.merchant
+                        }) {
+                            selectedNodeID = match.id
+                        }
+                    } label: {
+                        manuscriptReceiptRow(receipt)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        Section("Knowledge nodes (\(knowledgeNodes.count))") {
+            if sortedKnowledgeNodes.isEmpty {
+                Text("Import .md files via Receipts → Import.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(sortedKnowledgeNodes, id: \.id) { node in
+                    Button {
+                        selectedNodeID = node.id
+                    } label: {
+                        knowledgeRow(node)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    #if os(macOS)
+    /// Fixed-width sidebar: section menu + item list (avoids runaway first-column expansion).
+    private var mediaCoreMacSidebar: some View {
+        VStack(spacing: 0) {
+            Picker("Section", selection: $section) {
+                ForEach(MediaCoreSection.allCases) { sec in
+                    Label(sec.title, systemImage: sec.systemImage)
+                        .tag(sec)
+                }
+            }
+            .pickerStyle(.menu)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            mediaCoreItemListBody
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Seed library") { seedLibraryIfNeeded() }
+            }
+        }
+        .alert("Media Core", isPresented: Binding(
+            get: { seedError != nil },
+            set: { if !$0 { seedError = nil } }
+        )) {
+            Button("OK", role: .cancel) { seedError = nil }
+        } message: {
+            Text(seedError ?? "")
+        }
+    }
+
+    private var mediaCoreItemListBody: some View {
+        List {
+            switch section {
+                case .assets:
+                    Section("Assets (\(mediaAssets.count))") {
+                        ForEach(mediaAssets, id: \.id) { asset in
+                            Button {
+                                selectedAssetID = asset.id
+                            } label: {
+                                assetRow(asset)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .wisdom:
+                    Section("Cards (\(wisdomCards.count))") {
+                        ForEach(wisdomCards, id: \.id) { card in
+                            Button {
+                                selectedCardID = card.id
+                            } label: {
+                                wisdomRow(card)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .maat:
+                    Section("Declarations (\(maatDeclarations.count))") {
+                        ForEach(maatDeclarations, id: \.id) { decl in
+                            Button {
+                                selectedMaatID = decl.id
+                            } label: {
+                                maatRow(decl)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .storyboard:
+                    Section("Beats (\(productionBeats.count))") {
+                        ForEach(productionBeats, id: \.id) { beat in
+                            Button {
+                                selectedBeatID = beat.id
+                            } label: {
+                                beatRow(beat)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .book:
+                    bookAssemblyListSections
+                case .tempoLab:
+                    Section {
+                        Text("Tempo lab opens in the detail column →")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+            }
+        }
+    }
+    #endif
 
     private var mediaCoreSidebar: some View {
         VStack(spacing: 0) {
             Picker("Section", selection: $section) {
                 ForEach(MediaCoreSection.allCases) { sec in
-                    Text(sec.title).tag(sec)
+                    Text(sec.shortTitle).tag(sec)
                 }
             }
-            .pickerStyle(.segmented)
-            .padding()
+            .pickerStyle(.menu)
+            .padding(.horizontal)
+            .padding(.top, 8)
 
             List {
-                switch section {
-                    case .assets:
-                        Section("Assets (\(mediaAssets.count))") {
-                            ForEach(mediaAssets, id: \.id) { asset in
-                                Button {
-                                    selectedAssetID = asset.id
-                                } label: {
-                                    assetRow(asset)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    case .wisdom:
-                        Section("Cards (\(wisdomCards.count))") {
-                            ForEach(wisdomCards, id: \.id) { card in
-                                Button {
-                                    selectedCardID = card.id
-                                } label: {
-                                    wisdomRow(card)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    case .maat:
-                        Section("Declarations (\(maatDeclarations.count))") {
-                            ForEach(maatDeclarations, id: \.id) { decl in
-                                Button {
-                                    selectedMaatID = decl.id
-                                } label: {
-                                    maatRow(decl)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    case .storyboard:
-                        Section("Beats (\(productionBeats.count))") {
-                            ForEach(productionBeats, id: \.id) { beat in
-                                Button {
-                                    selectedBeatID = beat.id
-                                } label: {
-                                    beatRow(beat)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    case .book:
-                        Section("Knowledge nodes (\(knowledgeNodes.count))") {
-                            ForEach(knowledgeNodes, id: \.id) { node in
-                                Button {
-                                    selectedNodeID = node.id
-                                } label: {
-                                    knowledgeRow(node)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    case .tempoLab:
-                        Section {
-                            Text("Open the detail column for the wedding-dance tempo calculator and haptic phase map.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                if section == .book {
+                    bookAssemblyListSections
+                } else {
+                    mediaCoreItemListCompactContent
                 }
             }
         }
@@ -191,6 +326,88 @@ struct MediaCoreHubView: View {
             Button("OK", role: .cancel) { seedError = nil }
         } message: {
             Text(seedError ?? "")
+        }
+    }
+
+    private var mediaCoreItemListCompactContent: some View {
+        Group {
+            switch section {
+                case .assets:
+                    Section("Assets (\(mediaAssets.count))") {
+                        ForEach(mediaAssets, id: \.id) { asset in
+                            Button {
+                                selectedAssetID = asset.id
+                            } label: {
+                                assetRow(asset)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .wisdom:
+                    Section("Cards (\(wisdomCards.count))") {
+                        ForEach(wisdomCards, id: \.id) { card in
+                            Button {
+                                selectedCardID = card.id
+                            } label: {
+                                wisdomRow(card)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .maat:
+                    Section("Declarations (\(maatDeclarations.count))") {
+                        ForEach(maatDeclarations, id: \.id) { decl in
+                            Button {
+                                selectedMaatID = decl.id
+                            } label: {
+                                maatRow(decl)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .storyboard:
+                    Section("Beats (\(productionBeats.count))") {
+                        ForEach(productionBeats, id: \.id) { beat in
+                            Button {
+                                selectedBeatID = beat.id
+                            } label: {
+                                beatRow(beat)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                case .book:
+                    EmptyView()
+                case .tempoLab:
+                    Section {
+                        Text("Open the detail column for the wedding-dance tempo calculator and haptic phase map.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+            }
+        }
+    }
+
+    private func manuscriptReceiptRow(_ receipt: Receipt) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(receipt.merchant)
+                .font(.headline)
+            if let prefix = receipt.vaultPathPrefix {
+                Text(prefix)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func focusBookAssemblyIfManuscriptsPresent() {
+        guard !manuscriptReceipts.isEmpty || sortedKnowledgeNodes.contains(where: Self.isNewHorizonsNode) else {
+            return
+        }
+        section = .book
+        if selectedNodeID == nil {
+            selectedNodeID = sortedKnowledgeNodes.first?.id
         }
     }
 
@@ -347,6 +564,24 @@ struct MediaCoreHubView: View {
         } catch {
             seedError = error.localizedDescription
         }
+        ensureDefaultSelectionForSection()
+    }
+
+    private func ensureDefaultSelectionForSection() {
+        switch section {
+            case .assets:
+                if selectedAssetID == nil { selectedAssetID = mediaAssets.first?.id }
+            case .wisdom:
+                if selectedCardID == nil { selectedCardID = wisdomCards.first?.id }
+            case .maat:
+                if selectedMaatID == nil { selectedMaatID = maatDeclarations.first?.id }
+            case .storyboard:
+                if selectedBeatID == nil { selectedBeatID = productionBeats.first?.id }
+            case .book:
+                if selectedNodeID == nil { selectedNodeID = sortedKnowledgeNodes.first?.id }
+            case .tempoLab:
+                break
+        }
     }
 }
 
@@ -412,21 +647,27 @@ private struct ProductionBeatDetailPanel: View {
     let beat: MediaProductionBeat
 
     var body: some View {
-        Form {
-            Section("Timeline") {
-                LabeledContent("Window", value: beat.timestampLabel)
-                LabeledContent("Stream", value: beat.governance.menuTitle)
+        ScrollView {
+            Form {
+                Section("Timeline") {
+                    LabeledContent("Window", value: beat.timestampLabel)
+                    LabeledContent("Stream", value: beat.governance.menuTitle)
+                }
+                Section("Audio / vocal (functional spec)") {
+                    Text(beat.audioSpec)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Section("Visual prompt (UI wireframe)") {
+                    Text(beat.visualPrompt)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Section("Audio / vocal (functional spec)") {
-                Text(beat.audioSpec)
-                    .textSelection(.enabled)
-            }
-            Section("Visual prompt (UI wireframe)") {
-                Text(beat.visualPrompt)
-                    .textSelection(.enabled)
-            }
+            .formStyle(.grouped)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Beat \(beat.sortIndex + 1)")
     }
 }
@@ -468,36 +709,45 @@ private struct BookAssemblyDetailPanel: View {
 
     var body: some View {
         let node = nodes.first { $0.id == selectedNodeID } ?? nodes.first
-        Form {
-            Section("Ingest research / chat log") {
-                TextField("Title", text: $ingestTitle)
-                TextField("Markdown body (#tags auto-parsed)", text: $ingestBody, axis: .vertical)
-                    .lineLimit(6...16)
-                Button("Ingest node", action: onIngest)
-                    .disabled(ingestTitle.trimmingCharacters(in: .whitespaces).isEmpty
-                        || ingestBody.trimmingCharacters(in: .whitespaces).isEmpty)
-                if let ingestMessage {
-                    Text(ingestMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        ScrollView {
+            Form {
+                Section("Ingest research / chat log") {
+                    TextField("Title", text: $ingestTitle)
+                    TextField("Markdown body (#tags auto-parsed)", text: $ingestBody, axis: .vertical)
+                        .lineLimit(6...16)
+                    Button("Ingest node", action: onIngest)
+                        .disabled(ingestTitle.trimmingCharacters(in: .whitespaces).isEmpty
+                            || ingestBody.trimmingCharacters(in: .whitespaces).isEmpty)
+                    if let ingestMessage {
+                        Text(ingestMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
-            if let node {
-                Section("Selected node") {
-                    Text(node.title).font(.headline)
-                    Text(node.tags.map { "#\($0)" }.joined(separator: " "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ScrollView {
+                if let node {
+                    Section("Selected node") {
+                        Text(node.title).font(.headline)
+                        Text(node.tags.map { "#\($0)" }.joined(separator: " "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         Text(node.bodyMarkdown)
                             .textSelection(.enabled)
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxHeight: 320)
+                } else {
+                    ContentUnavailableView(
+                        "No knowledge nodes",
+                        systemImage: "book.closed",
+                        description: Text("Import manuscripts from Receipts → Import, then open Book assembly.")
+                    )
                 }
             }
+            .formStyle(.grouped)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Book assembly")
     }
 }

@@ -6,7 +6,7 @@
 //  Created by CFM Group International on 2025-09-02.
 //
 
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 import UIKit
 import Vision
@@ -267,18 +267,28 @@ class RealScannerService: NSObject, ScannerService {
     
     private func startCaptureSessionIfNeeded() async {
         guard let captureSession, !isSessionRunning else { return }
-        
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                captureSession.startRunning()
+                continuation.resume()
+            }
+        }
         await MainActor.run {
-            captureSession.startRunning()
             isSessionRunning = true
         }
     }
-    
+
     private func stopCaptureSession() async {
         guard let captureSession, isSessionRunning else { return }
-        
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                captureSession.stopRunning()
+                continuation.resume()
+            }
+        }
         await MainActor.run {
-            captureSession.stopRunning()
             isSessionRunning = false
         }
     }
