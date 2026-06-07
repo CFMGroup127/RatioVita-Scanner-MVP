@@ -250,6 +250,12 @@ class RealScannerService: NSObject, ScannerService {
         let output = AVCapturePhotoOutput()
         if captureSession?.canAddOutput(output) == true {
             captureSession?.addOutput(output)
+            // Seed valid still dimensions so AVFoundation does not emit err=-12710
+            // (kCMFormatDescriptionError_InvalidParameter) probing a {0,0} format.
+            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
+               let maxDimensions = camera.activeFormat.supportedMaxPhotoDimensions.last {
+                output.maxPhotoDimensions = maxDimensions
+            }
             photoOutput = output
         } else {
             photoOutput = nil
@@ -303,6 +309,12 @@ class RealScannerService: NSObject, ScannerService {
             #if os(iOS) || os(visionOS)
             settings.flashMode = .auto
             #endif
+            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
+                let dimensions = photoOutput.maxPhotoDimensions
+                if dimensions.width > 0, dimensions.height > 0 {
+                    settings.maxPhotoDimensions = dimensions
+                }
+            }
             
             // Retain the delegate until we resume the continuation
             self.currentPhotoDelegate = PhotoCaptureDelegate { image in

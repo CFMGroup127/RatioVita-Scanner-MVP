@@ -40,6 +40,13 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
             }
             if self.avSession.canAddOutput(self.photoOutput) {
                 self.avSession.addOutput(self.photoOutput)
+                // Seed valid still dimensions; an unconfigured photo output reports
+                // {0,0}, which makes AVFoundation emit err=-12710
+                // (kCMFormatDescriptionError_InvalidParameter) when probing the format.
+                if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
+                   let maxDimensions = device.activeFormat.supportedMaxPhotoDimensions.last {
+                    self.photoOutput.maxPhotoDimensions = maxDimensions
+                }
             }
             if self.avSession.canAddOutput(self.metadataOutput) {
                 self.avSession.addOutput(self.metadataOutput)
@@ -72,6 +79,12 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
     func capturePhoto(delegate: AVCapturePhotoCaptureDelegate) {
         sessionQueue.async {
             let settings = AVCapturePhotoSettings()
+            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
+                let dimensions = self.photoOutput.maxPhotoDimensions
+                if dimensions.width > 0, dimensions.height > 0 {
+                    settings.maxPhotoDimensions = dimensions
+                }
+            }
             self.photoOutput.capturePhoto(with: settings, delegate: delegate)
         }
     }
