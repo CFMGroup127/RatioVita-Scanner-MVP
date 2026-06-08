@@ -204,8 +204,8 @@ enum NewHorizonsSampleDataGenerator {
                 artistOrMaker: "Atelier Lumière",
                 yearCreated: "1928",
                 acquisitionDate: date(y: 2024, m: 3, d: 15),
-                acquisitionCostCAD: Decimal(18_500),
-                currentValuationCAD: Decimal(24_200),
+                acquisitionCostCAD: Decimal(18500),
+                currentValuationCAD: Decimal(24200),
                 valuationDate: date(y: 2026, m: 1, d: 10),
                 isInsured: true,
                 insurancePolicyNumber: "NH-EST-CH-001",
@@ -220,8 +220,8 @@ enum NewHorizonsSampleDataGenerator {
                 artistOrMaker: "Elena Marchetti",
                 yearCreated: "2019",
                 acquisitionDate: date(y: 2025, m: 6, d: 2),
-                acquisitionCostCAD: Decimal(42_000),
-                currentValuationCAD: Decimal(51_500),
+                acquisitionCostCAD: Decimal(42000),
+                currentValuationCAD: Decimal(51500),
                 valuationDate: date(y: 2026, m: 2, d: 20),
                 isInsured: true,
                 physicalZoneTag: "Burlington Estate — Lakeshore Garden",
@@ -235,8 +235,8 @@ enum NewHorizonsSampleDataGenerator {
                 artistOrMaker: "GeoTherm Systems",
                 serialOrEdition: "GT-BURL-2025-MF-01",
                 acquisitionDate: date(y: 2025, m: 9, d: 1),
-                acquisitionCostCAD: Decimal(86_000),
-                currentValuationCAD: Decimal(86_000),
+                acquisitionCostCAD: Decimal(86000),
+                currentValuationCAD: Decimal(86000),
                 valuationDate: date(y: 2025, m: 9, d: 1),
                 physicalZoneTag: "Burlington Estate — Geothermal Plant",
                 provenanceSummary: "Capital install; Ash Roy telemetry binding active."
@@ -256,7 +256,9 @@ enum NewHorizonsSampleDataGenerator {
     }
 
     @MainActor
-    private static func countExisting(modelContext: ModelContext) throws -> (telemetry: Int, farming: Int, assets: Int) {
+    private static func countExisting(modelContext: ModelContext) throws
+        -> (telemetry: Int, farming: Int, assets: Int)
+    {
         let t = try modelContext.fetchCount(FetchDescriptor<TelemetryReading>())
         let f = try modelContext.fetchCount(FetchDescriptor<VerticalFarmingLog>())
         let a = try modelContext.fetchCount(FetchDescriptor<CuratedAsset>())

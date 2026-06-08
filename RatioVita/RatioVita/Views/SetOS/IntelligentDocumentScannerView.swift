@@ -44,7 +44,8 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
                 // {0,0}, which makes AVFoundation emit err=-12710
                 // (kCMFormatDescriptionError_InvalidParameter) when probing the format.
                 if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
-                   let maxDimensions = device.activeFormat.supportedMaxPhotoDimensions.last {
+                   let maxDimensions = device.activeFormat.supportedMaxPhotoDimensions.last
+                {
                     self.photoOutput.maxPhotoDimensions = maxDimensions
                 }
             }

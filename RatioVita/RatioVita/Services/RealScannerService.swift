@@ -253,7 +253,8 @@ class RealScannerService: NSObject, ScannerService {
             // Seed valid still dimensions so AVFoundation does not emit err=-12710
             // (kCMFormatDescriptionError_InvalidParameter) probing a {0,0} format.
             if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
-               let maxDimensions = camera.activeFormat.supportedMaxPhotoDimensions.last {
+               let maxDimensions = camera.activeFormat.supportedMaxPhotoDimensions.last
+            {
                 output.maxPhotoDimensions = maxDimensions
             }
             photoOutput = output
