@@ -83,7 +83,7 @@ final class CameraOpticalScannerModel: NSObject, ObservableObject {
 
     func startScanning(onScan: @escaping (String) -> Void) {
         self.onScan = onScan
-        capture.configure { error in
+        capture.configure { [weak self] error in
             Task { @MainActor [weak self] in
                 await self?.applyConfigure(error: error)
             }
@@ -91,7 +91,7 @@ final class CameraOpticalScannerModel: NSObject, ObservableObject {
     }
 
     func stopScanning() {
-        capture.stopRunning {
+        capture.stopRunning { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isRunning = false
             }
@@ -104,7 +104,7 @@ final class CameraOpticalScannerModel: NSObject, ObservableObject {
             return
         }
         capture.setMetadataDelegate(self)
-        capture.startRunning {
+        capture.startRunning { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isRunning = true
             }
@@ -120,7 +120,8 @@ extension CameraOpticalScannerModel: AVCaptureMetadataOutputObjectsDelegate {
     ) {
         guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let value = object.stringValue else { return }
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             guard HardwareIngestionManager.shared.ingestOptical(value) != nil else { return }
             lastScannedValue = value
             onScan?(value)

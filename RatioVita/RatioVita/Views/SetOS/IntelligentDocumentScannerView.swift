@@ -140,17 +140,16 @@ final class IntelligentDocumentScannerModel: NSObject, ObservableObject {
         scanMode = mode
         self.onCapture = onCapture
         self.onBarcode = onBarcode
-        frameProcessor.bindVisionHandler { bounds, phase, shouldAutoCapture in
+        frameProcessor.bindVisionHandler { [weak self] bounds, phase, shouldAutoCapture in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                applyVision(
+                self?.applyVision(
                     bounds: bounds,
                     phase: phase,
                     shouldAutoCapture: shouldAutoCapture
                 )
             }
         }
-        capture.configure { error in
+        capture.configure { [weak self] error in
             Task { @MainActor [weak self] in
                 await self?.applyConfigure(error: error)
             }
@@ -158,7 +157,7 @@ final class IntelligentDocumentScannerModel: NSObject, ObservableObject {
     }
 
     func stop() {
-        capture.stopRunning {
+        capture.stopRunning { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isRunning = false
                 self?.detectedBounds = nil
@@ -178,7 +177,7 @@ final class IntelligentDocumentScannerModel: NSObject, ObservableObject {
         }
         capture.setVideoDelegate(frameProcessor)
         capture.setMetadataDelegate(self)
-        capture.startRunning {
+        capture.startRunning { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isRunning = true
             }
@@ -213,9 +212,10 @@ extension IntelligentDocumentScannerModel: AVCapturePhotoCaptureDelegate {
         guard let data = photo.fileDataRepresentation() else { return }
         let token = "DOC-\(data.count)-\(Int(Date().timeIntervalSince1970))"
         Task { @MainActor [weak self] in
-            self?.lastCapturedNote = "Captured \(data.count / 1024) KB · \(token)"
+            guard let self else { return }
+            lastCapturedNote = "Captured \(data.count / 1024) KB · \(token)"
             _ = HardwareIngestionManager.shared.ingestOptical(token)
-            self?.onCapture?(token)
+            onCapture?(token)
         }
     }
 }
@@ -229,9 +229,10 @@ extension IntelligentDocumentScannerModel: AVCaptureMetadataOutputObjectsDelegat
         guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let value = object.stringValue else { return }
         Task { @MainActor [weak self] in
+            guard let self else { return }
             guard HardwareIngestionManager.shared.ingestOptical(value) != nil else { return }
-            self?.lastScannedBarcode = value
-            self?.onBarcode?(value)
+            lastScannedBarcode = value
+            onBarcode?(value)
         }
     }
 }
