@@ -4,7 +4,7 @@ import SwiftData
 enum LibrarySwiftDataSchema {
     /// Stable fingerprint for store-recovery messaging when the schema grows.
     static var schemaFingerprint: String {
-        "v2026-06-07-new-horizons-estate"
+        "v2026-06-23-field-ops-tracks"
     }
 
     static func makeSchema() -> Schema {
@@ -54,6 +54,11 @@ enum LibrarySwiftDataSchema {
             TransportVehicleRun.self,
             CrossVentureOrderTicket.self,
             CrewCommsNotice.self,
+            MedicTreatmentIncident.self,
+            MedicKitSupplyItem.self,
+            MedicCoverageInterval.self,
+            LSPLocationTask.self,
+            SecurityAccessLog.self,
             ExpertConsultantProfile.self,
             ConsultationTimecard.self,
             InvitationNode.self,

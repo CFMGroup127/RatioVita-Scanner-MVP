@@ -28,5 +28,25 @@ enum FirestoreCollectionRefs {
     static func lookBoardAssets(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
         productions(db).document(productionId).collection("look_board_assets")
     }
+
+    static func medicIncidents(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("medic_incidents")
+    }
+
+    static func medicKitSupplies(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("medic_kit_supplies")
+    }
+
+    static func medicCoverageLogs(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("medic_coverage_logs")
+    }
+
+    static func lspLocationTasks(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("lsp_location_tasks")
+    }
+
+    static func securityAccessLogs(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("security_access_logs")
+    }
 }
 #endif
