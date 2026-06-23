@@ -8,6 +8,7 @@ struct RatioVitaHomeView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
+    @AppStorage("forensicActiveCallSheetFirestoreID") private var forensicActiveCallSheetFirestoreID: String = ""
     @AppStorage("laborSentinelAgreementCode") private var laborSentinelAgreementCode: String = ""
 
     @Query(sort: \ProductionProject.title) private var productionProjects: [ProductionProject]
@@ -83,10 +84,21 @@ struct RatioVitaHomeView: View {
         activeProject?.isDormantUnused == true
     }
 
+    private var callSheetFirestoreIdOrNil: String? {
+        let trimmed = forensicActiveCallSheetFirestoreID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                 forensicPulseCard
+                if !forensicActiveProductionID.isEmpty {
+                    CrewTransitGuardianBanner(
+                        productionId: forensicActiveProductionID,
+                        activeCallSheetId: callSheetFirestoreIdOrNil
+                    )
+                }
                 if transportRunnerRouting || craftLogisticsMesh {
                     productionLogisticsCard
                 }

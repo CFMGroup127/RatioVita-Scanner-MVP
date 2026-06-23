@@ -28,6 +28,7 @@ struct LaborSentinelHubView: View {
     @AppStorage("payCycleLastAutoSweepWeekToken") private var payCycleLastAutoSweepWeekToken: String = ""
     @AppStorage("laborSentinelAgreementCode") private var laborSentinelAgreementCode: String = ""
     @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
+    @AppStorage("forensicActiveCallSheetFirestoreID") private var forensicActiveCallSheetFirestoreID: String = ""
 
     @Query(sort: \BusinessEntity.legalName) private var businessEntities: [BusinessEntity]
 
@@ -80,8 +81,24 @@ struct LaborSentinelHubView: View {
         return PayrollSplitSheetGrouper.keys(from: daysForProject, project: project)
     }
 
+    private var callSheetFirestoreIdOrNil: String? {
+        let trimmed = forensicActiveCallSheetFirestoreID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     @ViewBuilder
     private var laborHubSections: some View {
+        if !forensicActiveProductionID.isEmpty {
+            Section {
+                CrewTransitGuardianBanner(
+                    productionId: forensicActiveProductionID,
+                    activeCallSheetId: callSheetFirestoreIdOrNil
+                )
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+        }
+
         Section {
             Picker("Production", selection: $selectedProjectID) {
                 Text("Choose a show…").tag(UUID?.none)

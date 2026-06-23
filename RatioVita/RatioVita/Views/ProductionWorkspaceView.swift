@@ -7,6 +7,7 @@ struct ProductionWorkspaceView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
     @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
+    @AppStorage("forensicActiveCallSheetFirestoreID") private var forensicActiveCallSheetFirestoreID: String = ""
 
     @Query(sort: \ProductionProject.title) private var allProjects: [ProductionProject]
     @Query(sort: \CrewTimecardDay.workDate, order: .reverse) private var crewDays: [CrewTimecardDay]
@@ -30,6 +31,11 @@ struct ProductionWorkspaceView: View {
         allProjects.filter { timelineBucket(for: $0) == .past }
     }
 
+    private var callSheetFirestoreIdOrNil: String? {
+        let trimmed = forensicActiveCallSheetFirestoreID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private enum TimelineBucket {
         case past, present, future
     }
@@ -37,6 +43,12 @@ struct ProductionWorkspaceView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                if !forensicActiveProductionID.isEmpty {
+                    CrewTransitGuardianBanner(
+                        productionId: forensicActiveProductionID,
+                        activeCallSheetId: callSheetFirestoreIdOrNil
+                    )
+                }
                 headerBar
                 if let portalImportMessage {
                     Text(portalImportMessage)

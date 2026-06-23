@@ -58,6 +58,7 @@ struct RatioVitaApp: App {
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
     init() {
+        RatioVitaFirebaseBootstrap.configureIfNeeded()
         #if DEBUG
         #if canImport(UIKit)
         // Quiets “Unable to simultaneously satisfy constraints” spam from UIKit-backed text inputs (does not affect
