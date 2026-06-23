@@ -12,10 +12,13 @@ final class TransitGuardianStreamService: ObservableObject {
     @Published private(set) var activeBannerMessage: String?
     @Published private(set) var activeException: TransitExceptionRecord?
     @Published private(set) var isListening = false
+    @Published private(set) var isFirebaseLinked = false
+    @Published private(set) var lastIngestionSummary: String?
 
     #if canImport(FirebaseFirestore)
     private var callSheetListener: ListenerRegistration?
     private var transitListener: ListenerRegistration?
+    private var ingestionListener: ListenerRegistration?
     #endif
 
     private var activeProductionId: String?
@@ -39,18 +42,25 @@ final class TransitGuardianStreamService: ObservableObject {
         stopListening()
         activeProductionId = trimmedProduction
         activeCallSheetId = callSheetId
-        RatioVitaFirebaseBootstrap.configureIfNeeded()
 
-        #if canImport(FirebaseFirestore)
-        guard RatioVitaFirebaseBootstrap.isConfigured else { return }
+        Task {
+            await RatioVitaFirebaseBootstrap.configureIfNeeded()
+            await MainActor.run {
+                self.isFirebaseLinked = RatioVitaFirebaseBootstrap.isConfigured
+                #if canImport(FirebaseFirestore)
+                guard RatioVitaFirebaseBootstrap.isConfigured else { return }
 
-        if let callSheetId, !callSheetId.isEmpty {
-            attachTransitListener(productionId: trimmedProduction, callSheetId: callSheetId)
-        } else {
-            attachLatestCallSheetListener(productionId: trimmedProduction)
+                attachIngestionListener(productionId: trimmedProduction)
+
+                if let callSheetId, !callSheetId.isEmpty {
+                    attachTransitListener(productionId: trimmedProduction, callSheetId: callSheetId)
+                } else {
+                    attachLatestCallSheetListener(productionId: trimmedProduction)
+                }
+                isListening = true
+                #endif
+            }
         }
-        isListening = true
-        #endif
     }
 
     func stopListening() {
@@ -59,19 +69,21 @@ final class TransitGuardianStreamService: ObservableObject {
         transitListener = nil
         callSheetListener?.remove()
         callSheetListener = nil
+        ingestionListener?.remove()
+        ingestionListener = nil
         #endif
         activeProductionId = nil
         activeCallSheetId = nil
         isListening = false
         activeBannerMessage = nil
         activeException = nil
+        lastIngestionSummary = nil
     }
 
     #if canImport(FirebaseFirestore)
     private func attachLatestCallSheetListener(productionId: String) {
-        let db = Firestore.firestore()
-        callSheetListener = db
-            .collection(ProductionFirestorePathHelpers.callSheetsCollection(productionId: productionId))
+        callSheetListener = FirestoreCollectionRefs
+            .callSheets(productionId: productionId)
             .order(by: "lastUpdated", descending: true)
             .limit(to: 1)
             .addSnapshotListener { [weak self] snapshot, error in
@@ -83,9 +95,7 @@ final class TransitGuardianStreamService: ObservableObject {
                     return
                 }
                 guard let doc = snapshot?.documents.first else {
-                    Task { @MainActor in
-                        self.clearAlerts()
-                    }
+                    Task { @MainActor in self.clearTransitAlerts() }
                     return
                 }
                 Task { @MainActor in
@@ -98,33 +108,49 @@ final class TransitGuardianStreamService: ObservableObject {
         transitListener?.remove()
         activeCallSheetId = callSheetId
 
-        let db = Firestore.firestore()
-        let path = ProductionFirestorePathHelpers.transitExceptionsCollection(
-            productionId: productionId,
-            callSheetId: callSheetId
-        )
-        transitListener = db.collection(path).addSnapshotListener { [weak self] snapshot, error in
-            guard let self else { return }
-            if let error {
-                #if DEBUG
-                print("TransitGuardian: transit listener error — \(error.localizedDescription)")
-                #endif
-                return
-            }
-            let records = snapshot?.documents.compactMap(Self.parseTransitException) ?? []
-            let critical = records.filter(\.isHighwayCritical)
-            Task { @MainActor in
-                if let first = critical.first {
-                    self.activeException = first
-                    self.activeBannerMessage = first.crewBannerText
-                } else {
-                    self.clearAlerts()
+        transitListener = FirestoreCollectionRefs
+            .transitExceptions(productionId: productionId, callSheetId: callSheetId)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self else { return }
+                if let error {
+                    #if DEBUG
+                    print("TransitGuardian: transit listener error — \(error.localizedDescription)")
+                    #endif
+                    return
+                }
+                let records = snapshot?.documents.compactMap(Self.parseTransitException) ?? []
+                let critical = records
+                    .filter(\.isHighwayCritical)
+                    .sorted { $0.loggedAt > $1.loggedAt }
+                Task { @MainActor in
+                    if let first = critical.first {
+                        self.activeException = first
+                        self.activeBannerMessage = first.crewBannerText
+                    } else {
+                        self.clearTransitAlerts()
+                    }
                 }
             }
-        }
     }
 
-    private func clearAlerts() {
+    private func attachIngestionListener(productionId: String) {
+        ingestionListener = FirestoreCollectionRefs
+            .ingestionLogs(productionId: productionId)
+            .order(by: "processedAt", descending: true)
+            .limit(to: 1)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self, let doc = snapshot?.documents.first else { return }
+                let data = doc.data()
+                let fileName = data["sourceFileName"] as? String ?? "artifact batch"
+                let records = data["recordsExtracted"] as? Int ?? 0
+                let status = data["status"] as? String ?? "Success"
+                Task { @MainActor in
+                    self.lastIngestionSummary = "Latest ingestion: \(fileName) · \(records) records · \(status)"
+                }
+            }
+    }
+
+    private func clearTransitAlerts() {
         activeException = nil
         activeBannerMessage = nil
     }
@@ -133,25 +159,35 @@ final class TransitGuardianStreamService: ObservableObject {
         let data = document.data()
         let notes = data["descriptionNotes"] as? String ?? ""
         let arterial = data["affectedArterial"] as? String ?? ""
-        guard !notes.isEmpty || !arterial.isEmpty else { return nil }
+        let agentText = data["agentTriggeredWarningText"] as? String
+        let combinedNotes = [notes, agentText ?? ""].joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        guard !combinedNotes.isEmpty || !arterial.isEmpty else { return nil }
 
         let callSheetId = data["callSheetId"] as? String ?? ""
         let severity = data["severity"] as? String ?? "Critical_Closure"
-        let loggedAt: Date
-        if let timestamp = data["loggedAt"] as? Timestamp {
-            loggedAt = timestamp.dateValue()
-        } else {
-            loggedAt = Date()
-        }
+        let loggedAt = parseFirestoreDate(data["loggedAt"]) ?? Date()
 
         return TransitExceptionRecord(
             id: document.documentID,
             callSheetId: callSheetId,
-            descriptionNotes: notes,
+            descriptionNotes: combinedNotes.isEmpty ? arterial : combinedNotes,
             affectedArterial: arterial,
             severity: severity,
             loggedAt: loggedAt
         )
+    }
+
+    private static func parseFirestoreDate(_ value: Any?) -> Date? {
+        if let timestamp = value as? Timestamp {
+            return timestamp.dateValue()
+        }
+        if let seconds = value as? TimeInterval {
+            return Date(timeIntervalSinceReferenceDate: seconds)
+        }
+        if let seconds = value as? Double {
+            return Date(timeIntervalSinceReferenceDate: seconds)
+        }
+        return nil
     }
     #endif
 }

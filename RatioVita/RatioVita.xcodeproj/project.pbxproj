@@ -126,6 +126,9 @@
 			);
 			name = RatioVita;
 			packageProductDependencies = (
+				8BFB00022E679830008C1ACF /* FirebaseCore */,
+				8BFB00032E679830008C1ACF /* FirebaseFirestore */,
+				8BFB00042E679830008C1ACF /* FirebaseAuth */,
 			);
 			productName = RatioVita;
 			productReference = 8BD482CE2E67982F008C1ACF /* RatioVita.app */;
@@ -213,6 +216,9 @@
 			productRefGroup = 8BD482CF2E67982F008C1ACF /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			targets = (
 				8BD482CD2E67982F008C1ACF /* RatioVita */,
 				8BD482DC2E679830008C1ACF /* RatioVitaTests */,
@@ -664,6 +670,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8BFB00022E679830008C1ACF /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		8BFB00032E679830008C1ACF /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		8BFB00042E679830008C1ACF /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8BD482C62E67982F008C1ACF /* Project object */;
 }

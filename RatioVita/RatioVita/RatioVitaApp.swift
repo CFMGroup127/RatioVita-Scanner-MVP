@@ -74,6 +74,7 @@ struct RatioVitaApp: App {
             ContentView()
                 .ratioVitaTheme()
                 .environment(libraryNavigationCoordinator)
+                .logisticsLiveSync()
                 .sovereignOnboardingGate()
                 .setOSOnboardingGate()
                 .consultantProgramGate()

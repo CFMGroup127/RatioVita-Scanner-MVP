@@ -3,17 +3,24 @@ import Foundation
 #if canImport(FirebaseCore)
 import FirebaseCore
 #endif
+#if canImport(FirebaseAuth)
+import FirebaseAuth
+#endif
 
-/// Optional Firebase bootstrap — activates Firestore listeners when the SDK + config are present.
+/// Firebase bootstrap for live logistical guardian streaming from VitaLogic → Firestore → RatioVita.
 enum RatioVitaFirebaseBootstrap {
     static private(set) var isConfigured = false
 
-    static func configureIfNeeded() {
+    static func configureIfNeeded() async {
         #if canImport(FirebaseCore)
-        guard !isConfigured else { return }
+        guard !isConfigured else {
+            await ensureAuthenticatedSession()
+            return
+        }
 
         if FirebaseApp.app() != nil {
             isConfigured = true
+            await ensureAuthenticatedSession()
             return
         }
 
@@ -21,6 +28,7 @@ enum RatioVitaFirebaseBootstrap {
            let options = FirebaseOptions(contentsOfFile: path) {
             FirebaseApp.configure(options: options)
             isConfigured = true
+            await ensureAuthenticatedSession()
             return
         }
 
@@ -30,12 +38,54 @@ enum RatioVitaFirebaseBootstrap {
               rawFirebaseConfig != "{}",
               let configData = rawFirebaseConfig.data(using: .utf8),
               let configDict = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
-              let options = FirebaseOptions(dictionary: configDict) else {
+              let options = firebaseOptions(from: configDict) else {
             return
         }
 
         FirebaseApp.configure(options: options)
         isConfigured = true
+        await ensureAuthenticatedSession()
         #endif
     }
+
+    /// Synchronous entry for app launch — schedules async auth if needed.
+    static func configureIfNeeded() {
+        Task {
+            await configureIfNeeded()
+        }
+    }
+
+    #if canImport(FirebaseAuth)
+    private static func ensureAuthenticatedSession() async {
+        guard Auth.auth().currentUser == nil else { return }
+        do {
+            _ = try await Auth.auth().signInAnonymously()
+            #if DEBUG
+            print("RatioVita Firebase: anonymous session established for Firestore listeners.")
+            #endif
+        } catch {
+            #if DEBUG
+            print("RatioVita Firebase: anonymous sign-in failed — \(error.localizedDescription)")
+            #endif
+        }
+    }
+    #else
+    private static func ensureAuthenticatedSession() async {}
+    #endif
+
+    #if canImport(FirebaseCore)
+    private static func firebaseOptions(from dict: [String: Any]) -> FirebaseOptions? {
+        guard
+            let googleAppID = dict["googleAppID"] as? String,
+            let gcmSenderID = dict["gcmSenderID"] as? String
+        else {
+            return nil
+        }
+        let options = FirebaseOptions(googleAppID: googleAppID, gcmSenderID: gcmSenderID)
+        if let apiKey = dict["apiKey"] as? String { options.apiKey = apiKey }
+        if let projectID = dict["projectID"] as? String { options.projectID = projectID }
+        if let databaseURL = dict["databaseURL"] as? String { options.databaseURL = databaseURL }
+        return options
+    }
+    #endif
 }
