@@ -11,6 +11,7 @@ enum HomeModuleDestination: String, CaseIterable, Identifiable {
     case insurance
     case contacts
     case sovereignAudit
+    case continuityStyleVault
 
     var id: String { rawValue }
 
@@ -25,6 +26,7 @@ enum HomeModuleDestination: String, CaseIterable, Identifiable {
             case .insurance: "Insurance"
             case .contacts: "Contacts"
             case .sovereignAudit: "Sovereign Audit"
+            case .continuityStyleVault: "Style Vault"
         }
     }
 
@@ -39,6 +41,7 @@ enum HomeModuleDestination: String, CaseIterable, Identifiable {
             case .insurance: "shield.checkered"
             case .contacts: "person.2.fill"
             case .sovereignAudit: "list.bullet.clipboard.fill"
+            case .continuityStyleVault: "photo.on.rectangle.angled"
         }
     }
 
@@ -53,6 +56,7 @@ enum HomeModuleDestination: String, CaseIterable, Identifiable {
             case .insurance: "Warranties & policies"
             case .contacts: "CRM & clients"
             case .sovereignAudit: "Forensic trail"
+            case .continuityStyleVault: "Look boards & fittings"
         }
     }
 }

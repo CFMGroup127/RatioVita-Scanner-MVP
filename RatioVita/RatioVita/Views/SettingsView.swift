@@ -338,6 +338,9 @@ struct SettingsView: View {
                     NavigationLink("Sovereign identity profile") {
                         OnboardingMasterSetupView()
                     }
+                    NavigationLink("Connected Accounts") {
+                        ConnectedAccountsSettingsView()
+                    }
                     NavigationLink("Module control cockpit") {
                         MainSettingsCockpitView()
                     }

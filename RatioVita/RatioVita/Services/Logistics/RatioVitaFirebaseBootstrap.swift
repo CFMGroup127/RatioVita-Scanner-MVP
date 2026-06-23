@@ -32,10 +32,7 @@ enum RatioVitaFirebaseBootstrap {
             return
         }
 
-        let tempObject = NSObject()
-        let rawFirebaseConfig = (tempObject.value(forKey: "__firebase_config") as? String) ?? "{}"
-        guard !rawFirebaseConfig.isEmpty,
-              rawFirebaseConfig != "{}",
+        guard let rawFirebaseConfig = runtimeFirebaseConfigJSON(),
               let configData = rawFirebaseConfig.data(using: .utf8),
               let configDict = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
               let options = firebaseOptions(from: configDict) else {
@@ -46,6 +43,21 @@ enum RatioVitaFirebaseBootstrap {
         isConfigured = true
         await ensureAuthenticatedSession()
         #endif
+    }
+
+    /// Reads Firebase JSON config from Info.plist or scheme environment without KVC (avoids NSUnknownKeyException).
+    private static func runtimeFirebaseConfigJSON() -> String? {
+        if let plistValue = Bundle.main.object(forInfoDictionaryKey: "__firebase_config") as? String,
+           !plistValue.isEmpty,
+           plistValue != "{}" {
+            return plistValue
+        }
+        if let envValue = ProcessInfo.processInfo.environment["__firebase_config"],
+           !envValue.isEmpty,
+           envValue != "{}" {
+            return envValue
+        }
+        return nil
     }
 
     /// Synchronous entry for app launch — schedules async auth if needed.

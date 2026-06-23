@@ -9,18 +9,20 @@ build/
 *.hmap
 *.ipa
 
-SwiftPM
+# SwiftPM
 .swiftpm/
 .build/
+# Commit lockfiles so Firebase SPM resolves on fresh clones
+!**/Package.resolved
 
-CocoaPods (if added later)
+# CocoaPods (if added later)
 Pods/
 
-Carthage (if added later)
+# Carthage (if added later)
 Carthage/
 Carthage/Build/
 
-Fastlane (if added later)
+# Fastlane (if added later)
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png

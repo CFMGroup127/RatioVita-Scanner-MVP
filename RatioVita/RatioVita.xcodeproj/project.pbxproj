@@ -212,13 +212,13 @@
 			);
 			mainGroup = 8BD482C52E67982F008C1ACF;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8BD482CF2E67982F008C1ACF /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				8BFB00012E679830008C1ACF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-			);
 			targets = (
 				8BD482CD2E67982F008C1ACF /* RatioVita */,
 				8BD482DC2E679830008C1ACF /* RatioVitaTests */,

@@ -33,6 +33,7 @@ struct RatioVitaHomeView: View {
     @State private var showZeroLinkCleanup = false
     @State private var showEmergencyShuttle = false
     @State private var showProductionOperations = false
+    @State private var showContinuityStyleVault = false
 
     @AppStorage(SovereignFeatureFlags.transportRunnerRoutingKey) private var transportRunnerRouting = false
     @AppStorage(SovereignFeatureFlags.craftLogisticsMeshKey) private var craftLogisticsMesh = false
@@ -175,6 +176,11 @@ struct RatioVitaHomeView: View {
                     projects: zeroLinkProductions,
                     activeProductionIDString: $forensicActiveProductionID
                 )
+            }
+            .sheet(isPresented: $showContinuityStyleVault) {
+                NavigationStack {
+                    ContinuityStyleVaultView()
+                }
             }
             .onChange(of: libraryNavigationCoordinator.homeNavigationSignal) { _, _ in
                 handleHomeNavigation()
@@ -363,6 +369,8 @@ struct RatioVitaHomeView: View {
                 showSovereignAudit = true
             case .contacts, .finances, .arcticVault, .laborSentinel:
                 libraryNavigationCoordinator.navigateFromHome(module)
+            case .continuityStyleVault:
+                showContinuityStyleVault = true
         }
     }
 

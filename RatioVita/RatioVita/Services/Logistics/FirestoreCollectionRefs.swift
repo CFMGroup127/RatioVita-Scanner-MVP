@@ -24,5 +24,9 @@ enum FirestoreCollectionRefs {
     static func ingestionLogs(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
         productions(db).document(productionId).collection("ingestion_logs")
     }
+
+    static func lookBoardAssets(productionId: String, db: Firestore = Firestore.firestore()) -> CollectionReference {
+        productions(db).document(productionId).collection("look_board_assets")
+    }
 }
 #endif
