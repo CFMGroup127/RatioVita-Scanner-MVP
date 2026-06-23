@@ -38,8 +38,7 @@ final class LookBoardVaultStreamService: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             await RatioVitaFirebaseBootstrap.configureIfNeeded()
-            await MainActor.run { [weak self] in
-                guard let self else { return }
+            await MainActor.run {
                 self.isFirebaseLinked = RatioVitaFirebaseBootstrap.isConfigured
                 #if canImport(FirebaseFirestore)
                 guard RatioVitaFirebaseBootstrap.isConfigured else {
@@ -48,11 +47,11 @@ final class LookBoardVaultStreamService: ObservableObject {
                     return
                 }
 
-                listener = FirestoreCollectionRefs
+                self.listener = FirestoreCollectionRefs
                     .lookBoardAssets(productionId: trimmed)
                     .order(by: "title")
                     .addSnapshotListener { [weak self] snapshot, error in
-                        Task { @MainActor [weak self] in
+                        Task { @MainActor in
                             guard let self else { return }
                             if let error {
                                 self.lastSyncSummary = "Look board sync error: \(error.localizedDescription)"
