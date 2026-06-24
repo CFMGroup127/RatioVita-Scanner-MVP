@@ -9,8 +9,8 @@ enum LedgerTargetKind: String, Codable, CaseIterable, Sendable {
     case gift
 }
 
-/// Codable assignment stored on `AtomicLedgerLineItem` (SwiftData-friendly).
-struct LedgerTargetAssignment: Codable, Equatable, Sendable {
+/// Codable assignment for API / agent payloads (not persisted as JSON on SwiftData rows).
+struct LedgerTargetAssignment: Equatable, Sendable {
     var kind: LedgerTargetKind
     /// When `kind == .personal`, hooks into regimen / keto tracking.
     var regimenTrackingEnabled: Bool

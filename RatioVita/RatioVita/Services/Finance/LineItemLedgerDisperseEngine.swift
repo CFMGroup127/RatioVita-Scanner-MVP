@@ -13,7 +13,7 @@ enum LineItemLedgerDisperseEngine {
         manifest: MasterInvoiceManifest,
         context: ModelContext,
         bookkeepingPassID: String = UUID().uuidString
-    ) throws -> DisperseResult {
+    ) async throws -> DisperseResult {
         guard manifest.allLinesAssigned else {
             throw LineItemLedgerDisperseError.incompleteAssignments
         }
@@ -40,6 +40,7 @@ enum LineItemLedgerDisperseEngine {
         }
 
         manifest.refreshReconciledFlag()
+        await Task.yield()
         try ModelContextMainActorSave.saveThrows(context)
         return DisperseResult(entriesCreated: created, masterInvoiceID: manifest.id)
     }

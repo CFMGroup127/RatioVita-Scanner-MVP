@@ -14,8 +14,11 @@ final class AtomicLedgerLineItem {
     var totalLineAmount: Decimal
 
     var agentSuggestedCategoryRaw: String
-    /// JSON-encoded `LedgerTargetAssignment` when user confirms routing.
-    var assignedLedgerTargetJSON: String?
+
+    /// Primitive ledger assignment columns — safe for SwiftData background persistence (no JSON Codable).
+    var assignedLedgerTargetKindRaw: String?
+    var assignedLedgerTargetRegimenTrackingEnabled: Bool
+    var assignedLedgerTargetVentureEntityID: UUID?
 
     /// Optional OCR source line on the parent receipt.
     var sourceReceiptLineItemID: UUID?
@@ -46,7 +49,9 @@ final class AtomicLedgerLineItem {
         self.unitPrice = unitPrice
         self.totalLineAmount = totalLineAmount ?? (unitPrice * Decimal(quantity))
         agentSuggestedCategoryRaw = agentSuggestedCategory.rawValue
-        assignedLedgerTargetJSON = assignedLedgerTarget.flatMap { Self.encodeLedgerTarget($0) }
+        assignedLedgerTargetKindRaw = assignedLedgerTarget?.kind.rawValue
+        assignedLedgerTargetRegimenTrackingEnabled = assignedLedgerTarget?.regimenTrackingEnabled ?? false
+        assignedLedgerTargetVentureEntityID = assignedLedgerTarget?.ventureEntityID
         self.sourceReceiptLineItemID = sourceReceiptLineItemID
         self.receiptHighlightRectRaw = receiptHighlightRectRaw
         self.manifest = manifest
@@ -58,22 +63,19 @@ final class AtomicLedgerLineItem {
 
     var assignedLedgerTarget: LedgerTargetAssignment? {
         get {
-            guard let assignedLedgerTargetJSON else { return nil }
-            return Self.decodeLedgerTarget(assignedLedgerTargetJSON)
+            guard let kindRaw = assignedLedgerTargetKindRaw,
+                  let kind = LedgerTargetKind(rawValue: kindRaw) else { return nil }
+            return LedgerTargetAssignment(
+                kind: kind,
+                regimenTrackingEnabled: assignedLedgerTargetRegimenTrackingEnabled,
+                ventureEntityID: assignedLedgerTargetVentureEntityID
+            )
         }
         set {
-            assignedLedgerTargetJSON = newValue.flatMap { Self.encodeLedgerTarget($0) }
+            assignedLedgerTargetKindRaw = newValue?.kind.rawValue
+            assignedLedgerTargetRegimenTrackingEnabled = newValue?.regimenTrackingEnabled ?? false
+            assignedLedgerTargetVentureEntityID = newValue?.ventureEntityID
             manifest?.refreshReconciledFlag()
         }
-    }
-
-    private static func encodeLedgerTarget(_ target: LedgerTargetAssignment) -> String? {
-        guard let data = try? JSONEncoder().encode(target) else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    private static func decodeLedgerTarget(_ json: String) -> LedgerTargetAssignment? {
-        guard let data = json.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(LedgerTargetAssignment.self, from: data)
     }
 }
