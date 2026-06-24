@@ -629,18 +629,29 @@ struct ReceiptMacReviewView: View {
                     }
 
                     Section("Production & tax (VitaLogic)") {
-                        TextField(
-                            "Show / project (canonical title)",
-                            text: $draftReceiptShowTitle
-                        )
-                        .disabled(isLocked)
-                        .onAppear { syncDraftReceiptShowTitle() }
-                        .onChange(of: receipt.id) { _, _ in syncDraftReceiptShowTitle() }
-                        .onChange(of: draftReceiptShowTitle) { _, newValue in
-                            DebouncedSave.schedule(key: "receipt-show-\(receipt.id)") {
-                                commitReceiptShowTitle(newValue)
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField(
+                                "Show / project (canonical title)",
+                                text: $draftReceiptShowTitle
+                            )
+                            .disabled(isLocked)
+                            .onSubmit {
+                                commitReceiptShowTitle(draftReceiptShowTitle)
+                            }
+                            HStack {
+                                Text("Press Return or Save to link this show — typing alone does not create a production.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("Save show") {
+                                    commitReceiptShowTitle(draftReceiptShowTitle)
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(isLocked)
                             }
                         }
+                        .onAppear { syncDraftReceiptShowTitle() }
+                        .onChange(of: receipt.id) { _, _ in syncDraftReceiptShowTitle() }
                         TextField(
                             "Production type (e.g. commercial, payroll)",
                             text: bindingOptional($receipt.productionType)
@@ -1274,15 +1285,21 @@ private struct ReceiptMacWorkSessionRow: View {
                     Text("Production / show")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    TextField("", text: $draftProductionTitle)
-                        .disabled(isLocked)
-                        .onAppear { syncDraftProductionTitle() }
-                        .onChange(of: session.id) { _, _ in syncDraftProductionTitle() }
-                        .onChange(of: draftProductionTitle) { _, newValue in
-                            DebouncedSave.schedule(key: "ws-show-\(session.id)") {
-                                commitProductionTitle(newValue)
+                    VStack(alignment: .leading, spacing: 6) {
+                        TextField("", text: $draftProductionTitle)
+                            .disabled(isLocked)
+                            .onSubmit {
+                                commitProductionTitle(draftProductionTitle)
                             }
+                        Button("Save show") {
+                            commitProductionTitle(draftProductionTitle)
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(isLocked)
+                    }
+                    .onAppear { syncDraftProductionTitle() }
+                    .onChange(of: session.id) { _, _ in syncDraftProductionTitle() }
                 }
                 GridRow {
                     Text("Department / category")

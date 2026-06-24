@@ -183,9 +183,11 @@ struct RatioVitaHomeView: View {
             }
             .sheet(isPresented: $showZeroLinkCleanup) {
                 ZeroLinkProductionCleanupSheet(
-                    projects: zeroLinkProductions,
                     activeProductionIDString: $forensicActiveProductionID
                 )
+                #if os(macOS)
+                .frame(minWidth: 520, idealWidth: 560, minHeight: 420, idealHeight: 560)
+                #endif
             }
             .sheet(isPresented: $showContinuityStyleVault) {
                 NavigationStack {
@@ -545,48 +547,67 @@ private struct HomeModuleTile: View {
 private struct ZeroLinkProductionCleanupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    let projects: [ProductionProject]
+    @Query(sort: \ProductionProject.title) private var allProjects: [ProductionProject]
     @Binding var activeProductionIDString: String
+
+    @State private var locallyHiddenIDs: Set<UUID> = []
+    @State private var showBatchConfirm = false
+    @State private var lastPurgeSummary: String?
+
+    private var purgeCandidates: [ProductionProject] {
+        allProjects.filter { $0.hasZeroLinkedItems && !locallyHiddenIDs.contains($0.id) }
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if projects.isEmpty {
+                if purgeCandidates.isEmpty {
                     ContentUnavailableView(
-                        "No empty productions",
+                        locallyHiddenIDs.isEmpty ? "No empty productions" : "Purge complete",
                         systemImage: "checkmark.circle",
                         description: Text(
-                            "Every show in your library has receipts, sessions, crew days, kit rows, or rate segments."
+                            locallyHiddenIDs.isEmpty
+                                ? "Every show in your library has receipts, sessions, crew days, kit rows, or rate segments."
+                                : "Removed \(locallyHiddenIDs.count) zero-link production(s) from your local library."
                         )
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        Section {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
                             Text(
-                                "These titles have **zero** linked forensic rows (including auto rate segments). Purge removes them immediately — no tombstone."
+                                "These \(purgeCandidates.count) title(s) have zero linked forensic rows (including auto rate segments). Purging removes them locally right away — no cloud round-trip required."
                             )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        }
-                        ForEach(projects) { p in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(p.title)
-                                    .font(.headline)
-                                Text("Tap Purge to delete this duplicate / dormant shell.")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if let lastPurgeSummary {
+                                Text(lastPurgeSummary)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.green)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button("Purge", role: .destructive) {
-                                    purge(p)
+
+                            LazyVStack(spacing: 0) {
+                                ForEach(purgeCandidates) { project in
+                                    purgeRow(project)
+                                    if project.id != purgeCandidates.last?.id {
+                                        Divider()
+                                    }
                                 }
                             }
-                            .contextMenu {
-                                Button("Purge…", role: .destructive) {
-                                    purge(p)
-                                }
-                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.ratioVitaAdaptiveSurface)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
                         }
+                        .padding()
                     }
                 }
             }
@@ -598,18 +619,86 @@ private struct ZeroLinkProductionCleanupSheet: View {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Done") { dismiss() }
                     }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Purge all (\(purgeCandidates.count))", role: .destructive) {
+                            showBatchConfirm = true
+                        }
+                        .disabled(purgeCandidates.isEmpty)
+                    }
                 }
+                .confirmationDialog(
+                    "Purge all \(purgeCandidates.count) zero-link productions?",
+                    isPresented: $showBatchConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Purge all locally", role: .destructive) {
+                        purgeAllLocally()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text(
+                        "Deletes every listed show from the local SwiftData store immediately. Firestore quota limits will not block this cleanup."
+                    )
+                }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        #endif
+    }
+
+    @ViewBuilder
+    private func purgeRow(_ project: ProductionProject) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.title.isEmpty ? "Untitled production" : project.title)
+                    .font(.headline)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("No linked receipts, sessions, crew days, kit rows, or rate segments.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button("Purge", role: .destructive) {
+                purgeOne(project)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func purgeOne(_ project: ProductionProject) {
+        locallyHiddenIDs.insert(project.id)
+        let removed = ZeroLinkProductionPurgeService.purgeOne(
+            project,
+            modelContext: modelContext,
+            activeProductionIDString: &activeProductionIDString
+        )
+        if removed {
+            lastPurgeSummary = "Removed “\(project.title)” locally."
+        } else {
+            locallyHiddenIDs.remove(project.id)
         }
     }
 
-    private func purge(_ p: ProductionProject) {
-        guard p.hasZeroLinkedItems else { return }
-        let sid = p.id.uuidString
-        if activeProductionIDString == sid {
-            activeProductionIDString = ""
+    private func purgeAllLocally() {
+        let snapshot = purgeCandidates
+        locallyHiddenIDs.formUnion(snapshot.map(\.id))
+        let result = ZeroLinkProductionPurgeService.batchPurgeLocal(
+            candidates: snapshot,
+            modelContext: modelContext,
+            activeProductionIDString: &activeProductionIDString
+        )
+        lastPurgeSummary = "Removed \(result.purgedCount) zero-link production(s) locally."
+        if result.purgedCount == snapshot.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                dismiss()
+            }
         }
-        modelContext.delete(p)
-        try? modelContext.save()
     }
 }
 
