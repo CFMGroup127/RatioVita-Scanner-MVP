@@ -27,6 +27,14 @@ enum FirestoreCollectionRefs {
         return root.document(sanitizedProductionId(productionId)).collection("ingestion_logs")
     }
 
+    static func productionDayState(productionId: String) -> DocumentReference? {
+        guard let root = productions() else { return nil }
+        return root
+            .document(sanitizedProductionId(productionId))
+            .collection("production_day_state")
+            .document("current")
+    }
+
     static func lookBoardAssets(productionId: String) -> CollectionReference? {
         guard let root = productions() else { return nil }
         return root.document(sanitizedProductionId(productionId)).collection("look_board_assets")

@@ -19,6 +19,7 @@ final class TransitGuardianStreamService: ObservableObject {
     private var callSheetListener: ListenerRegistration?
     private var transitListener: ListenerRegistration?
     private var ingestionListener: ListenerRegistration?
+    private var productionDayStateListener: ListenerRegistration?
     #endif
 
     private var activeProductionId: String?
@@ -43,6 +44,11 @@ final class TransitGuardianStreamService: ObservableObject {
         activeProductionId = trimmedProduction
         activeCallSheetId = callSheetId
 
+        // Optimistic UI — hydrate from local cache immediately (no network wait).
+        if let cached = LogisticsLocalCacheStore.shared.loadCachedState(productionId: trimmedProduction) {
+            applyProductionDayState(cached, source: "local cache")
+        }
+
         Task {
             await RatioVitaFirebaseBootstrap.configureIfNeededAsync()
             await MainActor.run {
@@ -50,10 +56,14 @@ final class TransitGuardianStreamService: ObservableObject {
                 #if canImport(FirebaseFirestore)
                 guard RatioVitaFirebaseBootstrap.isConfigured else { return }
 
+                attachProductionDayStateListener(productionId: trimmedProduction)
                 attachIngestionListener(productionId: trimmedProduction)
 
                 if let callSheetId, !callSheetId.isEmpty {
                     attachTransitListener(productionId: trimmedProduction, callSheetId: callSheetId)
+                } else if let cachedSheet = LogisticsLocalCacheStore.shared.productionDayState?.activeCallSheetId,
+                          !cachedSheet.isEmpty {
+                    attachTransitListener(productionId: trimmedProduction, callSheetId: cachedSheet)
                 } else {
                     attachLatestCallSheetListener(productionId: trimmedProduction)
                 }
@@ -71,6 +81,8 @@ final class TransitGuardianStreamService: ObservableObject {
         callSheetListener = nil
         ingestionListener?.remove()
         ingestionListener = nil
+        productionDayStateListener?.remove()
+        productionDayStateListener = nil
         #endif
         activeProductionId = nil
         activeCallSheetId = nil
@@ -80,7 +92,52 @@ final class TransitGuardianStreamService: ObservableObject {
         lastIngestionSummary = nil
     }
 
+    private func applyProductionDayState(_ snapshot: ProductionDayStateSnapshot, source: String) {
+        if let summary = snapshot.latestIngestionSummary {
+            lastIngestionSummary = summary
+        }
+
+        let critical = snapshot.transitExceptionSummaries
+            .map { $0.asTransitRecord() }
+            .filter(\.isHighwayCritical)
+            .sorted { $0.loggedAt > $1.loggedAt }
+
+        if let first = critical.first {
+            activeException = first
+            activeBannerMessage = first.crewBannerText
+        } else if source == "local cache", activeException == nil {
+            // Keep legacy listeners able to refine alerts; don't clear if cache had none.
+        }
+
+        if let sheetId = snapshot.activeCallSheetId, !sheetId.isEmpty {
+            activeCallSheetId = sheetId
+        }
+    }
+
     #if canImport(FirebaseFirestore)
+    private func attachProductionDayStateListener(productionId: String) {
+        guard let doc = FirestoreCollectionRefs.productionDayState(productionId: productionId) else { return }
+        productionDayStateListener = doc.addSnapshotListener { [weak self] snapshot, error in
+            guard let self else { return }
+            if let error {
+                #if DEBUG
+                print("TransitGuardian: production_day_state listener error — \(error.localizedDescription)")
+                #endif
+                return
+            }
+            guard let data = snapshot?.data(),
+                  let parsed = ProductionDayStateParser.parse(productionId: productionId, data: data) else { return }
+            Task { @MainActor in
+                LogisticsLocalCacheStore.shared.applyRemoteState(parsed)
+                self.applyProductionDayState(parsed, source: "firestore")
+                if let sheetId = parsed.activeCallSheetId, !sheetId.isEmpty,
+                   sheetId != self.activeCallSheetId {
+                    self.attachTransitListener(productionId: productionId, callSheetId: sheetId)
+                }
+            }
+        }
+    }
+
     private func attachLatestCallSheetListener(productionId: String) {
         guard let callSheets = FirestoreCollectionRefs.callSheets(productionId: productionId) else { return }
         callSheetListener = callSheets
@@ -148,7 +205,10 @@ final class TransitGuardianStreamService: ObservableObject {
                 let records = data["recordsExtracted"] as? Int ?? 0
                 let status = data["status"] as? String ?? "Success"
                 Task { @MainActor in
-                    self.lastIngestionSummary = "Latest ingestion: \(fileName) · \(records) records · \(status)"
+                    // Legacy path — production_day_state listener is preferred when present.
+                    if self.lastIngestionSummary == nil {
+                        self.lastIngestionSummary = "Latest ingestion: \(fileName) · \(records) records · \(status)"
+                    }
                 }
             }
     }
