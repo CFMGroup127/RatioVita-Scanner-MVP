@@ -69,27 +69,17 @@ struct ReceiptsView: View {
                     !receipt.pendingHumanReview && receipt.trashedAt == nil && receipt.filingCabinetKindRaw == raw
                 },
                 sort: \Receipt.createdAt,
-                order: .reverse,
-                animation: .default
+                order: .reverse
             )
         } else {
             _receipts = Query(
                 filter: #Predicate<Receipt> { !$0.pendingHumanReview && $0.trashedAt == nil },
                 sort: \Receipt.createdAt,
-                order: .reverse,
-                animation: .default
+                order: .reverse
             )
         }
 
-        let schema = LibrarySwiftDataSchema.makeSchema()
-        let container = try! ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(
-            scanner: PreviewScannerService(),
-            context: ModelContext(container)
-        ))
+        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(scanner: PreviewScannerService()))
     }
 
     private var librarySort: ReceiptLibrarySort {

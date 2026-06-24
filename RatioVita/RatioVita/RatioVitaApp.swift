@@ -96,13 +96,13 @@ struct RatioVitaApp: App {
                             title: "Library database upgraded",
                             message: recovery
                         )
-                    } else if let regression = LibraryPersistenceMonitor.regressionHint(context: ctx) {
+                    } else if let regression = await LibraryPersistenceMonitor.regressionHint(container: sharedModelContainer) {
                         UserMessageCenter.shared.present(
                             title: "Library count changed",
                             message: regression
                         )
                     }
-                    LibraryPersistenceMonitor.recordSnapshot(context: ctx, reason: "launch")
+                    LibraryPersistenceMonitor.recordSnapshot(container: sharedModelContainer, reason: "launch")
                     _ = try? NewHorizonsSampleDataGenerator.seedBurlingtonEstateIfNeeded(modelContext: ctx)
                     RatioVitaBackupManager.runScheduledAutoArchiveIfNeeded(modelContext: ctx)
                     #if os(iOS)

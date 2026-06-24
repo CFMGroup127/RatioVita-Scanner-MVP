@@ -40,8 +40,7 @@ enum LineItemLedgerDisperseEngine {
         }
 
         manifest.refreshReconciledFlag()
-        await Task.yield()
-        try ModelContextMainActorSave.saveThrows(context)
+        await ModelContextMainActorSave.saveDeferred(context)
         return DisperseResult(entriesCreated: created, masterInvoiceID: manifest.id)
     }
 }

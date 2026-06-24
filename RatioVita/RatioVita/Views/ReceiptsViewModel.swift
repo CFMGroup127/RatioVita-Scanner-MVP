@@ -11,7 +11,7 @@ final class ReceiptsViewModel: ObservableObject {
 
     // Mutable so dependencies can be updated without replacing the StateObject.
     private(set) var scanner: ScannerService
-    private(set) var context: ModelContext
+    private(set) var context: ModelContext?
 
     /// Serializes overlapping ingest saves (e.g. duplicate “Send to review” firing two `Task`s).
     private var ingestSaveInFlight = false
@@ -20,9 +20,8 @@ final class ReceiptsViewModel: ObservableObject {
     @AppStorage("compressionEnabled") private var compressionEnabled: Bool = false
     @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary: Bool = true
 
-    init(scanner: ScannerService, context: ModelContext) {
+    init(scanner: ScannerService = PreviewScannerService()) {
         self.scanner = scanner
-        self.context = context
     }
 
     // Update dependencies safely (avoid reassigning the @StateObject in the view).
@@ -31,6 +30,10 @@ final class ReceiptsViewModel: ObservableObject {
             self.scanner = scanner
         }
         self.context = context
+    }
+
+    private func requireContext() -> ModelContext? {
+        context
     }
 
     /// Swaps the preview placeholder for a production AVFoundation scanner only when capture is requested.
@@ -74,6 +77,7 @@ final class ReceiptsViewModel: ObservableObject {
     }
 
     func delete(_ receipts: [Receipt]) {
+        guard let context = requireContext() else { return }
         let now = Date()
         for r in receipts {
             r.trashedAt = now
@@ -95,6 +99,7 @@ final class ReceiptsViewModel: ObservableObject {
     }
     
     func importManuscriptFile(at url: URL, vaultPathPrefix: String? = nil) async {
+        guard let context = requireContext() else { return }
         isScanning = true
         defer { isScanning = false }
         do {
@@ -155,6 +160,7 @@ final class ReceiptsViewModel: ObservableObject {
     }
 
     private func persistScanResult(_ result: ScanResult, options: ReceiptIngestOptions) async throws {
+        guard let context = requireContext() else { return }
         let apiKeyPresent = !GeminiAPIKeyResolver.resolveAPIKeyTrimmed().isEmpty
         let deferGemini = options.scannedViaCamera
             && GeminiAPIKeyResolver.isGeminiExtractionEnabled()
@@ -175,6 +181,7 @@ final class ReceiptsViewModel: ObservableObject {
     /// pipeline as
     /// file import.
     func importBundledHistoricalArchive(limit: Int?) async {
+        guard let context = requireContext() else { return }
         isScanning = true
         defer { isScanning = false }
 

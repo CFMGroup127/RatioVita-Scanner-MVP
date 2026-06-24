@@ -14,15 +14,7 @@ struct SamplesLibraryView: View {
     #endif
 
     init() {
-        let schema = LibrarySwiftDataSchema.makeSchema()
-        let container = try! ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(
-            scanner: PreviewScannerService(),
-            context: ModelContext(container)
-        ))
+        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(scanner: PreviewScannerService()))
     }
 
     var body: some View {
@@ -144,7 +136,7 @@ struct SamplesLibraryView: View {
             }
         #endif
             .onAppear {
-                viewModel.updateDependencies(scanner: PreviewScannerService(), context: modelContext)
+                viewModel.updateDependencies(context: modelContext)
             }
     }
 }
