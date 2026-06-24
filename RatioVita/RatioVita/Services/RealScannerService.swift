@@ -32,19 +32,18 @@ class RealScannerService: NSObject, ScannerService {
     
     // Configuration
     private let configuration: ScannerConfiguration
+    private var isCaptureConfigured = false
     
     // MARK: - Initialization
 
     override init() {
         configuration = ScannerConfiguration()
         super.init()
-        setupCaptureSession()
     }
     
     init(configuration: ScannerConfiguration) {
         self.configuration = configuration
         super.init()
-        setupCaptureSession()
     }
     
     // MARK: - ScannerService Implementation
@@ -69,7 +68,8 @@ class RealScannerService: NSObject, ScannerService {
                 throw ScannerError.cameraPermissionDenied
         }
         
-        // 3) Start capture session if not running
+        // 3) Configure capture hardware lazily, then start session if not running
+        await ensureCaptureConfigured()
         await startCaptureSessionIfNeeded()
 
         do {
@@ -219,6 +219,18 @@ class RealScannerService: NSObject, ScannerService {
     }
     
     // MARK: - Private Methods
+
+    private func ensureCaptureConfiguredSync() {
+        guard !isCaptureConfigured else { return }
+        setupCaptureSession()
+        isCaptureConfigured = true
+    }
+
+    private func ensureCaptureConfigured() async {
+        await MainActor.run {
+            ensureCaptureConfiguredSync()
+        }
+    }
     
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
@@ -364,11 +376,13 @@ class RealScannerService: NSObject, ScannerService {
     // MARK: - Public Methods for UI Integration
     
     func getVideoPreviewLayer() -> AVCaptureVideoPreviewLayer? {
-        videoPreviewLayer
+        ensureCaptureConfiguredSync()
+        return videoPreviewLayer
     }
     
     func switchCamera() {
         cameraPosition = cameraPosition == .back ? .front : .back
+        isCaptureConfigured = false
         setupCaptureSession()
     }
     

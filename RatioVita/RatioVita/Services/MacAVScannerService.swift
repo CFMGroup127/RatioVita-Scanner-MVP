@@ -26,18 +26,16 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     private let configuration: ScannerConfiguration
 
+    private var isCaptureConfigured = false
+
     override init() {
         configuration = ScannerConfiguration()
         super.init()
-        refreshDeviceList()
-        setupCaptureSession()
     }
 
     init(configuration: ScannerConfiguration) {
         self.configuration = configuration
         super.init()
-        refreshDeviceList()
-        setupCaptureSession()
     }
 
     // MARK: - ScannerService
@@ -60,6 +58,7 @@ final class MacAVScannerService: NSObject, ScannerService {
                 throw ScannerError.cameraPermissionDenied
         }
 
+        await ensureCaptureConfigured()
         await startCaptureSessionIfNeeded()
 
         do {
@@ -143,12 +142,15 @@ final class MacAVScannerService: NSObject, ScannerService {
     }
 
     func getVideoPreviewLayer() -> Any? {
-        videoPreviewLayer
+        ensureCaptureConfiguredSync()
+        return videoPreviewLayer
     }
 
     func switchCamera() {
+        ensureCaptureConfiguredSync()
         guard !availableDevices.isEmpty else { return }
         selectedDeviceIndex = (selectedDeviceIndex + 1) % availableDevices.count
+        isCaptureConfigured = false
         setupCaptureSession()
     }
 
@@ -172,6 +174,19 @@ final class MacAVScannerService: NSObject, ScannerService {
     }
 
     // MARK: - Private
+
+    private func ensureCaptureConfiguredSync() {
+        guard !isCaptureConfigured else { return }
+        refreshDeviceList()
+        setupCaptureSession()
+        isCaptureConfigured = true
+    }
+
+    private func ensureCaptureConfigured() async {
+        await MainActor.run {
+            ensureCaptureConfiguredSync()
+        }
+    }
 
     private func refreshDeviceList() {
         let discovery = AVCaptureDevice.DiscoverySession(
@@ -228,6 +243,7 @@ final class MacAVScannerService: NSObject, ScannerService {
         } else {
             videoPreviewLayer = nil
         }
+        isCaptureConfigured = true
     }
 
     private func startCaptureSessionIfNeeded() async {

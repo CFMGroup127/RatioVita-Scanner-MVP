@@ -368,25 +368,7 @@ struct ReceiptsView: View {
             #endif
         }
         .onAppear {
-            #if os(iOS)
-            #if targetEnvironment(simulator)
-            let scanner: ScannerService = PreviewScannerService()
-            #else
-            let scanner: ScannerService = RealScannerService()
-            #endif
-            #elseif os(visionOS)
-            #if targetEnvironment(simulator)
-            let scanner: ScannerService = PreviewScannerService()
-            #else
-            let scanner: ScannerService = RealScannerService()
-            #endif
-            #elseif os(macOS)
-            let scanner: ScannerService = MacAVScannerService()
-            #else
-            let scanner: ScannerService = PreviewScannerService()
-            #endif
-
-            viewModel.updateDependencies(scanner: scanner, context: modelContext)
+            viewModel.updateDependencies(context: modelContext)
             FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
             FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
             syncImportRequestWithScannerIfNeeded()
@@ -399,7 +381,9 @@ struct ReceiptsView: View {
             syncImportRequestWithScannerIfNeeded()
         }
         .onChange(of: viewModel.showScanner) { _, isPresented in
-            if !isPresented {
+            if isPresented {
+                viewModel.ensureProductionScannerIfNeeded()
+            } else {
                 syncImportRequestWithScannerIfNeeded()
             }
         }
@@ -504,6 +488,7 @@ struct ReceiptsView: View {
     private func syncImportRequestWithScannerIfNeeded() {
         guard !viewModel.showScanner else { return }
         guard libraryNavigationCoordinator.consumeImportSheetIfNeeded() else { return }
+        viewModel.ensureProductionScannerIfNeeded()
         viewModel.showScannerUI()
     }
 
@@ -511,6 +496,7 @@ struct ReceiptsView: View {
     private func openImportIfQueuedFromReview() {
         guard libraryNavigationCoordinator.consumePendingImportWhenReceiptsTabActiveIfNeeded() else { return }
         guard !viewModel.showScanner else { return }
+        viewModel.ensureProductionScannerIfNeeded()
         viewModel.showScannerUI()
     }
 

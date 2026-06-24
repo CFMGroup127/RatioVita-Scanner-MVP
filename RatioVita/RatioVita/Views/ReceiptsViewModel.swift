@@ -26,12 +26,35 @@ final class ReceiptsViewModel: ObservableObject {
     }
 
     // Update dependencies safely (avoid reassigning the @StateObject in the view).
-    func updateDependencies(scanner: ScannerService, context: ModelContext) {
-        self.scanner = scanner
+    func updateDependencies(scanner: ScannerService? = nil, context: ModelContext) {
+        if let scanner {
+            self.scanner = scanner
+        }
         self.context = context
     }
 
+    /// Swaps the preview placeholder for a production AVFoundation scanner only when capture is requested.
+    func ensureProductionScannerIfNeeded() {
+        guard scanner is PreviewScannerService else { return }
+        #if os(iOS)
+        #if targetEnvironment(simulator)
+        return
+        #else
+        scanner = RealScannerService()
+        #endif
+        #elseif os(visionOS)
+        #if targetEnvironment(simulator)
+        return
+        #else
+        scanner = RealScannerService()
+        #endif
+        #elseif os(macOS)
+        scanner = MacAVScannerService()
+        #endif
+    }
+
     func scanAndSave() async {
+        ensureProductionScannerIfNeeded()
         isScanning = true
         defer { isScanning = false }
 

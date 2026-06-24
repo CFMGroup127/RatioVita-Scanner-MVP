@@ -32,6 +32,8 @@ final class SovereignLedgerEntry {
     /// Comma-separated anomaly tokens (e.g. `tax_rate_mismatch`, `unassigned_scope`).
     var anomalyFlagsRaw: String?
     var sourceReceiptID: UUID?
+    var sourceMasterInvoiceID: UUID?
+    var sourceAtomicLineItemID: UUID?
     var bookkeepingPassID: String?
 
     init(
@@ -56,6 +58,8 @@ final class SovereignLedgerEntry {
         estimatedDeductionAmount: Decimal? = nil,
         anomalyFlags: [String] = [],
         sourceReceiptID: UUID? = nil,
+        sourceMasterInvoiceID: UUID? = nil,
+        sourceAtomicLineItemID: UUID? = nil,
         bookkeepingPassID: String? = nil
     ) {
         self.id = id
@@ -79,6 +83,8 @@ final class SovereignLedgerEntry {
         self.estimatedDeductionAmount = estimatedDeductionAmount
         anomalyFlagsRaw = anomalyFlags.isEmpty ? nil : anomalyFlags.joined(separator: ",")
         self.sourceReceiptID = sourceReceiptID
+        self.sourceMasterInvoiceID = sourceMasterInvoiceID
+        self.sourceAtomicLineItemID = sourceAtomicLineItemID
         self.bookkeepingPassID = bookkeepingPassID
     }
 

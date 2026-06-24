@@ -4,7 +4,7 @@ import SwiftData
 enum LibrarySwiftDataSchema {
     /// Stable fingerprint for store-recovery messaging when the schema grows.
     static var schemaFingerprint: String {
-        "v2026-06-24-operational-bookkeeper-ledger"
+        "v2026-06-24-line-item-ledger-manifest"
     }
 
     static func makeSchema() -> Schema {
@@ -30,6 +30,8 @@ enum LibrarySwiftDataSchema {
             SovereignAuditLogEntry.self,
             SovereignProfile.self,
             SovereignLedgerEntry.self,
+            MasterInvoiceManifest.self,
+            AtomicLedgerLineItem.self,
             LaborAgreement.self,
             ShowLaborPositionRate.self,
             CrewTimecardDay.self,
