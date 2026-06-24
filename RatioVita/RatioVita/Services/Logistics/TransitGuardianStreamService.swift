@@ -44,7 +44,7 @@ final class TransitGuardianStreamService: ObservableObject {
         activeCallSheetId = callSheetId
 
         Task {
-            await RatioVitaFirebaseBootstrap.configureIfNeeded()
+            await RatioVitaFirebaseBootstrap.configureIfNeededAsync()
             await MainActor.run {
                 self.isFirebaseLinked = RatioVitaFirebaseBootstrap.isConfigured
                 #if canImport(FirebaseFirestore)

@@ -11,16 +11,12 @@ import FirebaseAuth
 enum RatioVitaFirebaseBootstrap {
     static private(set) var isConfigured = false
 
-    static func configureIfNeeded() async {
+    /// Synchronous entry for app launch — must run before any Firestore/Auth access.
+    static func configureIfNeeded() {
         #if canImport(FirebaseCore)
-        guard !isConfigured else {
-            await ensureAuthenticatedSession()
-            return
-        }
-
+        guard !isConfigured else { return }
         if FirebaseApp.app() != nil {
             isConfigured = true
-            await ensureAuthenticatedSession()
             return
         }
 
@@ -28,7 +24,10 @@ enum RatioVitaFirebaseBootstrap {
            let options = FirebaseOptions(contentsOfFile: path) {
             FirebaseApp.configure(options: options)
             isConfigured = true
-            await ensureAuthenticatedSession()
+            #if DEBUG
+            print("RatioVita Firebase: configured from GoogleService-Info.plist")
+            #endif
+            Task { await ensureAuthenticatedSession() }
             return
         }
 
@@ -36,11 +35,21 @@ enum RatioVitaFirebaseBootstrap {
               let configData = rawFirebaseConfig.data(using: .utf8),
               let configDict = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
               let options = firebaseOptions(from: configDict) else {
+            #if DEBUG
+            print("RatioVita Firebase: GoogleService-Info.plist missing from app bundle — add it to the RatioVita target.")
+            #endif
             return
         }
 
         FirebaseApp.configure(options: options)
         isConfigured = true
+        Task { await ensureAuthenticatedSession() }
+        #endif
+    }
+
+    static func configureIfNeededAsync() async {
+        #if canImport(FirebaseCore)
+        configureIfNeeded()
         await ensureAuthenticatedSession()
         #endif
     }
@@ -49,22 +58,17 @@ enum RatioVitaFirebaseBootstrap {
     private static func runtimeFirebaseConfigJSON() -> String? {
         if let plistValue = Bundle.main.object(forInfoDictionaryKey: "__firebase_config") as? String,
            !plistValue.isEmpty,
-           plistValue != "{}" {
+           plistValue != "{}"
+        {
             return plistValue
         }
         if let envValue = ProcessInfo.processInfo.environment["__firebase_config"],
            !envValue.isEmpty,
-           envValue != "{}" {
+           envValue != "{}"
+        {
             return envValue
         }
         return nil
-    }
-
-    /// Synchronous entry for app launch — schedules async auth if needed.
-    static func configureIfNeeded() {
-        Task {
-            await configureIfNeeded()
-        }
     }
 
     #if canImport(FirebaseAuth)
