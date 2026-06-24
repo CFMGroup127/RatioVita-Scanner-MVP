@@ -83,6 +83,13 @@ final class Receipt {
     var parentBatchReceiptID: UUID?
     /// Crew invoice you issued on someone else's behalf (segregated from personal/corporate books).
     var facilitatedThirdPartyLabor: Bool = false
+    /// Cross-entity triage: mixed personal / venture / production routing required.
+    var requiresCrossEntityTriage: Bool = false
+    /// Secure inbox registry UUID that discovered this document.
+    var sourceSecureInboxID: String?
+    var sourceSecureInboxEmail: String?
+    /// Set when every line item (or whole receipt) has been routed to a hub.
+    var crossEntityTriagedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \ReceiptImage.receipt) var images: [ReceiptImage]
     @Relationship(deleteRule: .cascade, inverse: \ReceiptLineItem.receipt) var lineItems: [ReceiptLineItem]
@@ -215,6 +222,10 @@ final class Receipt {
         workspaceBatchPinned: Bool = false,
         parentBatchReceiptID: UUID? = nil,
         facilitatedThirdPartyLabor: Bool = false,
+        requiresCrossEntityTriage: Bool = false,
+        sourceSecureInboxID: String? = nil,
+        sourceSecureInboxEmail: String? = nil,
+        crossEntityTriagedAt: Date? = nil,
         trashedAt: Date? = nil
     ) {
         self.id = id
@@ -275,6 +286,10 @@ final class Receipt {
         self.workspaceBatchPinned = workspaceBatchPinned
         self.parentBatchReceiptID = parentBatchReceiptID
         self.facilitatedThirdPartyLabor = facilitatedThirdPartyLabor
+        self.requiresCrossEntityTriage = requiresCrossEntityTriage
+        self.sourceSecureInboxID = sourceSecureInboxID
+        self.sourceSecureInboxEmail = sourceSecureInboxEmail
+        self.crossEntityTriagedAt = crossEntityTriagedAt
         self.trashedAt = trashedAt
     }
 

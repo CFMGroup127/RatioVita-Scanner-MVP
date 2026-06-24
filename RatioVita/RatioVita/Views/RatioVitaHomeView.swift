@@ -6,6 +6,7 @@ struct RatioVitaHomeView: View {
     @Environment(\.brandAccent) private var brandAccent
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
 
     @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
     @AppStorage("forensicActiveCallSheetFirestoreID") private var forensicActiveCallSheetFirestoreID: String = ""
@@ -34,6 +35,14 @@ struct RatioVitaHomeView: View {
     @State private var showEmergencyShuttle = false
     @State private var showProductionOperations = false
     @State private var showContinuityStyleVault = false
+    @State private var showInboxTriage = false
+
+    @Query(
+        filter: #Predicate<Receipt> { $0.trashedAt == nil },
+        sort: \Receipt.createdAt,
+        order: .reverse
+    )
+    private var activeReceipts: [Receipt]
 
     @AppStorage(SovereignFeatureFlags.transportRunnerRoutingKey) private var transportRunnerRouting = false
     @AppStorage(SovereignFeatureFlags.craftLogisticsMeshKey) private var craftLogisticsMesh = false
@@ -93,6 +102,7 @@ struct RatioVitaHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                SovereignContextSwitcherBar()
                 forensicPulseCard
                 if !forensicActiveProductionID.isEmpty {
                     CrewTransitGuardianBanner(
@@ -182,12 +192,28 @@ struct RatioVitaHomeView: View {
                     ContinuityStyleVaultView()
                 }
             }
+            .sheet(isPresented: $showInboxTriage) {
+                NavigationStack {
+                    InboxTriageFeedView()
+                }
+            }
             .onChange(of: libraryNavigationCoordinator.homeNavigationSignal) { _, _ in
                 handleHomeNavigation()
             }
             .onAppear {
                 handleHomeNavigation()
             }
+    }
+
+    private var scopedPendingReviewCount: Int {
+        pendingReviewReceipts.filter { sovereignContext.receiptIsVisible($0) }.count
+    }
+
+    private var scopedTriageCount: Int {
+        activeReceipts.filter {
+            CrossEntityTriageEngine.needsTriage($0)
+                && SovereignScopeFilter.triageReceiptIsVisible($0, context: sovereignContext)
+        }.count
     }
 
     private var forensicPulseCard: some View {
@@ -241,11 +267,17 @@ struct RatioVitaHomeView: View {
             }
             LabeledContent("Vault") {
                 Text(
-                    pendingReviewReceipts.isEmpty
+                    scopedPendingReviewCount == 0
                         ? "Review queue clear"
-                        : "\(pendingReviewReceipts.count) pending review"
+                        : "\(scopedPendingReviewCount) pending review"
                 )
-                .foregroundStyle(pendingReviewReceipts.isEmpty ? Color.ratioVitaSuccess : Color.orange)
+                .foregroundStyle(scopedPendingReviewCount == 0 ? Color.ratioVitaSuccess : Color.orange)
+            }
+            LabeledContent("Ledger scope") {
+                Text(sovereignContext.isolationScopeLabel)
+                    .font(.caption)
+                    .foregroundStyle(Color.ratioVitaTextSecondary)
+                    .multilineTextAlignment(.trailing)
             }
             Button {
                 showCallSheetScan = true
@@ -371,11 +403,23 @@ struct RatioVitaHomeView: View {
                 libraryNavigationCoordinator.navigateFromHome(module)
             case .continuityStyleVault:
                 showContinuityStyleVault = true
+            case .inboxTriage:
+                #if os(macOS)
+                libraryNavigationCoordinator.navigateFromHome(.inboxTriage)
+                #else
+                if horizontalSizeClass == .regular {
+                    libraryNavigationCoordinator.navigateFromHome(.inboxTriage)
+                } else {
+                    showInboxTriage = true
+                }
+                #endif
         }
     }
 
     private func badgeCount(for module: HomeModuleDestination) -> Int? {
         switch module {
+            case .inboxTriage:
+                return scopedTriageCount > 0 ? scopedTriageCount : nil
             case .insurance:
                 let n = equipmentAssets.filter(\.isWarrantyExpiringSoon).count
                 return n > 0 ? n : nil
@@ -398,8 +442,13 @@ struct RatioVitaHomeView: View {
             return
         }
         guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
-        if dest == .productions {
-            openProductionsModule()
+        switch dest {
+            case .productions:
+                openProductionsModule()
+            case .inboxTriage:
+                showInboxTriage = true
+            default:
+                break
         }
     }
 

@@ -11,6 +11,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject private var userMessages = UserMessageCenter.shared
     @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
@@ -43,20 +44,53 @@ struct ContentView: View {
     )
     private var trashedReceipts: [Receipt]
 
+    @Query(
+        filter: #Predicate<Receipt> { $0.trashedAt == nil },
+        sort: \Receipt.createdAt,
+        order: .reverse
+    )
+    private var activeReceiptsForScope: [Receipt]
+
+    private var scopedPendingReviewCount: Int {
+        pendingReviewReceipts.filter { receipt in
+            if CrossEntityTriageEngine.needsTriage(receipt) {
+                return SovereignScopeFilter.triageReceiptIsVisible(receipt, context: sovereignContext)
+            }
+            return sovereignContext.receiptIsVisible(receipt)
+        }.count
+    }
+
+    private var scopedOpenReceiptsForBank: [Receipt] {
+        SovereignScopeFilter.filterReceipts(
+            activeReceiptsForScope.filter { !$0.isLedgerLinked },
+            context: sovereignContext
+        )
+    }
+
+    private var scopedUnmatchedBankCount: Int {
+        unmatchedBankTransactions.filter {
+            SovereignScopeFilter.bankTransactionIsVisible(
+                $0,
+                context: sovereignContext,
+                openReceipts: scopedOpenReceiptsForBank
+            )
+        }.count
+    }
+
     var body: some View {
         Group {
             #if os(macOS)
             SidebarSplitShell(
-                pendingReviewCount: pendingReviewReceipts.count,
+                pendingReviewCount: scopedPendingReviewCount,
                 trashCount: trashedReceipts.count,
-                unmatchedBankCount: unmatchedBankTransactions.count
+                unmatchedBankCount: scopedUnmatchedBankCount
             )
             #else
             if horizontalSizeClass == .regular {
                 SidebarSplitShell(
-                    pendingReviewCount: pendingReviewReceipts.count,
+                    pendingReviewCount: scopedPendingReviewCount,
                     trashCount: trashedReceipts.count,
-                    unmatchedBankCount: unmatchedBankTransactions.count
+                    unmatchedBankCount: scopedUnmatchedBankCount
                 )
             } else {
                 TabView(selection: $phoneLibraryTabSelection) {
@@ -196,6 +230,8 @@ struct ContentView: View {
                 phoneLibraryTabSelection = 4
             case .contacts:
                 showContactsFromShell = true
+            case .inboxTriage:
+                phoneLibraryTabSelection = 0
             default:
                 phoneLibraryTabSelection = 0
         }
@@ -223,6 +259,8 @@ private enum SidebarPane: Hashable {
     case bankImport
     case trash
     case importScan
+    case inboxTriage
+    case inventory
     case settings
     case cabinet(DocumentCabinet)
     #if DEBUG
@@ -248,6 +286,8 @@ private enum SidebarPane: Hashable {
             case .bankImport: return "Bank import"
             case .trash: return "Trash"
             case .importScan: return "Import"
+            case .inboxTriage: return "Inbox Triage"
+            case .inventory: return "Inventory & kit"
             case .settings: return "Settings"
             case let .cabinet(c): return c.title
             #if DEBUG
@@ -275,6 +315,8 @@ private enum SidebarPane: Hashable {
             case .bankImport: return "building.columns.fill"
             case .trash: return "trash"
             case .importScan: return "square.and.arrow.down.on.square"
+            case .inboxTriage: return "tray.2.fill"
+            case .inventory: return "shippingbox.fill"
             case .settings: return "gearshape"
             case let .cabinet(c): return c.systemImage
             #if DEBUG
@@ -288,6 +330,7 @@ private struct SidebarSplitShell: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.brandAccent) private var brandAccent
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
+    @EnvironmentObject private var sovereignContext: SovereignContextManager
     @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
 
     let pendingReviewCount: Int
@@ -315,6 +358,7 @@ private struct SidebarSplitShell: View {
     @State private var showProductionRegistryFromShell = false
     @State private var showSovereignAuditFromShell = false
     @State private var showInventoryFromShell = false
+    @State private var ledgerCatalogRevision = 0
 
     #if os(macOS)
     /// Show the library sidebar by default (Finder-style). Widen the window if the outer detail column feels tight.
@@ -362,6 +406,12 @@ private struct SidebarSplitShell: View {
         .onChange(of: libraryNavigationCoordinator.homeNavigationSignal) { _, _ in
             applyHomeNavigationSplit()
         }
+        .onChange(of: sovereignContext.activeHub) { _, _ in
+            reconcileSelectionForActiveHub()
+        }
+        .onChange(of: ledgerCatalogRevision) { _, _ in
+            reconcileSelectionForActiveHub()
+        }
         .sheet(isPresented: $showCorporateRegistryFromShell) {
             NavigationStack { CorporateRegistryView() }
         }
@@ -407,6 +457,7 @@ private struct SidebarSplitShell: View {
             case .finances: selection = .reconciliation
             case .contacts: selection = .contacts
             case .inventory: showInventoryFromShell = true
+            case .inboxTriage: selection = .inboxTriage
             case .insurance: selection = .cabinet(.equipment)
             default: selection = .home
         }
@@ -428,9 +479,15 @@ private struct SidebarSplitShell: View {
     #if os(macOS)
     private var sidebarListMac: some View {
         List(selection: $selection) {
+            sovereignContextHeaderSection
             sidebarLibrarySection
-            sidebarCabinetsSection
-            sidebarContactsSection
+            progressiveLedgerSection
+            if SovereignSidebarCatalog.showsCabinetsSection(for: sovereignContext.activeHub) {
+                sidebarCabinetsSection
+            }
+            if SovereignSidebarCatalog.showsContactsSection(for: sovereignContext.activeHub) {
+                sidebarContactsSection
+            }
         }
         .listStyle(.sidebar)
         .navigationTitle("RatioVita")
@@ -442,9 +499,15 @@ private struct SidebarSplitShell: View {
 
     private var sidebarListPad: some View {
         List {
+            sovereignContextHeaderSection
             sidebarLibrarySection
-            sidebarCabinetsSection
-            sidebarContactsSection
+            progressiveLedgerSection
+            if SovereignSidebarCatalog.showsCabinetsSection(for: sovereignContext.activeHub) {
+                sidebarCabinetsSection
+            }
+            if SovereignSidebarCatalog.showsContactsSection(for: sovereignContext.activeHub) {
+                sidebarContactsSection
+            }
         }
         .navigationTitle("RatioVita")
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -508,6 +571,14 @@ private struct SidebarSplitShell: View {
                     ReceiptTrashView()
                 case .importScan:
                     ReceiptsView()
+                case .inboxTriage:
+                    NavigationStack {
+                        InboxTriageFeedView()
+                    }
+                case .inventory:
+                    NavigationStack {
+                        InventoryModuleView()
+                    }
                 case .settings:
                     NavigationStack {
                         SettingsView()
@@ -523,26 +594,136 @@ private struct SidebarSplitShell: View {
     }
 
     @ViewBuilder
-    private var sidebarLibrarySection: some View {
+    private var sovereignContextHeaderSection: some View {
         Section {
-            sidebarRow(.operationsCommand)
-            sidebarRow(.expertProgram)
-            sidebarRow(.home)
-            sidebarRow(.productions)
-            sidebarRow(.receipts)
-            sidebarRow(.timeline)
-            sidebarRow(.laborSentinel)
-            sidebarRow(.timeSheets)
-            sidebarRow(.mediaCore)
-            sidebarRow(.fieldOps)
-            sidebarRow(.review, trailingCount: pendingReviewCount)
-            sidebarRow(.reconciliation, trailingCount: unmatchedBankCount)
-            sidebarRow(.bankImport)
-            sidebarRow(.trash, trailingCount: trashCount)
-            sidebarRow(.importScan)
+            SovereignContextSwitcherBar()
+                .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                .listRowBackground(Color.clear)
+        }
+    }
+
+    @ViewBuilder
+    private var sidebarLibrarySection: some View {
+        Section(hubSectionTitle) {
+            ForEach(SovereignSidebarCatalog.visibleItems(for: sovereignContext.activeHub)) { item in
+                sidebarCatalogRow(item)
+            }
             #if DEBUG
             sidebarRow(.samples)
             #endif
+        }
+        .id(ledgerCatalogRevision)
+    }
+
+    private var hubSectionTitle: String {
+        switch sovereignContext.activeHub {
+            case .personal: "Personal Hub"
+            case .ventures: "Ventures Hub"
+            case .production: "Production Mode"
+        }
+    }
+
+    @ViewBuilder
+    private var progressiveLedgerSection: some View {
+        let enabled = SovereignLedgerExtensionStore.enabled(for: sovereignContext.activeHub)
+        if !enabled.isEmpty {
+            Section("Active ledger sections") {
+                ForEach(enabled) { ext in
+                    HStack {
+                        Label(ext.title, systemImage: ext.systemImage)
+                        Spacer()
+                        Button("Remove") {
+                            SovereignLedgerExtensionStore.setEnabled(ext, enabled: false)
+                            ledgerCatalogRevision += 1
+                        }
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+        }
+
+        let available = SovereignLedgerExtension.options(for: sovereignContext.activeHub)
+            .filter { !SovereignLedgerExtensionStore.isEnabled($0) }
+        if !available.isEmpty {
+            Section {
+                Menu {
+                    ForEach(available) { ext in
+                        Button {
+                            SovereignLedgerExtensionStore.setEnabled(ext, enabled: true)
+                            ledgerCatalogRevision += 1
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(ext.title)
+                                Text(ext.subtitle)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Add Active Ledger Section", systemImage: "plus.rectangle.on.rectangle")
+                }
+            }
+        }
+    }
+
+    private func reconcileSelectionForActiveHub() {
+        let visible = Set(SovereignSidebarCatalog.visibleItems(for: sovereignContext.activeHub).map(sidebarPane(for:)))
+        if case .cabinet = selection {
+            if !SovereignSidebarCatalog.showsCabinetsSection(for: sovereignContext.activeHub) {
+                selection = .home
+            }
+            return
+        }
+        if !visible.contains(selection) {
+            selection = .home
+        }
+    }
+
+    private func sidebarPane(for item: SovereignSidebarCatalog.Item) -> SidebarPane {
+        switch item {
+            case .operationsCommand: .operationsCommand
+            case .expertProgram: .expertProgram
+            case .home: .home
+            case .productions: .productions
+            case .receipts: .receipts
+            case .timeline: .timeline
+            case .laborSentinel: .laborSentinel
+            case .timeSheets: .timeSheets
+            case .mediaCore: .mediaCore
+            case .fieldOps: .fieldOps
+            case .contacts: .contacts
+            case .myCorporations: .myCorporations
+            case .review: .review
+            case .reconciliation: .reconciliation
+            case .bankImport: .bankImport
+            case .trash: .trash
+            case .importScan: .importScan
+            case .inboxTriage: .inboxTriage
+            case .inventory: .inventory
+            case .insuranceVault: .cabinet(.equipment)
+        }
+    }
+
+    private func trailingCount(for item: SovereignSidebarCatalog.Item) -> Int {
+        switch item {
+            case .review: pendingReviewCount
+            case .reconciliation: unmatchedBankCount
+            case .trash: trashCount
+            case .contacts: externalContactCount
+            case .myCorporations: ownedCorporations.count
+            default: 0
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarCatalogRow(_ item: SovereignSidebarCatalog.Item) -> some View {
+        let pane = sidebarPane(for: item)
+        switch pane {
+            case .cabinet:
+                sidebarCabinetRow(.equipment, count: cabinetReceiptCount(.equipment))
+            default:
+                sidebarRow(pane, trailingCount: trailingCount(for: item))
         }
     }
 
@@ -617,6 +798,7 @@ private struct SidebarSplitShell: View {
 #Preview {
     ContentView()
         .environment(LibraryNavigationCoordinator())
+        .environmentObject(SovereignContextManager.shared)
         .modelContainer(SampleData.previewContainer)
 }
 

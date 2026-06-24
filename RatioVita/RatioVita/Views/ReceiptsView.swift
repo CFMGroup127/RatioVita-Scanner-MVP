@@ -9,6 +9,7 @@ struct ReceiptsView: View {
     @Environment(\.brandAccent) private var brandAccent
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
 
     private let cabinetFilter: DocumentCabinet?
 
@@ -125,8 +126,13 @@ struct ReceiptsView: View {
     }
 
     private var receiptsForLibraryList: [Receipt] {
-        guard let cid = libraryNavigationCoordinator.receiptsContactFilterContactID else { return receipts }
-        return receipts.filter { $0.counterpartyContact?.id == cid }
+        let base: [Receipt]
+        if let cid = libraryNavigationCoordinator.receiptsContactFilterContactID {
+            base = receipts.filter { $0.counterpartyContact?.id == cid }
+        } else {
+            base = receipts
+        }
+        return SovereignScopeFilter.filterReceipts(base, context: sovereignContext)
     }
 
     private var showsContactFilterBanner: Bool {

@@ -5,6 +5,7 @@ import SwiftUI
 /// only.
 struct ReconciliationReviewView: View {
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
 
     @Query(sort: \BankTransaction.postedDate, order: .reverse) private var allTransactions: [BankTransaction]
     @Query private var allReceipts: [Receipt]
@@ -17,16 +18,34 @@ struct ReconciliationReviewView: View {
     @State private var pdfScrollRequestID: UUID?
     @State private var confirmClearPosting: BankTransaction?
 
+    private var scopedOpenReceipts: [Receipt] {
+        SovereignScopeFilter.filterReceipts(
+            allReceipts.filter { !$0.isLedgerLinked && $0.trashedAt == nil },
+            context: sovereignContext
+        )
+    }
+
     private var needsAttentionTransactions: [BankTransaction] {
-        allTransactions.filter { $0.matchedReceipt == nil && !$0.manuallyClearedForReconciliation }
+        allTransactions.filter { tx in
+            tx.matchedReceipt == nil
+                && !tx.manuallyClearedForReconciliation
+                && SovereignScopeFilter.bankTransactionIsVisible(
+                    tx,
+                    context: sovereignContext,
+                    openReceipts: scopedOpenReceipts
+                )
+        }
     }
 
     private var reconciledTransactions: [BankTransaction] {
-        allTransactions.filter { $0.matchedReceipt != nil || $0.manuallyClearedForReconciliation }
+        allTransactions.filter { tx in
+            (tx.matchedReceipt != nil || tx.manuallyClearedForReconciliation)
+                && (tx.matchedReceipt == nil || sovereignContext.receiptIsVisible(tx.matchedReceipt!))
+        }
     }
 
     private var openReceipts: [Receipt] {
-        allReceipts.filter { !$0.isLedgerLinked && $0.trashedAt == nil }
+        scopedOpenReceipts
     }
 
     private var selectedTransaction: BankTransaction? {
@@ -727,9 +746,8 @@ struct ReconciliationReviewView: View {
     }
 
     private func manualMatchCandidates(for tx: BankTransaction) -> [Receipt] {
-        allReceipts.filter { receipt in
-            receipt.trashedAt == nil
-                && receipt.currencyCode.caseInsensitiveCompare(tx.currencyCode) == .orderedSame
+        scopedOpenReceipts.filter { receipt in
+            receipt.currencyCode.caseInsensitiveCompare(tx.currencyCode) == .orderedSame
         }
     }
 

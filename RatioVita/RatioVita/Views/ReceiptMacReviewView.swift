@@ -30,6 +30,7 @@ struct ReceiptMacReviewView: View {
     @State private var dealMemoTimecardDay: CrewTimecardDay?
     @State private var chequeReparseMessage: String?
     @State private var chequeReparseIsError = false
+    @State private var draftReceiptShowTitle = ""
 
     private var documentTypeOption: DocumentTypeOption {
         DocumentTypeOption.fromStored(receipt.documentType)
@@ -630,9 +631,16 @@ struct ReceiptMacReviewView: View {
                     Section("Production & tax (VitaLogic)") {
                         TextField(
                             "Show / project (canonical title)",
-                            text: receiptShowProjectBinding()
+                            text: $draftReceiptShowTitle
                         )
                         .disabled(isLocked)
+                        .onAppear { syncDraftReceiptShowTitle() }
+                        .onChange(of: receipt.id) { _, _ in syncDraftReceiptShowTitle() }
+                        .onChange(of: draftReceiptShowTitle) { _, newValue in
+                            DebouncedSave.schedule(key: "receipt-show-\(receipt.id)") {
+                                commitReceiptShowTitle(newValue)
+                            }
+                        }
                         TextField(
                             "Production type (e.g. commercial, payroll)",
                             text: bindingOptional($receipt.productionType)
@@ -1052,30 +1060,28 @@ struct ReceiptMacReviewView: View {
         )
     }
 
-    private func receiptShowProjectBinding() -> Binding<String> {
-        Binding(
-            get: {
-                let sorted = receipt.workSessions.sorted { $0.sortIndex < $1.sortIndex }
-                return receipt.productionProject?.title
-                    ?? sorted.first?.productionProject?.title
-                    ?? sorted.first?.productionTitle
-                    ?? ""
-            },
-            set: { raw in
-                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.isEmpty {
-                    receipt.productionProject = nil
-                    return
-                }
-                let p = ProductionProjectResolver.findOrInsert(title: trimmed, modelContext: modelContext)
-                receipt.productionProject = p
-                for ws in receipt.workSessions where ws.productionProject == nil {
-                    ws.productionProject = p
-                    ws.productionTitle = p.title
-                }
-                try? modelContext.save()
-            }
-        )
+    private func syncDraftReceiptShowTitle() {
+        let sorted = receipt.workSessions.sorted { $0.sortIndex < $1.sortIndex }
+        draftReceiptShowTitle = receipt.productionProject?.title
+            ?? sorted.first?.productionProject?.title
+            ?? sorted.first?.productionTitle
+            ?? ""
+    }
+
+    private func commitReceiptShowTitle(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            receipt.productionProject = nil
+            try? modelContext.save()
+            return
+        }
+        let p = ProductionProjectResolver.findOrInsert(title: trimmed, modelContext: modelContext)
+        receipt.productionProject = p
+        for ws in receipt.workSessions where ws.productionProject == nil {
+            ws.productionProject = p
+            ws.productionTitle = p.title
+        }
+        try? modelContext.save()
     }
 
     /// Two-way binding for optional persisted `String?` fields using empty string in the UI.
@@ -1251,6 +1257,7 @@ private struct ReceiptMacWorkSessionRow: View {
     var receipt: Receipt
     let isLocked: Bool
     @Environment(\.modelContext) private var modelContext
+    @State private var draftProductionTitle = ""
 
     var body: some View {
         GroupBox {
@@ -1267,8 +1274,15 @@ private struct ReceiptMacWorkSessionRow: View {
                     Text("Production / show")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    TextField("", text: productionShowBinding)
+                    TextField("", text: $draftProductionTitle)
                         .disabled(isLocked)
+                        .onAppear { syncDraftProductionTitle() }
+                        .onChange(of: session.id) { _, _ in syncDraftProductionTitle() }
+                        .onChange(of: draftProductionTitle) { _, newValue in
+                            DebouncedSave.schedule(key: "ws-show-\(session.id)") {
+                                commitProductionTitle(newValue)
+                            }
+                        }
                 }
                 GridRow {
                     Text("Department / category")
@@ -1299,25 +1313,25 @@ private struct ReceiptMacWorkSessionRow: View {
         }
     }
 
-    private var productionShowBinding: Binding<String> {
-        Binding(
-            get: { session.productionProject?.title ?? session.productionTitle ?? "" },
-            set: { raw in
-                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.isEmpty {
-                    session.productionProject = nil
-                    session.productionTitle = nil
-                    return
-                }
-                let p = ProductionProjectResolver.findOrInsert(title: trimmed, modelContext: modelContext)
-                session.productionProject = p
-                session.productionTitle = p.title
-                if receipt.productionProject == nil {
-                    receipt.productionProject = p
-                }
-                try? modelContext.save()
-            }
-        )
+    private func syncDraftProductionTitle() {
+        draftProductionTitle = session.productionProject?.title ?? session.productionTitle ?? ""
+    }
+
+    private func commitProductionTitle(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            session.productionProject = nil
+            session.productionTitle = nil
+            try? modelContext.save()
+            return
+        }
+        let p = ProductionProjectResolver.findOrInsert(title: trimmed, modelContext: modelContext)
+        session.productionProject = p
+        session.productionTitle = p.title
+        if receipt.productionProject == nil {
+            receipt.productionProject = p
+        }
+        try? modelContext.save()
     }
 
     private func optionalStringBinding(_ keyPath: ReferenceWritableKeyPath<WorkSession, String?>) -> Binding<String> {

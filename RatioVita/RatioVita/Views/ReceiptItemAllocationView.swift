@@ -14,6 +14,10 @@ struct ReceiptItemAllocationView: View {
 
     @State private var selectedLineIDs: Set<UUID> = []
 
+    private var destinations: [SovereignEntityDestination] {
+        CrossEntityReallocationService.destinations(ventures: ownedEntities, productions: productions)
+    }
+
     private var sortedLines: [ReceiptLineItem] {
         receipt.lineItems.sorted { $0.sortIndex < $1.sortIndex }
     }
@@ -29,8 +33,9 @@ struct ReceiptItemAllocationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text(
-                "Check line items, right-click, and assign to a corporation or Personal. "
-                    + "Unallocated pre-tax balance flows to Personal; HST splits proportionally (CRA weighted method)."
+                "Assign each line to Personal, a venture, or a production. "
+                    + "One master receipt can split across multiple hubs simultaneously. "
+                    + "Unallocated pre-tax balance flows to Personal; HST splits proportionally."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -45,6 +50,7 @@ struct ReceiptItemAllocationView: View {
                 }
             }
 
+            splitDestinationDiagram
             waterfallSummaryCard
 
             if !isLocked {
@@ -54,6 +60,45 @@ struct ReceiptItemAllocationView: View {
                 .buttonStyle(.bordered)
             }
         }
+    }
+
+    @ViewBuilder
+    private var splitDestinationDiagram: some View {
+        let buckets = destinationBuckets
+        if buckets.count > 1 {
+            GroupBox("Split destinations") {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(buckets, id: \.label) { bucket in
+                        HStack {
+                            Text(bucket.label)
+                                .font(.caption.weight(.medium))
+                            Spacer()
+                            Text(bucket.amount.formatted(.currency(code: receipt.currencyCode)))
+                                .font(.caption.monospacedDigit())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private struct DestinationBucket {
+        var label: String
+        var amount: Decimal
+    }
+
+    private var destinationBuckets: [DestinationBucket] {
+        var buckets: [DestinationBucket] = []
+        if summary.personalPreTax > 0 {
+            buckets.append(DestinationBucket(label: "Personal Hub", amount: summary.personalPreTax))
+        }
+        for share in summary.entityShares {
+            buckets.append(DestinationBucket(label: share.legalName, amount: share.preTaxAllocated))
+        }
+        for share in summary.productionShares {
+            buckets.append(DestinationBucket(label: share.title, amount: share.preTaxAllocated))
+        }
+        return buckets
     }
 
     @ViewBuilder
@@ -81,6 +126,9 @@ struct ReceiptItemAllocationView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 allocationBadge(for: line)
+                if !isLocked {
+                    lineDestinationMenu(for: line)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -88,25 +136,40 @@ struct ReceiptItemAllocationView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.ratioVitaAdaptiveSurface))
         .contextMenu {
             if !isLocked {
-                if selectedLineIDs.contains(line.id), selectedLineIDs.count > 1 {
-                    contextAssignButtons(forLineIDs: Array(selectedLineIDs), label: "Assign selected to…")
-                } else {
-                    contextAssignButtons(forLineIDs: [line.id], label: "Assign to…")
-                }
+                let ids = selectedLineIDs.contains(line.id) && selectedLineIDs.count > 1
+                    ? Array(selectedLineIDs)
+                    : [line.id]
+                contextAssignButtons(forLineIDs: ids)
             }
         }
     }
 
     @ViewBuilder
-    private func contextAssignButtons(forLineIDs ids: [UUID], label: String) -> some View {
-        Button("\(label) Personal / Non-Business") {
-            assignLines(ids, toPersonal: true, entity: nil, project: nil)
-            selectedLineIDs.subtract(ids)
+    private func lineDestinationMenu(for line: ReceiptLineItem) -> some View {
+        Menu {
+            contextAssignButtons(forLineIDs: [line.id])
+        } label: {
+            Label(
+                CrossEntityReallocationService.destinationLabel(for: line),
+                systemImage: "arrow.triangle.branch"
+            )
+            .font(.caption2)
         }
-        ForEach(ownedEntities) { entity in
-            Button("\(label) \(entity.legalName)") {
-                assignLines(ids, toPersonal: false, entity: entity, project: nil)
+    }
+
+    @ViewBuilder
+    private func contextAssignButtons(forLineIDs ids: [UUID]) -> some View {
+        ForEach(destinations) { destination in
+            Button {
+                CrossEntityReallocationService.apply(
+                    destination: destination,
+                    to: receipt,
+                    lineIDs: ids,
+                    modelContext: modelContext
+                )
                 selectedLineIDs.subtract(ids)
+            } label: {
+                Label(destination.title, systemImage: destination.systemImage)
             }
         }
     }
@@ -132,6 +195,11 @@ struct ReceiptItemAllocationView: View {
                             Text(share.taxShare.formatted(.currency(code: receipt.currencyCode)))
                         }
                     }
+                    ForEach(s.productionShares) { share in
+                        LabeledContent("\(share.title) HST") {
+                            Text(share.taxShare.formatted(.currency(code: receipt.currencyCode)))
+                        }
+                    }
                     LabeledContent("Personal HST share") {
                         Text(s.personalTaxShare.formatted(.currency(code: receipt.currencyCode)))
                     }
@@ -144,11 +212,17 @@ struct ReceiptItemAllocationView: View {
     @ViewBuilder
     private func allocationBadge(for line: ReceiptLineItem) -> some View {
         if line.allocationIsPersonal {
-            Text("Personal")
+            Text("Personal Hub")
                 .font(.caption2.weight(.semibold))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.secondary.opacity(0.25)))
+        } else if let project = line.allocatedProductionProject {
+            Text(project.title)
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.blue.opacity(0.2)))
         } else if let entity = line.allocatedBusinessEntity {
             Text(entity.legalName)
                 .font(.caption2.weight(.semibold))
@@ -160,20 +234,6 @@ struct ReceiptItemAllocationView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
-    }
-
-    private func assignLines(
-        _ ids: [UUID],
-        toPersonal: Bool,
-        entity: BusinessEntity?,
-        project: ProductionProject?
-    ) {
-        for line in sortedLines where ids.contains(line.id) {
-            line.allocationIsPersonal = toPersonal
-            line.allocatedBusinessEntity = toPersonal ? nil : entity
-            line.allocatedProductionProject = toPersonal ? nil : project
-        }
-        try? modelContext.save()
     }
 
     private func logAllocationAudit() {

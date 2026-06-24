@@ -13,6 +13,7 @@ struct ReceiptReviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.brandAccent) private var brandAccent
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
 
     @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary = true
     @AppStorage("receiptReviewSortRaw") private var sortRaw: String = ReceiptLibrarySort.dateAddedNewest.rawValue
@@ -45,10 +46,17 @@ struct ReceiptReviewView: View {
     @State private var bulkReanalyzeProgress: String?
 
     private var reviewQueueBase: [Receipt] {
-        if facilitatedCrewOnly {
-            return pendingReceipts.filter(\.facilitatedThirdPartyLabor)
+        let base = if facilitatedCrewOnly {
+            pendingReceipts.filter(\.facilitatedThirdPartyLabor)
+        } else {
+            pendingReceipts
         }
-        return pendingReceipts
+        return base.filter { receipt in
+            if CrossEntityTriageEngine.needsTriage(receipt) {
+                return SovereignScopeFilter.triageReceiptIsVisible(receipt, context: sovereignContext)
+            }
+            return sovereignContext.receiptIsVisible(receipt)
+        }
     }
 
     var body: some View {

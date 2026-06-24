@@ -11,12 +11,22 @@ enum ReceiptLineItemAllocationEngine {
         var shareOfSubtotal: Double
     }
 
+    struct ProductionTaxShare: Identifiable, Equatable {
+        var id: UUID { productionID }
+        var productionID: UUID
+        var title: String
+        var preTaxAllocated: Decimal
+        var taxShare: Decimal
+        var shareOfSubtotal: Double
+    }
+
     struct Summary: Equatable {
         var receiptSubtotal: Decimal
         var allocatedPreTax: Decimal
         var unallocatedPreTax: Decimal
         var totalTax: Decimal
         var entityShares: [EntityTaxShare]
+        var productionShares: [ProductionTaxShare]
         var personalPreTax: Decimal
         var personalTaxShare: Decimal
         var personalShareOfSubtotal: Double
@@ -40,6 +50,7 @@ enum ReceiptLineItemAllocationEngine {
         let totalTax = max(receiptTax ?? 0, 0)
 
         var byEntity: [UUID: (name: String, sum: Decimal)] = [:]
+        var byProduction: [UUID: (title: String, sum: Decimal)] = [:]
         var personalSum: Decimal = 0
         var allocated: Decimal = 0
 
@@ -54,6 +65,11 @@ enum ReceiptLineItemAllocationEngine {
                 var bucket = byEntity[entity.id] ?? (entity.legalName, 0)
                 bucket.sum += amt
                 byEntity[entity.id] = bucket
+            } else if let production = line.allocatedProductionProject {
+                allocated += amt
+                var bucket = byProduction[production.id] ?? (production.title, 0)
+                bucket.sum += amt
+                byProduction[production.id] = bucket
             }
         }
 
@@ -76,6 +92,21 @@ enum ReceiptLineItemAllocationEngine {
             )
         }
 
+        var productionShares: [ProductionTaxShare] = []
+        for (id, bucket) in byProduction.sorted(by: { $0.value.title < $1.value.title }) {
+            let ratio = NSDecimalNumber(decimal: bucket.sum / denominator).doubleValue
+            let taxShare = totalTax * bucket.sum / denominator
+            productionShares.append(
+                ProductionTaxShare(
+                    productionID: id,
+                    title: bucket.title,
+                    preTaxAllocated: bucket.sum,
+                    taxShare: taxShare,
+                    shareOfSubtotal: ratio
+                )
+            )
+        }
+
         let personalRatio = NSDecimalNumber(decimal: personalTotal / denominator).doubleValue
         let personalTax = totalTax * personalTotal / denominator
 
@@ -85,6 +116,7 @@ enum ReceiptLineItemAllocationEngine {
             unallocatedPreTax: unallocated,
             totalTax: totalTax,
             entityShares: shares,
+            productionShares: productionShares,
             personalPreTax: personalTotal,
             personalTaxShare: personalTax,
             personalShareOfSubtotal: personalRatio
@@ -98,6 +130,9 @@ enum ReceiptLineItemAllocationEngine {
         ]
         for s in summary.entityShares {
             parts.append("\(s.legalName): pre-tax \(s.preTaxAllocated), HST \(s.taxShare)")
+        }
+        for s in summary.productionShares {
+            parts.append("\(s.title): pre-tax \(s.preTaxAllocated), HST \(s.taxShare)")
         }
         if summary.personalPreTax > 0 {
             parts.append("Personal: pre-tax \(summary.personalPreTax), HST \(summary.personalTaxShare)")
