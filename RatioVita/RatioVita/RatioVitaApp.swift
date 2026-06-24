@@ -88,6 +88,8 @@ struct RatioVitaApp: App {
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
                 }
                 .task { @MainActor in
+                    RatioVitaFirebaseBootstrap.ensureConfigured()
+                    SovereignContextManager.shared.completeDeferredLaunchSetup()
                     let ctx = ModelContext(sharedModelContainer)
                     if let recovery = ReceiptWorkspaceBatchGuard.consumePendingRecoveryAlert() {
                         UserMessageCenter.shared.present(

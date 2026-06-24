@@ -37,6 +37,9 @@ enum OperationalBookkeeper {
             if receipt.taxCategory == nil, let tax = parsed.taxCategory {
                 receipt.taxCategory = tax
             }
+            if parsed.logisticsDocumentKind != nil {
+                applyLogisticsTags(receipt: receipt, parsed: parsed)
+            }
 
             if let mileage = MileageLogTracker.parse(receipt: receipt, parsed: parsed) {
                 mileageProcessed += 1
@@ -134,6 +137,19 @@ enum OperationalBookkeeper {
         }
     }
 
+    private static func applyLogisticsTags(receipt: Receipt, parsed: OperationalBookkeeperParser.ParsedExpense) {
+        if receipt.department == nil || receipt.department?.isEmpty == true,
+           let firstCode = parsed.departmentalCostCodes.first
+        {
+            receipt.department = firstCode
+        }
+        if receipt.productionType == nil || receipt.productionType?.isEmpty == true,
+           let kind = parsed.logisticsDocumentKind
+        {
+            receipt.productionType = kind
+        }
+    }
+
     private static func upsertLedgerEntry(
         modelContext: ModelContext,
         receipt: Receipt,
@@ -144,9 +160,12 @@ enum OperationalBookkeeper {
         let existing = (try? modelContext.fetch(FetchDescriptor<SovereignLedgerEntry>()))?
             .first(where: { $0.sourceReceiptID == receipt.id })
 
-        let lineSummary = parsed.lineItemDescriptions.prefix(8).joined(separator: " · ")
+        let lineSummary = ledgerLineSummary(parsed: parsed, mileage: mileage)
         let kind = mileage?.entryKind ?? .expense
         let flags = parsed.anomalyFlags + (mileage?.anomalyFlags ?? [])
+        let taxCategory = mileage?.estimatedDeduction != nil
+            ? mileage?.travelDeductionCategory
+            : parsed.taxCategory
 
         if let row = existing {
             row.vendorName = parsed.vendorName
@@ -158,7 +177,7 @@ enum OperationalBookkeeper {
             row.lineItemSummary = lineSummary.isEmpty ? nil : lineSummary
             row.productionPUID = parsed.productionPUID
             row.ventureEntityID = parsed.ventureEntityID
-            row.taxCategory = parsed.taxCategory
+            row.taxCategory = taxCategory
             row.glCode = parsed.glCode
             row.mileageKilometers = mileage?.distanceKilometers
             row.odometerReading = mileage?.odometerReading
@@ -180,7 +199,7 @@ enum OperationalBookkeeper {
                 lineItemSummary: lineSummary.isEmpty ? nil : lineSummary,
                 productionPUID: parsed.productionPUID,
                 ventureEntityID: parsed.ventureEntityID,
-                taxCategory: parsed.taxCategory,
+                taxCategory: taxCategory,
                 glCode: parsed.glCode,
                 mileageKilometers: mileage?.distanceKilometers,
                 odometerReading: mileage?.odometerReading,
@@ -193,5 +212,27 @@ enum OperationalBookkeeper {
             )
             modelContext.insert(row)
         }
+    }
+
+    private static func ledgerLineSummary(
+        parsed: OperationalBookkeeperParser.ParsedExpense,
+        mileage: MileageLogTracker.MileageParseResult?
+    ) -> String {
+        var segments: [String] = []
+        segments.append(contentsOf: parsed.lineItemDescriptions.prefix(6))
+        if !parsed.departmentalCostCodes.isEmpty {
+            segments.append("codes: \(parsed.departmentalCostCodes.prefix(4).joined(separator: ", "))")
+        }
+        if !parsed.crewNameTokens.isEmpty {
+            segments.append("crew: \(parsed.crewNameTokens.prefix(4).joined(separator: ", "))")
+        }
+        if let route = mileage?.routeDescription, !route.isEmpty {
+            segments.append("route: \(route)")
+        }
+        if let kind = parsed.logisticsDocumentKind {
+            segments.append("doc: \(kind)")
+        }
+        let joined = segments.joined(separator: " · ")
+        return joined.isEmpty ? "" : joined
     }
 }

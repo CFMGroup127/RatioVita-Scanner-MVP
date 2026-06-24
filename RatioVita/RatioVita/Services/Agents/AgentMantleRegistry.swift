@@ -45,12 +45,25 @@ final class AgentMantleRegistry: ObservableObject {
     }
 
     /// Application context switch — rewrites all triad agents atomically.
-    func applyApplicationContext(_ mantle: AgentMantle) {
+    func applyApplicationContext(
+        _ mantle: AgentMantle,
+        productionID: UUID? = nil,
+        ventureEntityID: UUID? = nil,
+        activeHub: SovereignHubKind? = nil
+    ) {
         activeApplicationMantle = mantle
         UserDefaults.standard.set(mantle.storageKey, forKey: Self.applicationMantleKey)
 
         for email in AgentMantlePersonaMatrix.triadEmails {
-            _ = try? switchMantle(for: email, to: enriched(mantle))
+            _ = try? switchMantle(
+                for: email,
+                to: enriched(
+                    mantle,
+                    productionID: productionID,
+                    ventureEntityID: ventureEntityID,
+                    activeHub: activeHub
+                )
+            )
         }
     }
 
@@ -94,18 +107,23 @@ final class AgentMantleRegistry: ObservableObject {
         }
     }
 
-    private func enriched(_ mantle: AgentMantle) -> AgentMantle {
+    private func enriched(
+        _ mantle: AgentMantle,
+        productionID: UUID?,
+        ventureEntityID: UUID?,
+        activeHub: SovereignHubKind?
+    ) -> AgentMantle {
         switch mantle {
         case .production(var ctx):
             if ctx.productionID == nil {
-                ctx.productionID = SovereignContextManager.shared.activeProductionID?.uuidString
+                ctx.productionID = productionID?.uuidString
             }
             return .production(ctx)
         case .venture(var ctx):
             if ctx.ventureEntityID == nil {
-                ctx.ventureEntityID = SovereignContextManager.shared.activeVentureEntityID?.uuidString
+                ctx.ventureEntityID = ventureEntityID?.uuidString
             }
-            if ctx.subsidiaryLabel == nil, SovereignContextManager.shared.activeHub == .ventures {
+            if ctx.subsidiaryLabel == nil, activeHub == .ventures {
                 ctx.subsidiaryLabel = "New Horizons"
             }
             return .venture(ctx)

@@ -56,8 +56,17 @@ final class SovereignContextManager: ObservableObject {
         {
             activeProductionID = productionID
         }
-        AgentMantleRegistry.shared.applyApplicationContext(activeAgentMantle)
     }
+
+    /// Deferred activation — call after `FirebaseApp.configure()` completes (RatioVitaApp launch task).
+    func completeDeferredLaunchSetup() {
+        guard !didCompleteDeferredLaunchSetup else { return }
+        didCompleteDeferredLaunchSetup = true
+        applyMantleContext()
+        setupFirebaseListenersIfReady()
+    }
+
+    private var didCompleteDeferredLaunchSetup = false
 
     var displaySubtitle: String {
         switch activeHub {
@@ -105,14 +114,14 @@ final class SovereignContextManager: ObservableObject {
     func switchToPersonalHub() {
         activeHub = .personal
         persist()
-        syncLogisticsCoordinator()
+        setupFirebaseListenersIfReady()
     }
 
     func switchToVenturesHub(ventureEntityID: UUID? = nil) {
         activeHub = .ventures
         activeVentureEntityID = ventureEntityID
         persist()
-        syncLogisticsCoordinator()
+        setupFirebaseListenersIfReady()
     }
 
     func switchToProductionMode(productionID: UUID) {
@@ -120,7 +129,7 @@ final class SovereignContextManager: ObservableObject {
         activeProductionID = productionID
         UserDefaults.standard.set(productionID.uuidString, forKey: Keys.legacyForensicProductionID)
         persist()
-        syncLogisticsCoordinator()
+        setupFirebaseListenersIfReady()
     }
 
     /// Returns true when `productionProjectID` belongs in the current isolation scope.
@@ -169,7 +178,28 @@ final class SovereignContextManager: ObservableObject {
         } else {
             UserDefaults.standard.removeObject(forKey: Keys.productionID)
         }
-        AgentMantleRegistry.shared.applyApplicationContext(activeAgentMantle)
+        AgentMantleRegistry.shared.applyApplicationContext(
+            activeAgentMantle,
+            productionID: activeProductionID,
+            ventureEntityID: activeVentureEntityID,
+            activeHub: activeHub
+        )
+    }
+
+    private func applyMantleContext() {
+        AgentMantleRegistry.shared.applyApplicationContext(
+            activeAgentMantle,
+            productionID: activeProductionID,
+            ventureEntityID: activeVentureEntityID,
+            activeHub: activeHub
+        )
+    }
+
+    /// Starts Firestore logistical listeners only after Firebase bootstrap is ready.
+    func setupFirebaseListenersIfReady() {
+        RatioVitaFirebaseBootstrap.ensureConfigured()
+        guard RatioVitaFirebaseBootstrap.isConfigured else { return }
+        syncLogisticsCoordinator()
     }
 
     private func syncLogisticsCoordinator() {
