@@ -8,6 +8,8 @@ struct ProductionDayStateSnapshot: Codable, Sendable {
     var latestIngestionSummary: String?
     var activeCallSheetId: String?
     var transitExceptionSummaries: [ProductionDayTransitSnapshot]
+    var totalLogisticsFileCount: Int?
+    var totalLogEntryCount: Int?
 
     init(
         productionId: String,
@@ -15,7 +17,9 @@ struct ProductionDayStateSnapshot: Codable, Sendable {
         sourceFiles: [String] = [],
         latestIngestionSummary: String? = nil,
         activeCallSheetId: String? = nil,
-        transitExceptionSummaries: [ProductionDayTransitSnapshot] = []
+        transitExceptionSummaries: [ProductionDayTransitSnapshot] = [],
+        totalLogisticsFileCount: Int? = nil,
+        totalLogEntryCount: Int? = nil
     ) {
         self.productionId = productionId
         self.lastUpdated = lastUpdated
@@ -23,6 +27,8 @@ struct ProductionDayStateSnapshot: Codable, Sendable {
         self.latestIngestionSummary = latestIngestionSummary
         self.activeCallSheetId = activeCallSheetId
         self.transitExceptionSummaries = transitExceptionSummaries
+        self.totalLogisticsFileCount = totalLogisticsFileCount
+        self.totalLogEntryCount = totalLogEntryCount
     }
 }
 
@@ -53,6 +59,8 @@ enum ProductionDayStateParser {
         let sourceFiles = data["sourceFiles"] as? [String] ?? []
         let latestIngestionSummary = data["latestIngestionSummary"] as? String
         let activeCallSheetId = data["activeCallSheetId"] as? String
+        let totalLogisticsFileCount = data["totalLogisticsFileCount"] as? Int
+        let totalLogEntryCount = data["totalLogEntryCount"] as? Int
 
         let transitSummaries: [ProductionDayTransitSnapshot] = (data["transitExceptionSummaries"] as? [[String: Any]] ?? [])
             .compactMap { row in
@@ -73,7 +81,9 @@ enum ProductionDayStateParser {
             sourceFiles: sourceFiles,
             latestIngestionSummary: latestIngestionSummary,
             activeCallSheetId: activeCallSheetId,
-            transitExceptionSummaries: transitSummaries
+            transitExceptionSummaries: transitSummaries,
+            totalLogisticsFileCount: totalLogisticsFileCount,
+            totalLogEntryCount: totalLogEntryCount
         )
     }
 
