@@ -16,6 +16,7 @@ struct AgentMemoryReference: Codable, Sendable, Equatable {
 // MARK: - Adaptive agent protocol
 
 /// Existing agent instance that swaps operational mantles without session teardown.
+@MainActor
 protocol AdaptiveAgent: AnyObject, Identifiable {
     var activeIdentifier: String { get }
     var displayName: String { get }
@@ -31,7 +32,6 @@ protocol AdaptiveAgent: AnyObject, Identifiable {
 
 // MARK: - Manifest-backed adaptive agent (Dana / Amina / Marcus triad)
 
-@MainActor
 final class ManifestAdaptiveAgent: AdaptiveAgent {
     let manifestName: String
     let manifestRole: String
@@ -52,7 +52,7 @@ final class ManifestAdaptiveAgent: AdaptiveAgent {
         role: String,
         email: String,
         personality: String,
-        initialMantle: AgentMantle = .production(.empty)
+        initialMantle: AgentMantle? = nil
     ) {
         manifestName = name
         manifestRole = role
@@ -60,16 +60,17 @@ final class ManifestAdaptiveAgent: AdaptiveAgent {
         displayName = name
         basePersonality = personality
         baseMemoryReference = AgentMemoryReference(agentEmail: email)
-        runningMantle = initialMantle
+        let resolvedMantle = initialMantle ?? .production(.empty)
+        runningMantle = resolvedMantle
 
-        let mapped = AgentMantlePersonaMatrix.role(for: name, mantle: initialMantle)
+        let mapped = AgentMantlePersonaMatrix.role(for: name, mantle: resolvedMantle)
         activeRole = mapped
         systemPromptVector = AgentMantlePersonaMatrix.promptVector(
             agentName: name,
             manifestRole: role,
             personality: personality,
             role: mapped,
-            mantle: initialMantle
+            mantle: resolvedMantle
         )
         operationalConstraints = AgentMantlePersonaMatrix.constraints(for: mapped)
     }

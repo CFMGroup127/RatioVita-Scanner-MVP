@@ -50,7 +50,7 @@ final class AgentMantleRegistry: ObservableObject {
         UserDefaults.standard.set(mantle.storageKey, forKey: Self.applicationMantleKey)
 
         for email in AgentMantlePersonaMatrix.triadEmails {
-            try? switchMantle(for: email, to: enriched(mantle))
+            _ = try? switchMantle(for: email, to: enriched(mantle))
         }
     }
 

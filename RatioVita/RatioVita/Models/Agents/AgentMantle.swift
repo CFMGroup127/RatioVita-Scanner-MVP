@@ -8,7 +8,7 @@ struct ProductionContext: Codable, Sendable, Equatable {
     var productionID: String?
     var activeDayState: String?
 
-    static let empty = ProductionContext()
+    nonisolated static let empty = ProductionContext()
 }
 
 /// New Horizons / subsidiary corporate context (VitaLogic expert lane).
@@ -17,7 +17,7 @@ struct VentureContext: Codable, Sendable, Equatable {
     var subsidiaryLabel: String?
     var phaseMilestone: String?
 
-    static let empty = VentureContext()
+    nonisolated static let empty = VentureContext()
 }
 
 // MARK: - Mantle enum
