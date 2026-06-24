@@ -6,7 +6,7 @@ import SwiftData
 enum FinancialIntelligenceEngine {
     static func runAll(modelContext: ModelContext) throws -> [FinancialIntelligenceReport] {
         var reports: [FinancialIntelligenceReport] = []
-        reports.append(try OperationalBookkeeperStrategy.run(modelContext: modelContext))
+        reports.append(try runOperationalBookkeeper(modelContext: modelContext))
         reports.append(try TaxationAuditorStrategy.run(modelContext: modelContext))
         reports.append(try CorporateComptrollerStrategy.run(modelContext: modelContext))
         try modelContext.save()
@@ -26,52 +26,15 @@ enum FinancialIntelligenceEngine {
         }
         return reports
     }
-}
 
-// MARK: - Operational bookkeeper
-
-enum OperationalBookkeeperStrategy {
-    static func run(modelContext: ModelContext) throws -> FinancialIntelligenceReport {
-        var findings: [String] = []
-        var warnings: [String] = []
-
-        try ReceiptFinanceAgentsService.runAll(modelContext: modelContext)
-
-        let receipts = try modelContext.fetch(FetchDescriptor<Receipt>())
-        let scoped = receipts.filter { SovereignScopeFilter.receiptIsVisible($0, context: SovereignContextManager.shared) }
-        let pending = scoped.filter { $0.trashedAt == nil && !$0.isVerified }
-        findings.append("Parsed \(pending.count) pending receipt(s) in active sovereign scope.")
-
-        let productionPUID = activeProductionPUID(modelContext: modelContext)
-        if let puid = productionPUID {
-            findings.append("Active PUID expense tracking: \(puid).")
-        }
-
-        let mileageCandidates = scoped.filter {
-            ($0.taxCategory?.localizedCaseInsensitiveContains("mileage") == true)
-                || $0.merchant.localizedCaseInsensitiveContains("fuel")
-        }
-        if !mileageCandidates.isEmpty {
-            findings.append("Flagged \(mileageCandidates.count) mileage/fuel artifact(s) for bookkeeper review.")
-        }
-
-        if pending.count > 25 {
-            warnings.append("Operational bookkeeper: \(pending.count) unverified receipts — consider batch verify before tax pass.")
-        }
-
+    private static func runOperationalBookkeeper(modelContext: ModelContext) throws -> FinancialIntelligenceReport {
+        let result = try OperationalBookkeeper.run(modelContext: modelContext)
         return FinancialIntelligenceReport(
             strategy: .operationalBookkeeper,
-            findings: findings,
-            warnings: warnings,
+            findings: result.findings,
+            warnings: result.warnings,
             processedAt: .now
         )
-    }
-
-    private static func activeProductionPUID(modelContext: ModelContext) -> String? {
-        guard let id = SovereignContextManager.shared.activeProductionID else { return nil }
-        let descriptor = FetchDescriptor<ProductionProject>()
-        let projects = (try? modelContext.fetch(descriptor)) ?? []
-        return projects.first(where: { $0.id == id })?.sovereignPUID
     }
 }
 
@@ -138,9 +101,16 @@ enum CorporateComptrollerStrategy {
         let entities = try modelContext.fetch(FetchDescriptor<BusinessEntity>())
         let projects = try modelContext.fetch(FetchDescriptor<ProductionProject>())
         let assets = try modelContext.fetch(FetchDescriptor<EquipmentAsset>())
+        let ledgerRows = try modelContext.fetch(FetchDescriptor<SovereignLedgerEntry>())
 
         let ventureLinked = projects.filter { $0.businessEntity != nil }
         findings.append("Corporate comptroller tracking \(entities.count) entity(ies), \(ventureLinked.count) linked production(s).")
+        findings.append("Sovereign ledger: \(ledgerRows.count) normalized row(s) from bookkeeper pipeline.")
+
+        let flaggedLedger = ledgerRows.filter { !$0.anomalyFlags.isEmpty }
+        if !flaggedLedger.isEmpty {
+            warnings.append("Comptroller queue: \(flaggedLedger.count) ledger row(s) carry anomaly flags.")
+        }
 
         let personalHub = SovereignContextManager.shared.activeHub == .personal
         let ventureHub = SovereignContextManager.shared.activeHub == .ventures
