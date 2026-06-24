@@ -879,6 +879,7 @@ private struct MerchantReviewStack: Identifiable {
 }
 
 private struct ReviewReceiptRow: View {
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
     @Environment(\.brandAccent) private var brandAccent
     @Bindable var receipt: Receipt
     var selectionMode: Bool
@@ -1080,7 +1081,10 @@ private struct ReviewReceiptRow: View {
     private func formattedTotal(_ receipt: Receipt) -> String {
         let docType = DocumentTypeOption.fromStored(receipt.documentType)
         let label = AccountingDisplayLabels.totalFieldTitle(documentType: docType)
-        let amount = CurrencyFormatter.shared.format(receipt.total, currencyCode: receipt.currencyCode)
+        let amount = CurrencyFormatter.shared.format(
+            sovereignContext.scopedDisplayTotal(for: receipt),
+            currencyCode: receipt.currencyCode
+        )
         return "\(label): \(amount)"
     }
 

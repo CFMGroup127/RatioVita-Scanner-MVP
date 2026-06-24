@@ -1436,6 +1436,7 @@ private struct ExportSharePayload: Identifiable {
 
 struct ReceiptIconCellView: View {
     @Environment(\.brandAccent) private var brandAccent
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
     @AppStorage("libraryIconThumbnailSize") private var libraryIconThumbnailSize: Double = 64
     let receipt: Receipt
 
@@ -1504,7 +1505,10 @@ struct ReceiptIconCellView: View {
     }
 
     private func formattedTotal(_ receipt: Receipt) -> String {
-        CurrencyFormatter.shared.format(receipt.total, currencyCode: receipt.currencyCode)
+        CurrencyFormatter.shared.format(
+            sovereignContext.scopedDisplayTotal(for: receipt),
+            currencyCode: receipt.currencyCode
+        )
     }
 }
 
@@ -1512,6 +1516,7 @@ struct ReceiptIconCellView: View {
 
 struct ReceiptRowView: View {
     @Environment(\.brandAccent) private var brandAccent
+    @ObservedObject private var sovereignContext = SovereignContextManager.shared
     let receipt: Receipt
 
     var body: some View {
@@ -1540,7 +1545,7 @@ struct ReceiptRowView: View {
 
             Text(formattedTotal(receipt))
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(Color.ratioVitaSignedCurrencyAmount(receipt.total))
+                .foregroundStyle(Color.ratioVitaSignedCurrencyAmount(scopedAmount(for: receipt)))
                 .monospacedDigit()
                 .lineLimit(1)
         }
@@ -1635,9 +1640,14 @@ struct ReceiptRowView: View {
                 Text(formattedTotal(receipt))
                     .font(DesignSystem.Typography.title3)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.ratioVitaSignedCurrencyAmount(receipt.total))
+                    .foregroundStyle(Color.ratioVitaSignedCurrencyAmount(scopedAmount(for: receipt)))
                     .monospacedDigit()
                     .lineLimit(1)
+                if showsHubSplitAmount(receipt) {
+                    Text("Hub share")
+                        .font(DesignSystem.Typography.caption2)
+                        .foregroundStyle(Color.ratioVitaTextSecondary)
+                }
                 Text(receipt.currencyCode)
                     .font(DesignSystem.Typography.caption2)
                     .foregroundStyle(Color.ratioVitaTextSecondary)
@@ -1687,9 +1697,16 @@ struct ReceiptRowView: View {
         .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
     }
 
+    private func scopedAmount(for receipt: Receipt) -> Decimal {
+        sovereignContext.scopedDisplayTotal(for: receipt)
+    }
+
+    private func showsHubSplitAmount(_ receipt: Receipt) -> Bool {
+        !receipt.lineItems.isEmpty && scopedAmount(for: receipt) != receipt.total
+    }
+
     private func formattedTotal(_ receipt: Receipt) -> String {
-        let formatter = CurrencyFormatter.shared
-        return formatter.format(receipt.total, currencyCode: receipt.currencyCode)
+        CurrencyFormatter.shared.format(scopedAmount(for: receipt), currencyCode: receipt.currencyCode)
     }
 }
 

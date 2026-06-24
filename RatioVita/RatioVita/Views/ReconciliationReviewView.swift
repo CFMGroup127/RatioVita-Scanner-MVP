@@ -68,6 +68,12 @@ struct ReconciliationReviewView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .navigationSplitViewColumnWidth(min: 380, ideal: 480, max: 720)
         }
+        .navigationTitle("Reconciliation")
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SovereignContextSwitcherBar()
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+        }
         .sheet(isPresented: $showManualMatchSheet) {
             if let tx = selectedTransaction, tx.matchedReceipt == nil, !tx.manuallyClearedForReconciliation {
                 ReconciliationManualReceiptSheet(
