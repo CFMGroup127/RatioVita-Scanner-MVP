@@ -54,11 +54,16 @@ private enum SwiftDataAppContainer {
 
 @main
 struct RatioVitaApp: App {
+    private static let firebaseLaunchGate: Void = {
+        RatioVitaFirebaseBootstrap.ensureConfigured()
+    }()
+
     @State private var libraryNavigationCoordinator = LibraryNavigationCoordinator()
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
     init() {
-        RatioVitaFirebaseBootstrap.configureIfNeeded()
+        _ = Self.firebaseLaunchGate
+        RatioVitaFirebaseBootstrap.ensureConfigured()
         #if DEBUG
         #if canImport(UIKit)
         // Quiets “Unable to simultaneously satisfy constraints” spam from UIKit-backed text inputs (does not affect

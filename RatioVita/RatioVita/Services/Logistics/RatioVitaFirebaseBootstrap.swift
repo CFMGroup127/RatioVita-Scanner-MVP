@@ -6,13 +6,44 @@ import FirebaseCore
 #if canImport(FirebaseAuth)
 import FirebaseAuth
 #endif
+#if canImport(FirebaseFirestore)
+import FirebaseFirestore
+#endif
 
-/// Firebase bootstrap for live logistical guardian streaming from VitaLogic → Firestore → RatioVita.
+/// Firebase bootstrap — synchronous configure at process launch before any Firestore access.
 enum RatioVitaFirebaseBootstrap {
     static private(set) var isConfigured = false
 
-    /// Synchronous entry for app launch — must run before any Firestore/Auth access.
+    /// Runs before `RatioVitaApp.init()` when the type is first touched.
+    private static let launchGate: Void = {
+        configureIfNeededInternal()
+    }()
+
+    /// Idempotent configure — safe from App init, coordinators, and stream services.
+    static func ensureConfigured() {
+        _ = launchGate
+        configureIfNeededInternal()
+    }
+
+    #if canImport(FirebaseFirestore)
+    /// Returns Firestore only after `FirebaseApp.configure()` has completed.
+    static func firestore() -> Firestore? {
+        ensureConfigured()
+        guard isConfigured, FirebaseApp.app() != nil else { return nil }
+        return Firestore.firestore()
+    }
+    #endif
+
     static func configureIfNeeded() {
+        ensureConfigured()
+    }
+
+    static func configureIfNeededAsync() async {
+        ensureConfigured()
+        await ensureAuthenticatedSession()
+    }
+
+    private static func configureIfNeededInternal() {
         #if canImport(FirebaseCore)
         guard !isConfigured else { return }
         if FirebaseApp.app() != nil {
@@ -21,7 +52,8 @@ enum RatioVitaFirebaseBootstrap {
         }
 
         if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-           let options = FirebaseOptions(contentsOfFile: path) {
+           let options = FirebaseOptions(contentsOfFile: path)
+        {
             FirebaseApp.configure(options: options)
             isConfigured = true
             #if DEBUG
@@ -34,9 +66,10 @@ enum RatioVitaFirebaseBootstrap {
         guard let rawFirebaseConfig = runtimeFirebaseConfigJSON(),
               let configData = rawFirebaseConfig.data(using: .utf8),
               let configDict = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
-              let options = firebaseOptions(from: configDict) else {
+              let options = firebaseOptions(from: configDict)
+        else {
             #if DEBUG
-            print("RatioVita Firebase: GoogleService-Info.plist missing from app bundle — add it to the RatioVita target.")
+            print("RatioVita Firebase: GoogleService-Info.plist missing from app bundle.")
             #endif
             return
         }
@@ -47,14 +80,6 @@ enum RatioVitaFirebaseBootstrap {
         #endif
     }
 
-    static func configureIfNeededAsync() async {
-        #if canImport(FirebaseCore)
-        configureIfNeeded()
-        await ensureAuthenticatedSession()
-        #endif
-    }
-
-    /// Reads Firebase JSON config from Info.plist or scheme environment without KVC (avoids NSUnknownKeyException).
     private static func runtimeFirebaseConfigJSON() -> String? {
         if let plistValue = Bundle.main.object(forInfoDictionaryKey: "__firebase_config") as? String,
            !plistValue.isEmpty,
@@ -73,6 +98,8 @@ enum RatioVitaFirebaseBootstrap {
 
     #if canImport(FirebaseAuth)
     private static func ensureAuthenticatedSession() async {
+        ensureConfigured()
+        guard FirebaseApp.app() != nil else { return }
         guard Auth.auth().currentUser == nil else { return }
         do {
             _ = try await Auth.auth().signInAnonymously()

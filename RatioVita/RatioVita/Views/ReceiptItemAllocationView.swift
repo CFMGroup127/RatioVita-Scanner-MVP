@@ -13,6 +13,8 @@ struct ReceiptItemAllocationView: View {
     @Query(sort: \ProductionProject.title) private var productions: [ProductionProject]
 
     @State private var selectedLineIDs: Set<UUID> = []
+    @State private var pendingAssetRegistration: AssetRegistrationBridge.RegistrationPrompt?
+    @State private var registeredAssetMessage: String?
 
     private var destinations: [SovereignEntityDestination] {
         CrossEntityReallocationService.destinations(ventures: ownedEntities, productions: productions)
@@ -51,6 +53,7 @@ struct ReceiptItemAllocationView: View {
             }
 
             splitDestinationDiagram
+            assetRegistrationPromptCard
             waterfallSummaryCard
 
             if !isLocked {
@@ -58,6 +61,44 @@ struct ReceiptItemAllocationView: View {
                     logAllocationAudit()
                 }
                 .buttonStyle(.bordered)
+            }
+        }
+        .alert("Asset registered", isPresented: Binding(
+            get: { registeredAssetMessage != nil },
+            set: { if !$0 { registeredAssetMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { registeredAssetMessage = nil }
+        } message: {
+            Text(registeredAssetMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var assetRegistrationPromptCard: some View {
+        if let prompt = pendingAssetRegistration {
+            GroupBox {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Label("Property inventory registration", systemImage: "house.and.flag.fill")
+                        .font(.subheadline.weight(.semibold))
+                    Text(
+                        "Would you like to register \"\(prompt.itemTitle)\" "
+                            + "(\(prompt.purchaseAmount.formatted(.currency(code: prompt.currencyCode)))) "
+                            + "to the \(prompt.propertyLabel) master checklist?"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 12) {
+                        Button("Register asset") {
+                            registerPendingAsset(prompt)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button("Not now") {
+                            pendingAssetRegistration = nil
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
             }
         }
     }
@@ -161,16 +202,48 @@ struct ReceiptItemAllocationView: View {
     private func contextAssignButtons(forLineIDs ids: [UUID]) -> some View {
         ForEach(destinations) { destination in
             Button {
-                CrossEntityReallocationService.apply(
-                    destination: destination,
-                    to: receipt,
-                    lineIDs: ids,
-                    modelContext: modelContext
-                )
-                selectedLineIDs.subtract(ids)
+                applyDestination(destination, toLineIDs: ids)
             } label: {
                 Label(destination.title, systemImage: destination.systemImage)
             }
+        }
+    }
+
+    private func applyDestination(_ destination: SovereignEntityDestination, toLineIDs ids: [UUID]) {
+        CrossEntityReallocationService.apply(
+            destination: destination,
+            to: receipt,
+            lineIDs: ids,
+            modelContext: modelContext
+        )
+        selectedLineIDs.subtract(ids)
+
+        guard case let .venture(venture) = destination, ids.count == 1, let lineID = ids.first,
+              let line = sortedLines.first(where: { $0.id == lineID }),
+              let prompt = AssetRegistrationBridge.prompt(for: line, venture: venture, receipt: receipt)
+        else {
+            pendingAssetRegistration = nil
+            return
+        }
+        pendingAssetRegistration = prompt
+    }
+
+    private func registerPendingAsset(_ prompt: AssetRegistrationBridge.RegistrationPrompt) {
+        guard let line = sortedLines.first(where: { $0.id == prompt.lineID }) else {
+            pendingAssetRegistration = nil
+            return
+        }
+        do {
+            let asset = try AssetRegistrationBridge.registerLineItem(
+                line,
+                venture: prompt.venture,
+                receipt: receipt,
+                context: modelContext
+            )
+            registeredAssetMessage = "\(asset.displayName) linked to \(prompt.propertyLabel)."
+            pendingAssetRegistration = nil
+        } catch {
+            registeredAssetMessage = "Could not register asset: \(error.localizedDescription)"
         }
     }
 

@@ -82,8 +82,8 @@ final class TransitGuardianStreamService: ObservableObject {
 
     #if canImport(FirebaseFirestore)
     private func attachLatestCallSheetListener(productionId: String) {
-        callSheetListener = FirestoreCollectionRefs
-            .callSheets(productionId: productionId)
+        guard let callSheets = FirestoreCollectionRefs.callSheets(productionId: productionId) else { return }
+        callSheetListener = callSheets
             .order(by: "lastUpdated", descending: true)
             .limit(to: 1)
             .addSnapshotListener { [weak self] snapshot, error in
@@ -108,8 +108,11 @@ final class TransitGuardianStreamService: ObservableObject {
         transitListener?.remove()
         activeCallSheetId = callSheetId
 
-        transitListener = FirestoreCollectionRefs
+        guard let collection = FirestoreCollectionRefs
             .transitExceptions(productionId: productionId, callSheetId: callSheetId)
+        else { return }
+
+        transitListener = collection
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
                 if let error {
@@ -134,8 +137,8 @@ final class TransitGuardianStreamService: ObservableObject {
     }
 
     private func attachIngestionListener(productionId: String) {
-        ingestionListener = FirestoreCollectionRefs
-            .ingestionLogs(productionId: productionId)
+        guard let collection = FirestoreCollectionRefs.ingestionLogs(productionId: productionId) else { return }
+        ingestionListener = collection
             .order(by: "processedAt", descending: true)
             .limit(to: 1)
             .addSnapshotListener { [weak self] snapshot, _ in

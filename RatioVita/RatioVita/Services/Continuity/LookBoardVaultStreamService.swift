@@ -47,8 +47,13 @@ final class LookBoardVaultStreamService: ObservableObject {
                     return
                 }
 
-                self.listener = FirestoreCollectionRefs
-                    .lookBoardAssets(productionId: trimmed)
+                guard let collection = FirestoreCollectionRefs.lookBoardAssets(productionId: trimmed) else {
+                    self.assets = LookBoardAsset.previewSamples()
+                    self.lastSyncSummary = "Offline preview — connect Firebase to stream live look boards."
+                    return
+                }
+
+                self.listener = collection
                     .order(by: "title")
                     .addSnapshotListener { [weak self] snapshot, error in
                         Task { @MainActor in

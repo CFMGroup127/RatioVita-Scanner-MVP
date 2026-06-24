@@ -12,12 +12,12 @@ final class ProductionLogisticsLiveCoordinator: ObservableObject {
     private init() {}
 
     func syncActiveProduction(productionId: String, callSheetId: String? = nil) {
+        RatioVitaFirebaseBootstrap.ensureConfigured()
         let trimmed = productionId.trimmingCharacters(in: .whitespacesAndNewlines)
         activeProductionId = trimmed
-        RatioVitaFirebaseBootstrap.configureIfNeeded()
         isFirebaseReady = RatioVitaFirebaseBootstrap.isConfigured
 
-        guard !trimmed.isEmpty else {
+        guard isFirebaseReady, !trimmed.isEmpty else {
             TransitGuardianStreamService.shared.stopListening()
             return
         }
