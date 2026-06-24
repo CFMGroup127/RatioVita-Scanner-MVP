@@ -291,7 +291,7 @@ struct FinanceAgentsPeriodicTrigger: ViewModifier {
 
         let context = ModelContext(container)
         do {
-            try ReceiptFinanceAgentsService.runAll(modelContext: context)
+            try FinancialIntelligenceEngine.runAll(modelContext: context)
         } catch {
             #if DEBUG
             print("RatioVita: Finance agents pass failed: \(error)")

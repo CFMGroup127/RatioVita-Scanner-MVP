@@ -56,6 +56,7 @@ final class SovereignContextManager: ObservableObject {
         {
             activeProductionID = productionID
         }
+        AgentMantleRegistry.shared.applyApplicationContext(activeAgentMantle)
     }
 
     var displaySubtitle: String {
@@ -76,6 +77,29 @@ final class SovereignContextManager: ObservableObject {
     /// Production token used for data isolation when in production mode.
     var isolationProductionID: UUID? {
         activeHub == .production ? activeProductionID : nil
+    }
+
+    /// Maps sovereign hub to agent mantle lane (Production vs Venture).
+    var activeAgentMantle: AgentMantle {
+        switch activeHub {
+        case .production:
+            return .production(ProductionContext(
+                productionID: activeProductionID?.uuidString,
+                activeDayState: nil
+            ))
+        case .ventures:
+            return .venture(VentureContext(
+                ventureEntityID: activeVentureEntityID?.uuidString,
+                subsidiaryLabel: "New Horizons"
+            ))
+        case .personal:
+            return .venture(VentureContext(subsidiaryLabel: "Personal Hub"))
+        }
+    }
+
+    /// Deprecated alias — use `activeAgentMantle`.
+    var activeContextualMantle: ContextualMantleKind {
+        ContextualMantleKind(agentMantle: activeAgentMantle)
     }
 
     func switchToPersonalHub() {
@@ -145,6 +169,7 @@ final class SovereignContextManager: ObservableObject {
         } else {
             UserDefaults.standard.removeObject(forKey: Keys.productionID)
         }
+        AgentMantleRegistry.shared.applyApplicationContext(activeAgentMantle)
     }
 
     private func syncLogisticsCoordinator() {
