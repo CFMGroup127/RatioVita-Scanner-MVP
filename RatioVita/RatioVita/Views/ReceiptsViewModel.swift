@@ -10,7 +10,7 @@ final class ReceiptsViewModel: ObservableObject {
     @Published var showScanner = false
 
     // Mutable so dependencies can be updated without replacing the StateObject.
-    private(set) var scanner: ScannerService
+    private var scannerStorage: ScannerService?
     private(set) var context: ModelContext?
 
     /// Serializes overlapping ingest saves (e.g. duplicate “Send to review” firing two `Task`s).
@@ -20,14 +20,29 @@ final class ReceiptsViewModel: ObservableObject {
     @AppStorage("compressionEnabled") private var compressionEnabled: Bool = false
     @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary: Bool = true
 
-    init(scanner: ScannerService = PreviewScannerService()) {
-        self.scanner = scanner
+    init() {}
+
+    private var scanner: ScannerService {
+        if let scannerStorage { return scannerStorage }
+        let preview = PreviewScannerService()
+        scannerStorage = preview
+        return preview
+    }
+
+    /// Lazily installs the preview scanner on the main actor (safe for Swift 6 view-model wiring).
+    func bootstrapScannerIfNeeded() {
+        _ = scanner
+    }
+
+    /// Scanner passed into capture sheets after lazy bootstrap.
+    var scannerForUI: ScannerService {
+        scanner
     }
 
     // Update dependencies safely (avoid reassigning the @StateObject in the view).
     func updateDependencies(scanner: ScannerService? = nil, context: ModelContext) {
         if let scanner {
-            self.scanner = scanner
+            scannerStorage = scanner
         }
         self.context = context
     }
@@ -38,21 +53,21 @@ final class ReceiptsViewModel: ObservableObject {
 
     /// Swaps the preview placeholder for a production AVFoundation scanner only when capture is requested.
     func ensureProductionScannerIfNeeded() {
-        guard scanner is PreviewScannerService else { return }
+        guard scannerStorage == nil || scannerStorage is PreviewScannerService else { return }
         #if os(iOS)
         #if targetEnvironment(simulator)
         return
         #else
-        scanner = RealScannerService()
+        scannerStorage = RealScannerService()
         #endif
         #elseif os(visionOS)
         #if targetEnvironment(simulator)
         return
         #else
-        scanner = RealScannerService()
+        scannerStorage = RealScannerService()
         #endif
         #elseif os(macOS)
-        scanner = MacAVScannerService()
+        scannerStorage = MacAVScannerService()
         #endif
     }
 

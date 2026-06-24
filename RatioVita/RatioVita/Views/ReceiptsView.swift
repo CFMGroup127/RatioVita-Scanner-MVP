@@ -79,7 +79,7 @@ struct ReceiptsView: View {
             )
         }
 
-        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(scanner: PreviewScannerService()))
+        _viewModel = StateObject(wrappedValue: ReceiptsViewModel())
     }
 
     private var librarySort: ReceiptLibrarySort {
@@ -358,6 +358,7 @@ struct ReceiptsView: View {
             #endif
         }
         .onAppear {
+            viewModel.bootstrapScannerIfNeeded()
             viewModel.updateDependencies(context: modelContext)
             FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
             FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
@@ -391,7 +392,7 @@ struct ReceiptsView: View {
         .sheet(isPresented: $viewModel.showScanner) {
             #if os(iOS) || os(visionOS)
             CameraCaptureView(
-                scanner: viewModel.scanner,
+                scanner: viewModel.scannerForUI,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled,
                 onSubmit: { scanResult, options in
@@ -403,7 +404,7 @@ struct ReceiptsView: View {
             )
             #elseif os(macOS)
             CameraCaptureView(
-                scanner: viewModel.scanner,
+                scanner: viewModel.scannerForUI,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled,
                 onSubmit: { scanResult, options in

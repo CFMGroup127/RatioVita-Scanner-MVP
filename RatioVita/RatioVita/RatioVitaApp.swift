@@ -14,6 +14,7 @@ private let lastDailyLedgerRunKey = "com.ratiovita.lastDailyLedgerRunDate"
 /// (e.g. after additive schema changes on a simulator/device build).
 private enum SwiftDataAppContainer {
     static func make() -> ModelContainer {
+        _ = RatioVitaFirebaseBootstrap.moduleBootstrap
         let schema = LibrarySwiftDataSchema.makeSchema()
         #if RATIOVITA_ICLOUD_SYNC
         let cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .automatic
@@ -54,7 +55,7 @@ private enum SwiftDataAppContainer {
 
 @main
 struct RatioVitaApp: App {
-    private static let firebaseLaunchGate: Void = {
+    private static let firebaseLaunchOrdering: Void = {
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }()
 
@@ -62,8 +63,7 @@ struct RatioVitaApp: App {
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
     init() {
-        _ = Self.firebaseLaunchGate
-        RatioVitaFirebaseBootstrap.ensureConfigured()
+        _ = Self.firebaseLaunchOrdering
         #if DEBUG
         #if canImport(UIKit)
         // Quiets “Unable to simultaneously satisfy constraints” spam from UIKit-backed text inputs (does not affect
@@ -88,7 +88,6 @@ struct RatioVitaApp: App {
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
                 }
                 .task { @MainActor in
-                    RatioVitaFirebaseBootstrap.ensureConfigured()
                     SovereignContextManager.shared.completeDeferredLaunchSetup()
                     let ctx = ModelContext(sharedModelContainer)
                     if let recovery = ReceiptWorkspaceBatchGuard.consumePendingRecoveryAlert() {

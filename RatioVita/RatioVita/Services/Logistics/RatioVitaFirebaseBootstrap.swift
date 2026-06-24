@@ -14,14 +14,14 @@ import FirebaseFirestore
 enum RatioVitaFirebaseBootstrap {
     static private(set) var isConfigured = false
 
-    /// Runs before `RatioVitaApp.init()` when the type is first touched.
-    private static let launchGate: Void = {
+    /// Evaluated the first time this type is referenced — before `@main` App property initializers.
+    static let moduleBootstrap: Void = {
         configureIfNeededInternal()
     }()
 
     /// Idempotent configure — safe from App init, coordinators, and stream services.
     static func ensureConfigured() {
-        _ = launchGate
+        _ = moduleBootstrap
         configureIfNeededInternal()
     }
 

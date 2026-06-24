@@ -1,22 +1,16 @@
 import Foundation
 import SwiftData
 
-#if canImport(FirebaseCore)
-import FirebaseCore
-#endif
-
 /// Specialized financial expert squad — three operational strategies behind one orchestrator.
 @MainActor
 enum FinancialIntelligenceEngine {
     static func runAll(modelContext: ModelContext) throws -> [FinancialIntelligenceReport] {
-        #if canImport(FirebaseCore)
-        if FirebaseApp.allApps?.isEmpty ?? true {
+        if !RatioVitaFirebaseBootstrap.isConfigured {
             #if DEBUG
             print("[WARN] FinancialIntelligenceEngine: Skipping background pass. Firebase not yet configured.")
             #endif
             return []
         }
-        #endif
 
         var reports: [FinancialIntelligenceReport] = []
         reports.append(try runOperationalBookkeeper(modelContext: modelContext))

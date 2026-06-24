@@ -14,7 +14,7 @@ struct SamplesLibraryView: View {
     #endif
 
     init() {
-        _viewModel = StateObject(wrappedValue: ReceiptsViewModel(scanner: PreviewScannerService()))
+        _viewModel = StateObject(wrappedValue: ReceiptsViewModel())
     }
 
     var body: some View {
@@ -136,6 +136,7 @@ struct SamplesLibraryView: View {
             }
         #endif
             .onAppear {
+                viewModel.bootstrapScannerIfNeeded()
                 viewModel.updateDependencies(context: modelContext)
             }
     }

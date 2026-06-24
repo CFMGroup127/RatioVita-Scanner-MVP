@@ -3,9 +3,7 @@ import SwiftData
 /// Single source of truth for the on-disk **SwiftData** schema (app container + Sovereign restore sidecar).
 enum LibrarySwiftDataSchema {
     /// Stable fingerprint for store-recovery messaging when the schema grows.
-    static var schemaFingerprint: String {
-        "v2026-06-24-line-item-ledger-primitives"
-    }
+    nonisolated static let schemaFingerprint = "v2026-06-24-line-item-ledger-primitives"
 
     static func makeSchema() -> Schema {
         Schema([
