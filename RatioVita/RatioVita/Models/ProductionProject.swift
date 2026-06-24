@@ -70,6 +70,9 @@ final class ProductionProject {
 
     var businessEntity: BusinessEntity?
 
+    /// Stable sovereign production instance id — e.g. `PROD-FP-2026-0304`.
+    var sovereignPUID: String?
+
     @Relationship(deleteRule: .nullify, inverse: \Receipt.productionProject)
     var receipts: [Receipt]
 

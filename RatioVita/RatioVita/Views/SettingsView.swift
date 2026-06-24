@@ -335,6 +335,9 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink("Sovereign onboarding QR") {
+                        SovereignProfileCardView()
+                    }
                     NavigationLink("Sovereign identity profile") {
                         OnboardingMasterSetupView()
                     }

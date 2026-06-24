@@ -139,6 +139,7 @@ struct OnboardingMasterSetupView: View {
             UserDefaults.standard.set(name, forKey: "com.ratiovita.internalOwnerLegalName")
         }
         try ModelContextMainActorSave.saveThrows(modelContext)
+        _ = try SovereignProfileBootstrap.ensureProfile(for: profile, modelContext: modelContext)
     }
 
     private func saveDraft() {

@@ -4,7 +4,7 @@ import SwiftData
 enum LibrarySwiftDataSchema {
     /// Stable fingerprint for store-recovery messaging when the schema grows.
     static var schemaFingerprint: String {
-        "v2026-06-23-sovereign-context-triage"
+        "v2026-06-24-sovereign-profile-privacy"
     }
 
     static func makeSchema() -> Schema {
@@ -28,6 +28,7 @@ enum LibrarySwiftDataSchema {
             ArcticVaultFolder.self,
             MerchantFilingRule.self,
             SovereignAuditLogEntry.self,
+            SovereignProfile.self,
             LaborAgreement.self,
             ShowLaborPositionRate.self,
             CrewTimecardDay.self,
