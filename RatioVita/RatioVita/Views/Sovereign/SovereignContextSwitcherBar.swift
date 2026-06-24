@@ -11,15 +11,23 @@ struct SovereignContextSwitcherBar: View {
 
     @Query(sort: \ProductionProject.title) private var productions: [ProductionProject]
 
+    private var activeHubTitle: String { context.activeHub.title }
+    private var activeHubIcon: String { context.activeHub.systemImage }
+    private var subtitleText: String { context.displaySubtitle }
+    private var scopeLabel: String { context.isolationScopeLabel }
+    private var needsProductionPin: Bool {
+        context.activeHub == .production && context.activeProductionID == nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: context.activeHub.systemImage)
+                Image(systemName: activeHubIcon)
                     .foregroundStyle(brandAccent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Sovereign Context")
                         .font(DesignSystem.Typography.caption.weight(.semibold))
-                    Text(context.displaySubtitle)
+                    Text(subtitleText)
                         .font(DesignSystem.Typography.caption2)
                         .foregroundStyle(Color.ratioVitaTextSecondary)
                         .lineLimit(2)
@@ -28,12 +36,12 @@ struct SovereignContextSwitcherBar: View {
                 hubMenu
             }
 
-            if context.activeHub == .production, context.activeProductionID == nil {
+            if needsProductionPin {
                 Text("Select a production below to enter strict isolation mode.")
                     .font(DesignSystem.Typography.caption2)
                     .foregroundStyle(.orange)
             } else {
-                Text(context.isolationScopeLabel)
+                Text(scopeLabel)
                     .font(DesignSystem.Typography.caption2)
                     .foregroundStyle(Color.ratioVitaTextSecondary)
             }
@@ -47,36 +55,47 @@ struct SovereignContextSwitcherBar: View {
 
     private var hubMenu: some View {
         Menu {
-            Button {
-                context.switchToPersonalHub()
-            } label: {
-                Label("Personal Hub", systemImage: SovereignHubKind.personal.systemImage)
+            Section("Personal") {
+                Button {
+                    scheduleHubSwitch { context.switchToPersonalHub() }
+                } label: {
+                    Label("Personal Hub", systemImage: SovereignHubKind.personal.systemImage)
+                }
             }
 
-            Menu("Ventures Hub") {
+            Section("Ventures Hub") {
                 Button("All ventures") {
-                    context.switchToVenturesHub(ventureEntityID: nil)
+                    scheduleHubSwitch { context.switchToVenturesHub(ventureEntityID: nil) }
                 }
                 ForEach(ventureEntities) { entity in
                     Button(entity.legalName) {
-                        context.switchToVenturesHub(ventureEntityID: entity.id)
+                        scheduleHubSwitch { context.switchToVenturesHub(ventureEntityID: entity.id) }
                     }
                 }
             }
 
-            Menu("Production Mode") {
+            Section("Production Mode") {
                 ForEach(productions) { project in
                     Button(project.title) {
-                        context.switchToProductionMode(productionID: project.id)
+                        scheduleHubSwitch { context.switchToProductionMode(productionID: project.id) }
                     }
                 }
             }
         } label: {
-            Label(context.activeHub.title, systemImage: "arrow.triangle.swap")
+            Label(activeHubTitle, systemImage: "arrow.triangle.swap")
                 .font(DesignSystem.Typography.caption.weight(.semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(Capsule().fill(brandAccent.opacity(0.15)))
+        }
+        .menuStyle(.borderlessButton)
+        .id(activeHubTitle)
+    }
+
+    /// Avoid mutating global `@Published` state during nested menu layout passes (macOS submenu storm).
+    private func scheduleHubSwitch(_ action: @escaping @MainActor () -> Void) {
+        DispatchQueue.main.async {
+            action()
         }
     }
 }

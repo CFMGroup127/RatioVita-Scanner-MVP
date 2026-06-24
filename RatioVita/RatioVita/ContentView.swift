@@ -407,10 +407,14 @@ private struct SidebarSplitShell: View {
             applyHomeNavigationSplit()
         }
         .onChange(of: sovereignContext.activeHub) { _, _ in
-            reconcileSelectionForActiveHub()
+            DispatchQueue.main.async {
+                reconcileSelectionForActiveHub()
+            }
         }
         .onChange(of: ledgerCatalogRevision) { _, _ in
-            reconcileSelectionForActiveHub()
+            DispatchQueue.main.async {
+                reconcileSelectionForActiveHub()
+            }
         }
         .sheet(isPresented: $showCorporateRegistryFromShell) {
             NavigationStack { CorporateRegistryView() }

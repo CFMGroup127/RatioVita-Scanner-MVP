@@ -113,23 +113,23 @@ final class SovereignContextManager: ObservableObject {
 
     func switchToPersonalHub() {
         activeHub = .personal
-        persist()
-        setupFirebaseListenersIfReady()
+        persistUserDefaults()
+        scheduleDeferredSideEffects()
     }
 
     func switchToVenturesHub(ventureEntityID: UUID? = nil) {
         activeHub = .ventures
         activeVentureEntityID = ventureEntityID
-        persist()
-        setupFirebaseListenersIfReady()
+        persistUserDefaults()
+        scheduleDeferredSideEffects()
     }
 
     func switchToProductionMode(productionID: UUID) {
         activeHub = .production
         activeProductionID = productionID
         UserDefaults.standard.set(productionID.uuidString, forKey: Keys.legacyForensicProductionID)
-        persist()
-        setupFirebaseListenersIfReady()
+        persistUserDefaults()
+        scheduleDeferredSideEffects()
     }
 
     /// Returns true when `productionProjectID` belongs in the current isolation scope.
@@ -166,7 +166,7 @@ final class SovereignContextManager: ObservableObject {
         }
     }
 
-    private func persist() {
+    private func persistUserDefaults() {
         UserDefaults.standard.set(activeHub.rawValue, forKey: Keys.hub)
         if let venture = activeVentureEntityID {
             UserDefaults.standard.set(venture.uuidString, forKey: Keys.ventureID)
@@ -178,12 +178,14 @@ final class SovereignContextManager: ObservableObject {
         } else {
             UserDefaults.standard.removeObject(forKey: Keys.productionID)
         }
-        AgentMantleRegistry.shared.applyApplicationContext(
-            activeAgentMantle,
-            productionID: activeProductionID,
-            ventureEntityID: activeVentureEntityID,
-            activeHub: activeHub
-        )
+    }
+
+    private func scheduleDeferredSideEffects() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.applyMantleContext()
+            self.setupFirebaseListenersIfReady()
+        }
     }
 
     private func applyMantleContext() {
