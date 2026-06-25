@@ -95,6 +95,9 @@ struct RatioVitaApp: App {
                 }
                 .task { @MainActor in
                     await ReceiptReviewQueueStore.shared.refreshTotalCount(container: sharedModelContainer)
+                    LocalIndexEnvironmentGuard.prepareOnLaunch(
+                        reviewQueueCount: ReceiptReviewQueueStore.shared.totalCount
+                    )
                     SovereignContextManager.shared.completeDeferredLaunchSetup()
                     let ctx = ModelContext(sharedModelContainer)
                     if let recovery = ReceiptWorkspaceBatchGuard.consumePendingRecoveryAlert() {
@@ -286,6 +289,7 @@ struct FinanceAgentsPeriodicTrigger: ViewModifier {
 
     @MainActor
     private func runFinanceAgentsIfDue() async {
+        guard !LocalIndexEnvironmentGuard.shouldDeferSystemIndexing else { return }
         let enabled = UserDefaults.standard.object(forKey: financeAgentsPeriodicEnabledKey) as? Bool ?? true
         guard enabled else { return }
 

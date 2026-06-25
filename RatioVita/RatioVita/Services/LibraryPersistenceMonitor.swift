@@ -17,6 +17,12 @@ enum LibraryPersistenceMonitor {
 
     /// Captures counts off the main thread, then persists metadata without blocking navigation.
     static func recordSnapshot(container: ModelContainer, reason: String) {
+        guard !LocalIndexEnvironmentGuard.shouldDeferSystemIndexing else {
+            #if DEBUG
+            print("[LibraryPersistenceMonitor] Skipping snapshot (\(reason)) — index environment under pressure.")
+            #endif
+            return
+        }
         Task.detached(priority: .utility) {
             let snap = captureOnBackground(container: container)
             await MainActor.run {
@@ -74,6 +80,8 @@ enum LibraryPersistenceMonitor {
         }
         UserDefaults.standard.set(snap.schemaFingerprint, forKey: lastSchemaKey)
 
+        guard !LocalIndexEnvironmentGuard.shouldDeferSystemIndexing else { return }
+
         Task { @MainActor in
             await Task.yield()
             let context = ModelContext(container)
@@ -93,13 +101,24 @@ enum LibraryPersistenceMonitor {
         context.autosaveEnabled = false
         var descriptor = FetchDescriptor<Receipt>()
         descriptor.includePendingChanges = false
-        let receipts = (try? context.fetch(descriptor)) ?? []
-        let review = receipts.filter { $0.pendingHumanReview && $0.trashedAt == nil }.count
-        let trashed = receipts.filter { $0.trashedAt != nil }.count
+        let receiptCount = (try? context.fetchCount(descriptor)) ?? 0
+
+        var reviewDescriptor = FetchDescriptor<Receipt>(
+            predicate: #Predicate { $0.pendingHumanReview == true && $0.trashedAt == nil }
+        )
+        reviewDescriptor.includePendingChanges = false
+        let review = (try? context.fetchCount(reviewDescriptor)) ?? 0
+
+        var trashedDescriptor = FetchDescriptor<Receipt>(
+            predicate: #Predicate { $0.trashedAt != nil }
+        )
+        trashedDescriptor.includePendingChanges = false
+        let trashed = (try? context.fetchCount(trashedDescriptor)) ?? 0
+
         return Snapshot(
             capturedAt: .now,
             schemaFingerprint: LibrarySwiftDataSchema.schemaFingerprint,
-            receiptCount: receipts.count,
+            receiptCount: receiptCount,
             reviewQueueCount: review,
             trashedCount: trashed
         )

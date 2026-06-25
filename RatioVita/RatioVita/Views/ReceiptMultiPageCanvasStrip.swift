@@ -144,8 +144,8 @@ struct ReceiptMultiPageCanvasStrip: View {
                     Image(rvImage: platformImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                        .frame(maxHeight: 360)
+                        .frame(maxWidth: .infinity, maxHeight: 360)
+                        .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous))
                         .shadow(DesignSystem.Shadow.small)
                         .onTapGesture {

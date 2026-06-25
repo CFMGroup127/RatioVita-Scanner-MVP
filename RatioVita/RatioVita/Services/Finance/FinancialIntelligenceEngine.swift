@@ -5,6 +5,9 @@ import SwiftData
 @MainActor
 enum FinancialIntelligenceEngine {
     static func runAll(modelContext: ModelContext) throws -> [FinancialIntelligenceReport] {
+        if LocalIndexEnvironmentGuard.shouldDeferSystemIndexing {
+            return []
+        }
         if !RatioVitaFirebaseBootstrap.isConfigured {
             #if DEBUG
             print("[WARN] FinancialIntelligenceEngine: Skipping background pass. Firebase not yet configured.")

@@ -52,6 +52,11 @@ enum RatioVitaFirebaseBootstrap {
         {
             FirebaseApp.configure(options: options)
             isConfigured = true
+            #if canImport(FirebaseFirestore)
+            let settings = FirestoreSettings()
+            settings.cacheSizeBytes = 400 * 1024 * 1024
+            Firestore.firestore().settings = settings
+            #endif
             #if DEBUG
             print("RatioVita Firebase: configured from GoogleService-Info.plist")
             #endif
@@ -72,6 +77,11 @@ enum RatioVitaFirebaseBootstrap {
 
         FirebaseApp.configure(options: options)
         isConfigured = true
+        #if canImport(FirebaseFirestore)
+        let settings = FirestoreSettings()
+        settings.cacheSizeBytes = 400 * 1024 * 1024
+        Firestore.firestore().settings = settings
+        #endif
         Task { await ensureAuthenticatedSession() }
         #endif
     }

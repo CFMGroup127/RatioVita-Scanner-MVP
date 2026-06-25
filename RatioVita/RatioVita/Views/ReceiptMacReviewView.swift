@@ -305,7 +305,7 @@ struct ReceiptMacReviewView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundStyle(.secondary)
                 if let rv = img.platformImage {
-                    ZoomableDocumentImageView(image: rv, maxHeight: 480)
+                    ZoomableDocumentImageView(image: rv, imageID: img.id, maxHeight: 480)
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm, style: .continuous)
                                 .stroke(
