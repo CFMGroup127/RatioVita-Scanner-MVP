@@ -22,21 +22,19 @@ final class ReceiptsViewModel: ObservableObject {
 
     init() {}
 
-    private var scanner: ScannerService {
-        if let scannerStorage { return scannerStorage }
-        let preview = PreviewScannerService()
-        scannerStorage = preview
-        return preview
-    }
-
-    /// Lazily installs the preview scanner on the main actor (safe for Swift 6 view-model wiring).
+    /// Installs the preview scanner once — never mutates during SwiftUI body evaluation.
     func bootstrapScannerIfNeeded() {
-        _ = scanner
+        guard scannerStorage == nil else { return }
+        scannerStorage = PreviewScannerService()
     }
 
-    /// Scanner passed into capture sheets after lazy bootstrap.
+    /// Scanner passed into capture sheets after explicit bootstrap (read-only accessor).
     var scannerForUI: ScannerService {
-        scanner
+        guard let scannerStorage else {
+            assertionFailure("bootstrapScannerIfNeeded() must run before presenting scanner UI")
+            return PreviewScannerService()
+        }
+        return scannerStorage
     }
 
     // Update dependencies safely (avoid reassigning the @StateObject in the view).
@@ -72,7 +70,9 @@ final class ReceiptsViewModel: ObservableObject {
     }
 
     func scanAndSave() async {
+        bootstrapScannerIfNeeded()
         ensureProductionScannerIfNeeded()
+        guard let scanner = scannerStorage else { return }
         isScanning = true
         defer { isScanning = false }
 
