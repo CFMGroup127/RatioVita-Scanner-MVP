@@ -5,6 +5,8 @@ enum SafeLayoutBounds {
     static let maxMacColumnWidth: CGFloat = 600
     static let maxDetailPaneWidth: CGFloat = 900
     static let maxTimecardPreviewWidth: CGFloat = 720
+    static let maxDocumentPreviewWidth: CGFloat = 720
+    static let maxDocumentPreviewHeight: CGFloat = 520
     static let maxWorkspaceContentWidth: CGFloat = 1200
     static let maxWindowWidth: CGFloat = 2400
     static let maxWindowHeight: CGFloat = 1600
@@ -20,5 +22,17 @@ enum SafeLayoutBounds {
         ]
         return headers.reduce(CGFloat(0)) { $0 + FixedColumnWidths.matrixColumnWidth(header: $1) }
             + CGFloat(headers.count - 1) * 6
+    }
+
+    /// Clamps a proposed layout dimension so AppKit never receives overflowed frame proposals.
+    static func clampedLayoutDimension(
+        _ value: CGFloat,
+        min minValue: CGFloat = 1,
+        max maxValue: CGFloat,
+        fallback: CGFloat? = nil
+    ) -> CGFloat {
+        let resolvedFallback = fallback ?? Swift.min(maxValue, Swift.max(minValue, 400))
+        guard value.isFinite, value > 0 else { return resolvedFallback }
+        return Swift.min(maxValue, Swift.max(minValue, value))
     }
 }

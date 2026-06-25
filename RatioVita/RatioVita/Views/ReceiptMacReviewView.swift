@@ -75,7 +75,15 @@ struct ReceiptMacReviewView: View {
     var body: some View {
         NavigationSplitView {
             documentPreviewColumn
-                .navigationSplitViewColumnWidth(min: 280, ideal: 420, max: 720)
+                .boundedDocumentPreviewCanvas(
+                    maxWidth: SafeLayoutBounds.maxDocumentPreviewWidth,
+                    maxHeight: SafeLayoutBounds.maxDocumentPreviewHeight
+                )
+                .navigationSplitViewColumnWidth(
+                    min: 280,
+                    ideal: 420,
+                    max: SafeLayoutBounds.maxDocumentPreviewWidth
+                )
         } detail: {
             if let day = dealMemoTimecardDay {
                 dealMemoTimecardWorkspace(day)

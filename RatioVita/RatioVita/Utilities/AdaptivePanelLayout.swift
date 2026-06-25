@@ -34,6 +34,24 @@ extension View {
             alignment: alignment
         )
     }
+
+    /// Caps document preview canvases so image layout cannot propose multi-billion-point frames.
+    func boundedDocumentPreviewCanvas(
+        maxWidth: CGFloat = SafeLayoutBounds.maxDocumentPreviewWidth,
+        maxHeight: CGFloat = SafeLayoutBounds.maxDocumentPreviewHeight
+    ) -> some View {
+        frame(
+            maxWidth: SafeLayoutBounds.clampedLayoutDimension(
+                maxWidth,
+                max: SafeLayoutBounds.maxDocumentPreviewWidth
+            ),
+            maxHeight: SafeLayoutBounds.clampedLayoutDimension(
+                maxHeight,
+                max: SafeLayoutBounds.maxDocumentPreviewHeight
+            )
+        )
+        .clipped()
+    }
 }
 
 // MARK: - Labeled form rows (macOS production editor)

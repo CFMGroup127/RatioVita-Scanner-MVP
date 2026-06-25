@@ -1039,7 +1039,11 @@ private struct ReceiptDetailImageRow: View {
                     Image(rvImage: platformImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 360)
+                        .frame(
+                            maxWidth: SafeLayoutBounds.maxDocumentPreviewWidth,
+                            maxHeight: SafeLayoutBounds.maxDocumentPreviewHeight
+                        )
+                        .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous))
                         .shadow(DesignSystem.Shadow.small)
                         .onTapGesture(perform: onExpand)

@@ -10,21 +10,32 @@ struct ZoomableDocumentImageView: View {
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
 
+    private var boundedMaxHeight: CGFloat {
+        SafeLayoutBounds.clampedLayoutDimension(
+            maxHeight,
+            max: SafeLayoutBounds.maxDocumentPreviewHeight
+        )
+    }
+
     var body: some View {
         GeometryReader { geometry in
-            let canvasWidth = max(geometry.size.width, 1)
+            let canvasWidth = SafeLayoutBounds.clampedLayoutDimension(
+                geometry.size.width,
+                max: SafeLayoutBounds.maxDocumentPreviewWidth,
+                fallback: 400
+            )
+            let canvasHeight = boundedMaxHeight
             ScrollView([.horizontal, .vertical]) {
                 Image(rvImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: canvasWidth, maxHeight: maxHeight)
+                    .frame(maxWidth: canvasWidth, maxHeight: canvasHeight)
                     .scaleEffect(scale)
                     .padding(DesignSystem.Spacing.sm)
             }
-            .frame(width: canvasWidth, height: maxHeight)
+            .frame(width: canvasWidth, height: canvasHeight)
         }
-        .frame(maxWidth: .infinity, maxHeight: maxHeight)
-        .clipped()
+        .boundedDocumentPreviewCanvas(maxHeight: boundedMaxHeight)
         .background(Color.ratioVitaAdaptiveSurface.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous))
         .gesture(

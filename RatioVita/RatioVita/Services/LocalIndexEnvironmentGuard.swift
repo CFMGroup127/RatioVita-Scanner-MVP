@@ -65,12 +65,9 @@ enum LocalIndexEnvironmentGuard {
 
     private static func configureFirestorePersistenceCapacity() {
         #if canImport(FirebaseFirestore)
-        guard RatioVitaFirebaseBootstrap.isConfigured else { return }
-        let settings = FirestoreSettings()
-        settings.cacheSizeBytes = 400 * 1024 * 1024
-        Firestore.firestore().settings = settings
+        RatioVitaFirebaseBootstrap.applyFirestoreCacheSettings()
         #if DEBUG
-        print("[LocalIndexEnvironmentGuard] Firestore cache size set to 400 MB.")
+        print("[LocalIndexEnvironmentGuard] Firestore persistent cache set to 400 MB.")
         #endif
         #endif
     }

@@ -32,6 +32,18 @@ enum RatioVitaFirebaseBootstrap {
         guard isConfigured else { return nil }
         return Firestore.firestore()
     }
+
+    static let firestorePersistentCacheBytes: Int64 = 400 * 1024 * 1024
+
+    /// Applies the modern `cacheSettings` API (replaces deprecated `cacheSizeBytes`).
+    static func applyFirestoreCacheSettings() {
+        guard isConfigured else { return }
+        let settings = FirestoreSettings()
+        settings.cacheSettings = PersistentCacheSettings(
+            sizeBytes: NSNumber(value: firestorePersistentCacheBytes)
+        )
+        Firestore.firestore().settings = settings
+    }
     #endif
 
     static func configureIfNeeded() {
@@ -53,9 +65,7 @@ enum RatioVitaFirebaseBootstrap {
             FirebaseApp.configure(options: options)
             isConfigured = true
             #if canImport(FirebaseFirestore)
-            let settings = FirestoreSettings()
-            settings.cacheSizeBytes = 400 * 1024 * 1024
-            Firestore.firestore().settings = settings
+            applyFirestoreCacheSettings()
             #endif
             #if DEBUG
             print("RatioVita Firebase: configured from GoogleService-Info.plist")
@@ -78,9 +88,7 @@ enum RatioVitaFirebaseBootstrap {
         FirebaseApp.configure(options: options)
         isConfigured = true
         #if canImport(FirebaseFirestore)
-        let settings = FirestoreSettings()
-        settings.cacheSizeBytes = 400 * 1024 * 1024
-        Firestore.firestore().settings = settings
+        applyFirestoreCacheSettings()
         #endif
         Task { await ensureAuthenticatedSession() }
         #endif
