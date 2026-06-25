@@ -94,12 +94,11 @@ struct OpenSwamperTerminalIntent: AppIntent {
 }
 
 struct RatioVitaShortcuts: AppShortcutsProvider {
-    @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         #if DEBUG
-        // CSInlineDonation bypass — registering shortcuts in DEBUG triggers daemon LMDB pressure.
+        return []
         #else
-        productionAppShortcuts
+        return productionAppShortcuts
         #endif
     }
 
