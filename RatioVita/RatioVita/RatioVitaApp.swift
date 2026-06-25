@@ -88,9 +88,6 @@ struct RatioVitaApp: App {
                 .ratioVitaWindowSizing()
                 #endif
                 .logisticsLiveSync()
-                .sovereignOnboardingGate()
-                .setOSOnboardingGate()
-                .consultantProgramGate()
                 .onOpenURL { url in
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
                 }

@@ -50,7 +50,6 @@ private struct OnboardingWizardPresentationModifier: ViewModifier {
 }
 
 extension View {
-    func setOSOnboardingGate() -> some View {
-        modifier(SetOSOnboardingGate())
-    }
+    /// Deprecated — launch modals are coordinated by `launchModalGate()` on the app root.
+    func setOSOnboardingGate() -> some View { self }
 }

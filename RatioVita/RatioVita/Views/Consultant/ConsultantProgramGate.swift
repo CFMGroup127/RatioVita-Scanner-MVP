@@ -27,7 +27,6 @@ struct ConsultantProgramGate: ViewModifier {
 }
 
 extension View {
-    func consultantProgramGate() -> some View {
-        modifier(ConsultantProgramGate())
-    }
+    /// Deprecated — launch modals are coordinated by `launchModalGate()` on the app root.
+    func consultantProgramGate() -> some View { self }
 }

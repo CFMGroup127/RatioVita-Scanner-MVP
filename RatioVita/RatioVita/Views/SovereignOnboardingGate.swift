@@ -23,7 +23,6 @@ struct SovereignOnboardingGate: ViewModifier {
 }
 
 extension View {
-    func sovereignOnboardingGate() -> some View {
-        modifier(SovereignOnboardingGate())
-    }
+    /// Deprecated — launch modals are coordinated by `launchModalGate()` on the app root.
+    func sovereignOnboardingGate() -> some View { self }
 }

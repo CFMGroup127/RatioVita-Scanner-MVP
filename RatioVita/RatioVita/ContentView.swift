@@ -8,6 +8,33 @@
 import SwiftData
 import SwiftUI
 
+// MARK: - Root presentation (single sheet)
+
+private enum RootPresentationModal: Identifiable {
+    case launch(LaunchModal)
+    case shell(ShellPresentationModal)
+
+    var id: String {
+        switch self {
+        case .launch(let modal): "launch-\(modal.id)"
+        case .shell(let modal): "shell-\(String(describing: modal.id))"
+        }
+    }
+}
+
+// MARK: - Shell navigation modals
+
+private enum ShellPresentationModal: Identifiable {
+    case corporateRegistry
+    case productionRegistry
+    case sovereignAudit
+    case contacts
+    case inventory
+    case crewFeedback
+
+    var id: Self { self }
+}
+
 struct ContentView: View {
     @ObservedObject private var userMessages = UserMessageCenter.shared
     @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
@@ -17,10 +44,9 @@ struct ContentView: View {
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
     @State private var phoneLibraryTabSelection: Int = 0
-    @State private var showCorporateRegistryFromShell = false
-    @State private var showProductionRegistryFromShell = false
-    @State private var showSovereignAuditFromShell = false
-    @State private var showContactsFromShell = false
+    @State private var activeLaunchModal: LaunchModal?
+    @State private var activeShellModal: ShellPresentationModal?
+    @ObservedObject private var consultantSession = ConsultantSessionManager.shared
 
     @Query(
         filter: #Predicate<BankTransaction> {
@@ -72,14 +98,16 @@ struct ContentView: View {
             SidebarSplitShell(
                 pendingReviewCount: scopedPendingReviewCount,
                 trashCount: trashedReceipts.count,
-                unmatchedBankCount: scopedUnmatchedBankCount
+                unmatchedBankCount: scopedUnmatchedBankCount,
+                activeShellModal: $activeShellModal
             )
             #else
             if horizontalSizeClass == .regular {
                 SidebarSplitShell(
                     pendingReviewCount: scopedPendingReviewCount,
                     trashCount: trashedReceipts.count,
-                    unmatchedBankCount: scopedUnmatchedBankCount
+                    unmatchedBankCount: scopedUnmatchedBankCount,
+                    activeShellModal: $activeShellModal
                 )
             } else {
                 TabView(selection: $phoneLibraryTabSelection) {
@@ -164,25 +192,24 @@ struct ContentView: View {
                 .onChange(of: libraryNavigationCoordinator.homeNavigationSignal) { _, _ in
                     applyHomeNavigationPhone()
                 }
-                .sheet(isPresented: $showCorporateRegistryFromShell) {
-                    NavigationStack { CorporateRegistryView() }
-                }
-                .sheet(isPresented: $showProductionRegistryFromShell) {
-                    NavigationStack { ProductionWorkspaceView() }
-                }
-                .sheet(isPresented: $showSovereignAuditFromShell) {
-                    NavigationStack { SovereignAuditLogListView() }
-                }
-                .sheet(isPresented: $showContactsFromShell) {
-                    NavigationStack { ProductionContactsLibraryView() }
-                }
             }
             #endif
         }
         .swiftDataCloudKitRemoteMergeRefresh()
         .shakeToFeedback(context: "RatioVita")
-        .sheet(isPresented: $feedbackManager.showOverlay) {
-            CrewFeedbackOverlayView()
+        .launchModalCoordinator(activeLaunchModal: $activeLaunchModal)
+        .onChange(of: feedbackManager.showOverlay) { _, show in
+            if show {
+                activeShellModal = .crewFeedback
+            } else if activeShellModal == .crewFeedback {
+                activeShellModal = nil
+            }
+        }
+        .sheet(item: rootPresentationBinding) { modal in
+            rootModalContent(modal)
+                #if os(macOS)
+                .frame(minWidth: 560, minHeight: 640)
+                #endif
         }
         .alert(userMessages.title, isPresented: $userMessages.isPresented) {
             Button("OK", role: .cancel) {
@@ -196,15 +223,15 @@ struct ContentView: View {
     #if !os(macOS)
     private func applyHomeNavigationPhone() {
         if libraryNavigationCoordinator.consumeCorporateRegistryPresentationIfNeeded() {
-            showCorporateRegistryFromShell = true
+            activeShellModal = .corporateRegistry
             return
         }
         if libraryNavigationCoordinator.consumeProductionRegistryPresentationIfNeeded() {
-            showProductionRegistryFromShell = true
+            activeShellModal = .productionRegistry
             return
         }
         if libraryNavigationCoordinator.consumeSovereignAuditPresentationIfNeeded() {
-            showSovereignAuditFromShell = true
+            activeShellModal = .sovereignAudit
             return
         }
         guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
@@ -214,11 +241,11 @@ struct ContentView: View {
             case .laborSentinel:
                 phoneLibraryTabSelection = 7
             case .productions:
-                showProductionRegistryFromShell = true
+                activeShellModal = .productionRegistry
             case .finances:
                 phoneLibraryTabSelection = 4
             case .contacts:
-                showContactsFromShell = true
+                activeShellModal = .contacts
             case .inboxTriage:
                 phoneLibraryTabSelection = 0
             default:
@@ -226,6 +253,65 @@ struct ContentView: View {
         }
     }
     #endif
+
+    @ViewBuilder
+    private func shellModalContent(_ modal: ShellPresentationModal) -> some View {
+        switch modal {
+        case .corporateRegistry:
+            NavigationStack { CorporateRegistryView() }
+        case .productionRegistry:
+            NavigationStack { ProductionWorkspaceView() }
+        case .sovereignAudit:
+            NavigationStack { SovereignAuditLogListView() }
+        case .contacts:
+            NavigationStack { ProductionContactsLibraryView() }
+        case .inventory:
+            InventoryModuleView()
+        case .crewFeedback:
+            CrewFeedbackOverlayView()
+        }
+    }
+
+    private var rootPresentationBinding: Binding<RootPresentationModal?> {
+        Binding(
+            get: {
+                if let activeLaunchModal {
+                    return .launch(activeLaunchModal)
+                }
+                if let activeShellModal {
+                    return .shell(activeShellModal)
+                }
+                return nil
+            },
+            set: { newValue in
+                switch newValue {
+                case .launch(let modal):
+                    activeLaunchModal = modal
+                    activeShellModal = nil
+                case .shell(let modal):
+                    activeShellModal = modal
+                    activeLaunchModal = nil
+                case nil:
+                    activeLaunchModal = nil
+                    activeShellModal = nil
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func rootModalContent(_ modal: RootPresentationModal) -> some View {
+        switch modal {
+        case .launch(let launchModal):
+            LaunchModalPresenter.content(
+                for: launchModal,
+                activeLaunchModal: $activeLaunchModal,
+                consultantSession: consultantSession
+            )
+        case .shell(let shellModal):
+            shellModalContent(shellModal)
+        }
+    }
 }
 
 // MARK: - Sidebar split shell (macOS + iPad)
@@ -325,6 +411,7 @@ private struct SidebarSplitShell: View {
     let pendingReviewCount: Int
     let trashCount: Int
     let unmatchedBankCount: Int
+    @Binding var activeShellModal: ShellPresentationModal?
 
     @Query(
         filter: #Predicate<Receipt> { !$0.pendingHumanReview && $0.trashedAt == nil },
@@ -343,10 +430,6 @@ private struct SidebarSplitShell: View {
     }
 
     @State private var selection: SidebarPane = .home
-    @State private var showCorporateRegistryFromShell = false
-    @State private var showProductionRegistryFromShell = false
-    @State private var showSovereignAuditFromShell = false
-    @State private var showInventoryFromShell = false
     @State private var ledgerCatalogRevision = 0
 
     #if os(macOS)
@@ -404,17 +487,12 @@ private struct SidebarSplitShell: View {
                 reconcileSelectionForActiveHub()
             }
         }
-        .sheet(isPresented: $showCorporateRegistryFromShell) {
-            NavigationStack { CorporateRegistryView() }
-        }
-        .sheet(isPresented: $showProductionRegistryFromShell) {
-            NavigationStack { ProductionWorkspaceView() }
-        }
-        .sheet(isPresented: $showSovereignAuditFromShell) {
-            NavigationStack { SovereignAuditLogListView() }
-        }
-        .sheet(isPresented: $showInventoryFromShell) {
-            InventoryModuleView()
+        .onChange(of: feedbackManager.showOverlay) { _, show in
+            if show {
+                activeShellModal = .crewFeedback
+            } else if activeShellModal == .crewFeedback {
+                activeShellModal = nil
+            }
         }
         .onAppear {
             InternalIdentityRegistry.syncOwnedEntities(context: modelContext)
@@ -423,22 +501,19 @@ private struct SidebarSplitShell: View {
             TestingMissionBannerView()
         }
         .shakeToFeedback(context: "Sidebar · \(selection.title)")
-        .sheet(isPresented: $feedbackManager.showOverlay) {
-            CrewFeedbackOverlayView()
-        }
     }
 
     private func applyHomeNavigationSplit() {
         if libraryNavigationCoordinator.consumeCorporateRegistryPresentationIfNeeded() {
-            showCorporateRegistryFromShell = true
+            activeShellModal = .corporateRegistry
             return
         }
         if libraryNavigationCoordinator.consumeProductionRegistryPresentationIfNeeded() {
-            showProductionRegistryFromShell = true
+            activeShellModal = .productionRegistry
             return
         }
         if libraryNavigationCoordinator.consumeSovereignAuditPresentationIfNeeded() {
-            showSovereignAuditFromShell = true
+            activeShellModal = .sovereignAudit
             return
         }
         guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
@@ -448,7 +523,7 @@ private struct SidebarSplitShell: View {
             case .productions: selection = .productions
             case .finances: selection = .reconciliation
             case .contacts: selection = .contacts
-            case .inventory: showInventoryFromShell = true
+            case .inventory: activeShellModal = .inventory
             case .inboxTriage: selection = .inboxTriage
             case .insurance: selection = .cabinet(.equipment)
             default: selection = .home
