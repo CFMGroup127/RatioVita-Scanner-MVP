@@ -414,4 +414,34 @@ enum FinderReceiptSortEngine {
         if let id = focused, sorted.contains(where: { $0.id == id }) { return }
         focused = sorted[0].id
     }
+
+    /// Compact list fingerprint — avoids `onChange(of: [UUID])` feedback loops during pagination.
+    static func listIdentitySignature(for sorted: [Receipt]) -> String {
+        guard let first = sorted.first, let last = sorted.last else { return "empty" }
+        if sorted.count == 1 { return "1-\(first.id.uuidString)" }
+        return "\(sorted.count)-\(first.id.uuidString)-\(last.id.uuidString)"
+    }
+
+    /// Defers column/gallery chrome sync to the next run-loop turn (prevents per-frame mutation warnings).
+    static func scheduleFinderChromeSync(
+        selectedProjectColumn: Binding<String>,
+        galleryFocusedId: Binding<UUID?>,
+        sorted: [Receipt]
+    ) {
+        let snapshot = sorted
+        DispatchQueue.main.async {
+            var column = selectedProjectColumn.wrappedValue
+            var focus = galleryFocusedId.wrappedValue
+            let beforeColumn = column
+            let beforeFocus = focus
+            syncColumnSelection(selected: &column, sorted: snapshot)
+            syncGalleryFocus(focused: &focus, sorted: snapshot)
+            if column != beforeColumn {
+                selectedProjectColumn.wrappedValue = column
+            }
+            if focus != beforeFocus {
+                galleryFocusedId.wrappedValue = focus
+            }
+        }
+    }
 }

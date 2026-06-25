@@ -354,8 +354,11 @@ struct ReceiptsView: View {
         .onAppear {
             viewModel.bootstrapScannerIfNeeded()
             viewModel.updateDependencies(context: modelContext)
-            FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
-            FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
+            FinderReceiptSortEngine.scheduleFinderChromeSync(
+                selectedProjectColumn: $selectedProjectColumn,
+                galleryFocusedId: $galleryFocusedId,
+                sorted: sorted
+            )
             syncImportRequestWithScannerIfNeeded()
             openImportIfQueuedFromReview()
         }
@@ -372,15 +375,18 @@ struct ReceiptsView: View {
                 syncImportRequestWithScannerIfNeeded()
             }
         }
-        .onChange(of: sorted.map(\.id)) { _, _ in
-            Task { @MainActor in
-                FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
-                FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
-            }
+        .onChange(of: FinderReceiptSortEngine.listIdentitySignature(for: sorted)) { _, _ in
+            FinderReceiptSortEngine.scheduleFinderChromeSync(
+                selectedProjectColumn: $selectedProjectColumn,
+                galleryFocusedId: $galleryFocusedId,
+                sorted: sorted
+            )
         }
         .onChange(of: navReceiptPath) { oldPath, newPath in
-            if newPath.count > oldPath.count {
-                forwardReceiptPath.removeAll()
+            DispatchQueue.main.async {
+                if newPath.count > oldPath.count {
+                    forwardReceiptPath.removeAll()
+                }
             }
         }
         .sheet(isPresented: $viewModel.showScanner) {

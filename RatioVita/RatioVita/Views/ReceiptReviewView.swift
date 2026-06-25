@@ -233,35 +233,51 @@ struct ReceiptReviewView: View {
             Task {
                 await reviewQueue.resetAndLoadFirstPage(context: modelContext, container: modelContext.container)
             }
-            FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
-            FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
+            FinderReceiptSortEngine.scheduleFinderChromeSync(
+                selectedProjectColumn: $selectedProjectColumn,
+                galleryFocusedId: $galleryFocusedId,
+                sorted: sorted
+            )
         }
-        .onChange(of: sorted.count) { _, count in
-            guard count > 0, count >= reviewQueue.loadedReceipts.count - 8, reviewQueue.hasMorePages else { return }
-            Task {
-                await reviewQueue.loadNextPage(context: modelContext, container: modelContext.container)
+        .onChange(of: reviewQueue.loadedReceipts.count) { _, count in
+            DispatchQueue.main.async {
+                guard count > 0,
+                      reviewQueue.hasMorePages,
+                      !reviewQueue.isLoadingPage,
+                      count >= reviewQueue.loadedReceipts.count - 8
+                else { return }
+                Task {
+                    await reviewQueue.loadNextPage(context: modelContext, container: modelContext.container)
+                }
             }
         }
-        .onChange(of: sorted.map(\.id)) { _, _ in
-            Task { @MainActor in
-                FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
-                FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
-            }
+        .onChange(of: FinderReceiptSortEngine.listIdentitySignature(for: sorted)) { _, _ in
+            FinderReceiptSortEngine.scheduleFinderChromeSync(
+                selectedProjectColumn: $selectedProjectColumn,
+                galleryFocusedId: $galleryFocusedId,
+                sorted: sorted
+            )
         }
         .onChange(of: navReceiptPath) { oldPath, newPath in
-            if newPath.count > oldPath.count {
-                forwardReceiptPath.removeAll()
-            }
-            if newPath.isEmpty {
-                selection.removeAll()
-                let f = FinderReceiptSortEngine.filtered(
-                    pendingReceipts,
-                    searchText: searchText,
-                    multiPageOnly: multiPageOnly
-                )
-                let librarySort = ReceiptLibrarySort(rawValue: sortRaw) ?? .dateAddedNewest
-                let sortedNow = FinderReceiptSortEngine.sorted(f, by: librarySort)
-                FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sortedNow)
+            DispatchQueue.main.async {
+                if newPath.count > oldPath.count {
+                    forwardReceiptPath.removeAll()
+                }
+                if newPath.isEmpty {
+                    selection.removeAll()
+                    let f = FinderReceiptSortEngine.filtered(
+                        pendingReceipts,
+                        searchText: searchText,
+                        multiPageOnly: multiPageOnly
+                    )
+                    let librarySort = ReceiptLibrarySort(rawValue: sortRaw) ?? .dateAddedNewest
+                    let sortedNow = FinderReceiptSortEngine.sorted(f, by: librarySort)
+                    FinderReceiptSortEngine.scheduleFinderChromeSync(
+                        selectedProjectColumn: $selectedProjectColumn,
+                        galleryFocusedId: $galleryFocusedId,
+                        sorted: sortedNow
+                    )
+                }
             }
         }
         .background(Color.ratioVitaAdaptiveBackground.ignoresSafeArea())
