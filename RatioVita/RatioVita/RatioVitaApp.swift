@@ -55,15 +55,17 @@ private enum SwiftDataAppContainer {
 
 @main
 struct RatioVitaApp: App {
-    private static let firebaseLaunchOrdering: Void = {
-        RatioVitaFirebaseBootstrap.ensureConfigured()
-    }()
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(RatioVitaAppDelegate.self) private var appDelegate
+    #elseif canImport(UIKit)
+    @UIApplicationDelegateAdaptor(RatioVitaAppDelegate.self) private var appDelegate
+    #endif
 
     @State private var libraryNavigationCoordinator = LibraryNavigationCoordinator()
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
     init() {
-        _ = Self.firebaseLaunchOrdering
+        RatioVitaFirebaseBootstrap.ensureConfigured()
         #if DEBUG
         #if canImport(UIKit)
         // Quiets “Unable to simultaneously satisfy constraints” spam from UIKit-backed text inputs (does not affect
@@ -80,6 +82,9 @@ struct RatioVitaApp: App {
                 .ratioVitaTheme()
                 .environment(libraryNavigationCoordinator)
                 .environmentObject(SovereignContextManager.shared)
+                #if os(macOS)
+                .ratioVitaWindowSizing()
+                #endif
                 .logisticsLiveSync()
                 .sovereignOnboardingGate()
                 .setOSOnboardingGate()

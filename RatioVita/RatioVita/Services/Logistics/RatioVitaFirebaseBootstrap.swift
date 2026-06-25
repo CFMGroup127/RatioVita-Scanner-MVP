@@ -29,7 +29,7 @@ enum RatioVitaFirebaseBootstrap {
     /// Returns Firestore only after `FirebaseApp.configure()` has completed.
     static func firestore() -> Firestore? {
         ensureConfigured()
-        guard isConfigured, FirebaseApp.app() != nil else { return nil }
+        guard isConfigured else { return nil }
         return Firestore.firestore()
     }
     #endif
@@ -46,10 +46,6 @@ enum RatioVitaFirebaseBootstrap {
     private static func configureIfNeededInternal() {
         #if canImport(FirebaseCore)
         guard !isConfigured else { return }
-        if FirebaseApp.app() != nil {
-            isConfigured = true
-            return
-        }
 
         if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
            let options = FirebaseOptions(contentsOfFile: path)
@@ -99,7 +95,7 @@ enum RatioVitaFirebaseBootstrap {
     #if canImport(FirebaseAuth)
     private static func ensureAuthenticatedSession() async {
         ensureConfigured()
-        guard FirebaseApp.app() != nil else { return }
+        guard isConfigured else { return }
         guard Auth.auth().currentUser == nil else { return }
         do {
             _ = try await Auth.auth().signInAnonymously()

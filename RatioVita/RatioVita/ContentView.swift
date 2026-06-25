@@ -372,13 +372,12 @@ private struct SidebarSplitShell: View {
                 sidebarListMac
             } detail: {
                 libraryColumn
-                    .frame(
-                        minWidth: AdaptivePanelLayout.detailMinWidth,
-                        maxWidth: .infinity,
-                        maxHeight: .infinity,
-                        alignment: .topLeading
+                    .boundedDetailContent()
+                    .navigationSplitViewColumnWidth(
+                        min: 480,
+                        ideal: 720,
+                        max: SafeLayoutBounds.maxWorkspaceContentWidth
                     )
-                    .navigationSplitViewColumnWidth(min: 480, ideal: 720, max: 1200)
             }
             .resetsNavigationSplitColumnsOnLaunch()
             #else

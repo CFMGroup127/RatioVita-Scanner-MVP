@@ -98,7 +98,12 @@ struct FinderReceiptSurfaceBrowser<ListRow: View>: View {
     }
 
     private var iconCellPoints: CGFloat {
-        CGFloat(min(128, max(48, libraryIconThumbnailSize)))
+        RatioVitaWindowSizing.clampedDimension(
+            CGFloat(libraryIconThumbnailSize),
+            min: 48,
+            max: 128,
+            fallback: 64
+        )
     }
 
     private var iconGridColumns: [GridItem] {
@@ -232,7 +237,10 @@ struct FinderReceiptSurfaceBrowser<ListRow: View>: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(
+                maxWidth: SafeLayoutBounds.maxWorkspaceContentWidth,
+                maxHeight: SafeLayoutBounds.maxWindowHeight
+            )
         }
     }
 

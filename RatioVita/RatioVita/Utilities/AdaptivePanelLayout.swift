@@ -28,7 +28,11 @@ extension View {
 
     /// Fills available space but caps readable line length for forms.
     func boundedDetailContent(alignment: Alignment = .topLeading) -> some View {
-        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+        frame(
+            maxWidth: SafeLayoutBounds.maxWorkspaceContentWidth,
+            maxHeight: SafeLayoutBounds.maxWindowHeight,
+            alignment: alignment
+        )
     }
 }
 

@@ -6,6 +6,8 @@ enum SafeLayoutBounds {
     static let maxDetailPaneWidth: CGFloat = 900
     static let maxTimecardPreviewWidth: CGFloat = 720
     static let maxWorkspaceContentWidth: CGFloat = 1200
+    static let maxWindowWidth: CGFloat = 2400
+    static let maxWindowHeight: CGFloat = 1600
     static let inboxListWidth: CGFloat = 280
     static let signaturePanelWidth: CGFloat = 300
     static let commandRailWidth: CGFloat = 220
