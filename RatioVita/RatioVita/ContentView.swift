@@ -12,6 +12,7 @@ struct ContentView: View {
     @ObservedObject private var userMessages = UserMessageCenter.shared
     @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
     @ObservedObject private var sovereignContext = SovereignContextManager.shared
+    @ObservedObject private var reviewQueue = ReceiptReviewQueueStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
@@ -31,13 +32,6 @@ struct ContentView: View {
     private var unmatchedBankTransactions: [BankTransaction]
 
     @Query(
-        filter: #Predicate<Receipt> { $0.pendingHumanReview == true && $0.trashedAt == nil },
-        sort: \Receipt.createdAt,
-        order: .reverse
-    )
-    private var pendingReviewReceipts: [Receipt]
-
-    @Query(
         filter: #Predicate<Receipt> { $0.trashedAt != nil },
         sort: \Receipt.createdAt,
         order: .reverse
@@ -52,12 +46,7 @@ struct ContentView: View {
     private var activeReceiptsForScope: [Receipt]
 
     private var scopedPendingReviewCount: Int {
-        pendingReviewReceipts.filter { receipt in
-            if CrossEntityTriageEngine.needsTriage(receipt) {
-                return SovereignScopeFilter.triageReceiptIsVisible(receipt, context: sovereignContext)
-            }
-            return sovereignContext.receiptIsVisible(receipt)
-        }.count
+        reviewQueue.totalCount
     }
 
     private var scopedOpenReceiptsForBank: [Receipt] {
@@ -120,7 +109,7 @@ struct ContentView: View {
                         .tabItem {
                             Label("Review", systemImage: "tray.full")
                         }
-                        .optionalTabBadge(pendingReviewReceipts.count)
+                        .optionalTabBadge(reviewQueue.totalCount)
                         .tag(3)
 
                     ReconciliationReviewView()

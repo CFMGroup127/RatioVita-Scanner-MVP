@@ -10,17 +10,11 @@ struct ReceiptsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
     @ObservedObject private var sovereignContext = SovereignContextManager.shared
+    @ObservedObject private var reviewQueue = ReceiptReviewQueueStore.shared
 
     private let cabinetFilter: DocumentCabinet?
 
     @Query private var receipts: [Receipt]
-
-    @Query(
-        filter: #Predicate<Receipt> { $0.pendingHumanReview && $0.trashedAt == nil },
-        sort: \Receipt.createdAt,
-        order: .reverse
-    )
-    private var pendingReviewReceipts: [Receipt]
 
     @Query(
         filter: #Predicate<Receipt> { $0.trashedAt != nil },
@@ -732,11 +726,11 @@ struct ReceiptsView: View {
                 ReceiptReviewView()
             } label: {
                 Group {
-                    if pendingReviewReceipts.isEmpty {
+                    if reviewQueue.totalCount == 0 {
                         Label("Review", systemImage: "tray.full")
                     } else {
                         Label("Review", systemImage: "tray.full")
-                            .badge(pendingReviewReceipts.count)
+                            .badge(reviewQueue.totalCount)
                     }
                 }
             }
@@ -960,11 +954,11 @@ struct ReceiptsView: View {
             ReceiptReviewView()
         } label: {
             Group {
-                if pendingReviewReceipts.isEmpty {
+                if reviewQueue.totalCount == 0 {
                     Label("Review", systemImage: "tray.full")
                 } else {
                     Label("Review", systemImage: "tray.full")
-                        .badge(pendingReviewReceipts.count)
+                        .badge(reviewQueue.totalCount)
                 }
             }
         }

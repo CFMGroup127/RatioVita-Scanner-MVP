@@ -14,6 +14,7 @@ struct ReceiptReviewView: View {
     @Environment(\.brandAccent) private var brandAccent
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
     @ObservedObject private var sovereignContext = SovereignContextManager.shared
+    @ObservedObject private var reviewQueue = ReceiptReviewQueueStore.shared
 
     @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary = true
     @AppStorage("receiptReviewSortRaw") private var sortRaw: String = ReceiptLibrarySort.dateAddedNewest.rawValue
@@ -22,13 +23,8 @@ struct ReceiptReviewView: View {
     @AppStorage("receiptWorkbenchMultiPageOnly") private var multiPageOnly = false
     @AppStorage("receiptReviewFacilitatedCrewOnly") private var facilitatedCrewOnly = false
 
-    @Query(
-        filter: #Predicate<Receipt> { $0.pendingHumanReview == true && $0.trashedAt == nil },
-        sort: \Receipt.createdAt,
-        order: .reverse,
-        animation: .default
-    )
-    private var pendingReceipts: [Receipt]
+    /// Paginated slice — full queue count lives in `reviewQueue.totalCount`.
+    private var pendingReceipts: [Receipt] { reviewQueue.loadedReceipts }
 
     @State private var isWorking = false
     @State private var confirmRejectAll = false
@@ -70,7 +66,7 @@ struct ReceiptReviewView: View {
 
         receiptReviewMain(sorted: sorted)
             .confirmationDialog(
-                "Reject all \(pendingReceipts.count) receipt(s) in review?",
+                "Reject all \(reviewQueue.totalCount) receipt(s) in review?",
                 isPresented: $confirmRejectAll,
                 titleVisibility: .visible
             ) {
@@ -82,7 +78,7 @@ struct ReceiptReviewView: View {
                 Text("They will move to Trash. You can recover them from the Trash tab.")
             }
             .confirmationDialog(
-                "Re-analyze all \(pendingReceipts.count) pending receipt(s) with Gemini?",
+                "Re-analyze all \(reviewQueue.totalCount) pending receipt(s) with Gemini?",
                 isPresented: $confirmBulkReanalyze,
                 titleVisibility: .visible
             ) {
@@ -126,7 +122,7 @@ struct ReceiptReviewView: View {
         NavigationStack(path: $navReceiptPath) {
             VStack(spacing: 0) {
                 header
-                if pendingReceipts.isEmpty {
+                if reviewQueue.totalCount == 0, !reviewQueue.isLoadingPage {
                     emptyState
                 } else if groupByMerchant {
                     merchantGroupedReviewList(sorted: sorted)
@@ -234,8 +230,17 @@ struct ReceiptReviewView: View {
             #endif
         }
         .onAppear {
+            Task {
+                await reviewQueue.resetAndLoadFirstPage(context: modelContext, container: modelContext.container)
+            }
             FinderReceiptSortEngine.syncColumnSelection(selected: &selectedProjectColumn, sorted: sorted)
             FinderReceiptSortEngine.syncGalleryFocus(focused: &galleryFocusedId, sorted: sorted)
+        }
+        .onChange(of: sorted.count) { _, count in
+            guard count > 0, count >= reviewQueue.loadedReceipts.count - 8, reviewQueue.hasMorePages else { return }
+            Task {
+                await reviewQueue.loadNextPage(context: modelContext, container: modelContext.container)
+            }
         }
         .onChange(of: sorted.map(\.id)) { _, _ in
             Task { @MainActor in
@@ -339,9 +344,10 @@ struct ReceiptReviewView: View {
             isWorking = false
             bulkReanalyzeProgress = nil
         }
+        let allPending = await reviewQueue.fetchAllPending(context: modelContext)
         do {
             try await ReceiptBulkGeminiReanalysis.reanalyzePending(
-                receipts: pendingReceipts,
+                receipts: allPending,
                 context: modelContext
             ) { progress in
                 Task { @MainActor in
@@ -466,18 +472,18 @@ struct ReceiptReviewView: View {
             Button("Reject all in review…", role: .destructive) {
                 confirmRejectAll = true
             }
-            .disabled(pendingReceipts.isEmpty || isWorking)
+            .disabled(reviewQueue.totalCount == 0 || isWorking)
 
             Button("Re-analyze all pending…") {
                 confirmBulkReanalyze = true
             }
-            .disabled(pendingReceipts.isEmpty || isWorking)
+            .disabled(reviewQueue.totalCount == 0 || isWorking)
 
             Button("Tag facilitated crew invoices…") {
                 let count = FacilitatedThirdPartyInvoiceClassifier.retagPendingReview(context: modelContext)
                 bulkReanalyzeProgress = "Tagged \(count) crew invoice(s) in Review."
             }
-            .disabled(pendingReceipts.isEmpty || isWorking)
+            .disabled(reviewQueue.totalCount == 0 || isWorking)
 
             Divider()
 
@@ -578,7 +584,7 @@ struct ReceiptReviewView: View {
                     Button("Reject all in review…", role: .destructive) {
                         confirmRejectAll = true
                     }
-                    .disabled(pendingReceipts.isEmpty || isWorking)
+                    .disabled(reviewQueue.totalCount == 0 || isWorking)
 
                     Button(reviewBulkMode == .off ? "Select" : "Done") {
                         if reviewBulkMode == .off {
@@ -762,12 +768,15 @@ struct ReceiptReviewView: View {
     }
 
     private func trashCheckedReceipts() {
-        let now = Date()
-        for r in pendingReceipts where r.reviewChecklistDone {
-            r.trashedAt = now
-            r.reviewChecklistDone = false
+        Task {
+            let now = Date()
+            await reviewQueue.mutateAllPending(context: modelContext, container: modelContext.container) { r in
+                if r.reviewChecklistDone {
+                    r.trashedAt = now
+                    r.reviewChecklistDone = false
+                }
+            }
         }
-        try? modelContext.save()
     }
 
     private func trashReceipts(at offsets: IndexSet, from list: [Receipt]) {
@@ -784,16 +793,18 @@ struct ReceiptReviewView: View {
     }
 
     private func rejectAllPending() {
-        let now = Date()
-        let snapshot = pendingReceipts
-        for r in snapshot {
-            r.trashedAt = now
+        Task {
+            let now = Date()
+            await reviewQueue.mutateAllPending(context: modelContext, container: modelContext.container) { r in
+                r.trashedAt = now
+            }
         }
-        try? modelContext.save()
     }
 
     private func mergeReviewedReceipts() async {
-        let targets = pendingReceipts.filter(\.reviewChecklistDone).sorted { $0.createdAt < $1.createdAt }
+        let targets = await reviewQueue.fetchAllPending(context: modelContext)
+            .filter(\.reviewChecklistDone)
+            .sorted { $0.createdAt < $1.createdAt }
         guard targets.count >= 2 else {
             UserMessageCenter.shared.present(
                 title: "Nothing to merge",
@@ -830,7 +841,8 @@ struct ReceiptReviewView: View {
     }
 
     private func fileCheckedReceipts() async {
-        let targets = pendingReceipts.filter(\.reviewChecklistDone)
+        let targets = await reviewQueue.fetchAllPending(context: modelContext)
+            .filter(\.reviewChecklistDone)
         guard !targets.isEmpty else {
             UserMessageCenter.shared.present(
                 title: "Nothing selected",
@@ -857,6 +869,8 @@ struct ReceiptReviewView: View {
                 receipt.reviewChecklistDone = false
             }
             try modelContext.save()
+            await reviewQueue.refreshTotalCount(container: modelContext.container)
+            await reviewQueue.resetAndLoadFirstPage(context: modelContext, container: modelContext.container)
             let burstCount = min(targets.count, 8)
             if burstCount > 1 {
                 await DesignSystem.TouchFeedback.impactMediumBurst(count: burstCount)

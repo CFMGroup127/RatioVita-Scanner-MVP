@@ -188,6 +188,12 @@ enum ReceiptPersistence {
             supplementalOCR: ocr,
             context: context
         )
+        CorporateAnchorRoutingEngine.apply(
+            receipt: receipt,
+            combinedOCR: ocr,
+            merged: merged,
+            context: context
+        )
         try enrichProductionProjectBillingHints(merged, receipt: receipt, context: context)
         applyTaxCategoryHeuristics(receipt: receipt, merged: merged, ocr: ocr)
         try FilingCoordinator.applyMerchantFilingRulesIfNeeded(to: receipt, context: context)
@@ -314,6 +320,12 @@ enum ReceiptPersistence {
             receipt: receipt,
             merged: merged,
             supplementalOCR: ocr,
+            context: context
+        )
+        CorporateAnchorRoutingEngine.apply(
+            receipt: receipt,
+            combinedOCR: ocr,
+            merged: merged,
             context: context
         )
         try enrichProductionProjectBillingHints(merged, receipt: receipt, context: context)

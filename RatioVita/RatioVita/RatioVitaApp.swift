@@ -82,6 +82,7 @@ struct RatioVitaApp: App {
                 .ratioVitaTheme()
                 .environment(libraryNavigationCoordinator)
                 .environmentObject(SovereignContextManager.shared)
+                .environmentObject(ReceiptReviewQueueStore.shared)
                 #if os(macOS)
                 .ratioVitaWindowSizing()
                 #endif
@@ -93,6 +94,7 @@ struct RatioVitaApp: App {
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
                 }
                 .task { @MainActor in
+                    await ReceiptReviewQueueStore.shared.refreshTotalCount(container: sharedModelContainer)
                     SovereignContextManager.shared.completeDeferredLaunchSetup()
                     let ctx = ModelContext(sharedModelContainer)
                     if let recovery = ReceiptWorkspaceBatchGuard.consumePendingRecoveryAlert() {

@@ -7,6 +7,7 @@ struct RatioVitaHomeView: View {
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject private var sovereignContext = SovereignContextManager.shared
+    @ObservedObject private var reviewQueue = ReceiptReviewQueueStore.shared
 
     @AppStorage("forensicActiveProductionID") private var forensicActiveProductionID: String = ""
     @AppStorage("forensicActiveCallSheetFirestoreID") private var forensicActiveCallSheetFirestoreID: String = ""
@@ -15,12 +16,6 @@ struct RatioVitaHomeView: View {
     @Query(sort: \ProductionProject.title) private var productionProjects: [ProductionProject]
     @Query(sort: \LaborAgreement.title) private var laborAgreements: [LaborAgreement]
     @Query(sort: \CrewTimecardDay.workDate, order: .reverse) private var crewDays: [CrewTimecardDay]
-    @Query(
-        filter: #Predicate<Receipt> { $0.pendingHumanReview == true && $0.trashedAt == nil },
-        sort: \Receipt.createdAt,
-        order: .reverse
-    )
-    private var pendingReviewReceipts: [Receipt]
     @Query(sort: \BankTransaction.postedDate, order: .reverse) private var bankTransactions: [BankTransaction]
     @Query private var equipmentAssets: [EquipmentAsset]
 
@@ -208,7 +203,7 @@ struct RatioVitaHomeView: View {
     }
 
     private var scopedPendingReviewCount: Int {
-        pendingReviewReceipts.filter { sovereignContext.receiptIsVisible($0) }.count
+        reviewQueue.totalCount
     }
 
     private var scopedTriageCount: Int {
