@@ -114,11 +114,31 @@ enum RatioVitaFirebaseBootstrap {
     private static func ensureAuthenticatedSession() async {
         ensureConfigured()
         guard isConfigured else { return }
+
+        if let linkedUID = SovereignSharedAuthKeychain.readLinkedUID() {
+            #if DEBUG
+            print("RatioVita Firebase: iCloud Keychain linked UID — \(linkedUID)")
+            #endif
+            guard Auth.auth().currentUser == nil else { return }
+            do {
+                _ = try await Auth.auth().signInAnonymously()
+                #if DEBUG
+                print("RatioVita Firebase: local session established; canonical UID remains \(linkedUID).")
+                #endif
+            } catch {
+                #if DEBUG
+                print("RatioVita Firebase: anonymous sign-in failed — \(error.localizedDescription)")
+                #endif
+            }
+            return
+        }
+
         guard Auth.auth().currentUser == nil else { return }
         do {
-            _ = try await Auth.auth().signInAnonymously()
+            let result = try await Auth.auth().signInAnonymously()
+            try? SovereignSharedAuthKeychain.saveLinkedUID(result.user.uid)
             #if DEBUG
-            print("RatioVita Firebase: anonymous session established for Firestore listeners.")
+            print("RatioVita Firebase: anonymous session established and saved to iCloud Keychain.")
             #endif
         } catch {
             #if DEBUG
