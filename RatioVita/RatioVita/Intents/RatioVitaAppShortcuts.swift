@@ -96,6 +96,15 @@ struct OpenSwamperTerminalIntent: AppIntent {
 struct RatioVitaShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
+        #if DEBUG
+        // CSInlineDonation bypass — registering shortcuts in DEBUG triggers daemon LMDB pressure.
+        #else
+        productionAppShortcuts
+        #endif
+    }
+
+    @AppShortcutsBuilder
+    private static var productionAppShortcuts: [AppShortcut] {
         AppShortcut(
             intent: OpenDriverConsoleIntent(),
             phrases: [

@@ -13,6 +13,7 @@ import UIKit
 #if os(macOS)
 final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
     private static let firebaseOrdering: Void = {
+        SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }()
 
@@ -28,6 +29,7 @@ final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
 #elseif canImport(UIKit)
 final class RatioVitaAppDelegate: NSObject, UIApplicationDelegate {
     private static let firebaseOrdering: Void = {
+        SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }()
 
