@@ -737,12 +737,14 @@ private struct SidebarSplitShell: View {
     private func reconcileSelectionForActiveHub() {
         let visible = Set(SovereignSidebarCatalog.visibleItems(for: sovereignContext.activeHub).map(sidebarPane(for:)))
         if case .cabinet = selection {
-            if !SovereignSidebarCatalog.showsCabinetsSection(for: sovereignContext.activeHub) {
+            if !SovereignSidebarCatalog.showsCabinetsSection(for: sovereignContext.activeHub),
+               selection != .home
+            {
                 selection = .home
             }
             return
         }
-        if !visible.contains(selection) {
+        if !visible.contains(selection), selection != .home {
             selection = .home
         }
     }

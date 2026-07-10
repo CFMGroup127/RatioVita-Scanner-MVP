@@ -51,23 +51,123 @@ private struct RatioVitaWindowSizeConfigurator: NSViewRepresentable {
     let maximum: NSSize
     let preferred: NSSize
 
-    func makeNSView(context _: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async { apply(to: view) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> WindowSizingAnchorView {
+        let view = WindowSizingAnchorView()
+        view.configure(
+            minimum: minimum,
+            maximum: maximum,
+            preferred: preferred,
+            coordinator: context.coordinator
+        )
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context _: Context) {
-        DispatchQueue.main.async { apply(to: nsView) }
+    func updateNSView(_ nsView: WindowSizingAnchorView, context: Context) {
+        nsView.configure(
+            minimum: minimum,
+            maximum: maximum,
+            preferred: preferred,
+            coordinator: context.coordinator
+        )
     }
 
-    private func apply(to view: NSView) {
-        guard let window = view.window else { return }
+    final class Coordinator {
+        var configuredWindowID: ObjectIdentifier?
+        var appliedMinimum: NSSize?
+        var appliedMaximum: NSSize?
+        var didScheduleInitialClamp = false
+        var isApplyingFrame = false
+    }
+}
 
-        window.minSize = minimum
-        window.maxSize = maximum
+/// Applies window min/max and one-time frame clamping when attached — never during SwiftUI layout passes.
+private final class WindowSizingAnchorView: NSView {
+    private var minimum = NSSize(
+        width: RatioVitaWindowSizing.minimumWidth,
+        height: RatioVitaWindowSizing.minimumHeight
+    )
+    private var maximum = NSSize(
+        width: RatioVitaWindowSizing.maximumWidth,
+        height: RatioVitaWindowSizing.maximumHeight
+    )
+    private var preferred = NSSize(
+        width: RatioVitaWindowSizing.defaultWidth,
+        height: RatioVitaWindowSizing.defaultHeight
+    )
+    private weak var coordinator: RatioVitaWindowSizeConfigurator.Coordinator?
 
+    func configure(
+        minimum: NSSize,
+        maximum: NSSize,
+        preferred: NSSize,
+        coordinator: RatioVitaWindowSizeConfigurator.Coordinator
+    ) {
+        self.minimum = minimum
+        self.maximum = maximum
+        self.preferred = preferred
+        self.coordinator = coordinator
+        scheduleInitialClampIfNeeded()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        scheduleInitialClampIfNeeded()
+    }
+
+    private func scheduleInitialClampIfNeeded() {
+        guard window != nil, let coordinator, !coordinator.didScheduleInitialClamp else { return }
+        coordinator.didScheduleInitialClamp = true
+        DispatchQueue.main.async { [weak self] in
+            self?.applyWindowSizingIfNeeded()
+        }
+    }
+
+    private func applyWindowSizingIfNeeded() {
+        guard let window, let coordinator, !coordinator.isApplyingFrame else { return }
+
+        let windowID = ObjectIdentifier(window)
+        if coordinator.configuredWindowID != windowID {
+            coordinator.configuredWindowID = windowID
+            coordinator.appliedMinimum = nil
+            coordinator.appliedMaximum = nil
+        }
+
+        if coordinator.appliedMinimum != minimum {
+            window.minSize = minimum
+            coordinator.appliedMinimum = minimum
+        }
+        if coordinator.appliedMaximum != maximum {
+            window.maxSize = maximum
+            coordinator.appliedMaximum = maximum
+        }
+
+        clampFrameIfNeeded(on: window, coordinator: coordinator)
+    }
+
+    private func clampFrameIfNeeded(
+        on window: NSWindow,
+        coordinator: RatioVitaWindowSizeConfigurator.Coordinator
+    ) {
         let frame = window.frame
+        guard frame.width.isFinite, frame.height.isFinite else {
+            applyClampedFrame(
+                to: window,
+                width: preferred.width,
+                height: preferred.height,
+                from: frame,
+                coordinator: coordinator
+            )
+            return
+        }
+
+        let tooSmall = frame.width < minimum.width || frame.height < minimum.height
+        let tooLarge = frame.width > maximum.width || frame.height > maximum.height
+        guard tooSmall || tooLarge else { return }
+
         let width = RatioVitaWindowSizing.clampedDimension(
             frame.width,
             min: minimum.width,
@@ -80,22 +180,37 @@ private struct RatioVitaWindowSizeConfigurator: NSViewRepresentable {
             max: maximum.height,
             fallback: preferred.height
         )
-
-        let tooSmall = frame.width < minimum.width || frame.height < minimum.height
-        let tooLarge = frame.width > maximum.width || frame.height > maximum.height
-        let nonFinite = !frame.width.isFinite || !frame.height.isFinite
-        guard tooSmall || tooLarge || nonFinite else { return }
-
         let targetWidth = tooSmall ? max(width, preferred.width) : width
         let targetHeight = tooSmall ? max(height, preferred.height) : height
-        let deltaHeight = targetHeight - frame.height
 
+        guard abs(frame.width - targetWidth) > 1 || abs(frame.height - targetHeight) > 1 else { return }
+
+        applyClampedFrame(
+            to: window,
+            width: targetWidth,
+            height: targetHeight,
+            from: frame,
+            coordinator: coordinator
+        )
+    }
+
+    private func applyClampedFrame(
+        to window: NSWindow,
+        width: CGFloat,
+        height: CGFloat,
+        from frame: NSRect,
+        coordinator: RatioVitaWindowSizeConfigurator.Coordinator
+    ) {
+        coordinator.isApplyingFrame = true
+        defer { coordinator.isApplyingFrame = false }
+
+        let deltaHeight = height - frame.height
         window.setFrame(
             NSRect(
                 x: frame.origin.x,
                 y: frame.origin.y - deltaHeight,
-                width: targetWidth,
-                height: targetHeight
+                width: width,
+                height: height
             ),
             display: true,
             animate: false

@@ -47,6 +47,7 @@ struct LaunchModalCoordinator: ViewModifier {
 
         let resolved = candidates.min(by: { $0.priority < $1.priority })
         DispatchQueue.main.async {
+            guard activeLaunchModal != resolved else { return }
             activeLaunchModal = resolved
         }
     }
