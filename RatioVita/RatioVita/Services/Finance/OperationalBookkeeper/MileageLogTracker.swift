@@ -62,17 +62,17 @@ enum MileageLogTracker {
         var estimated: Decimal?
 
         switch jurisdiction {
-        case .canadaCRA:
-            if let distanceKm, distanceKm > 0 {
-                estimated = rate * Decimal(distanceKm)
-            }
-        case .unitedStatesIRS:
-            if let distanceMi, distanceMi > 0 {
-                estimated = rate * Decimal(distanceMi)
-            } else if let distanceKm, distanceKm > 0 {
-                let miles = distanceKm / 1.60934
-                estimated = rate * Decimal(miles)
-            }
+            case .canadaCRA:
+                if let distanceKm, distanceKm > 0 {
+                    estimated = rate * Decimal(distanceKm)
+                }
+            case .unitedStatesIRS:
+                if let distanceMi, distanceMi > 0 {
+                    estimated = rate * Decimal(distanceMi)
+                } else if let distanceKm, distanceKm > 0 {
+                    let miles = distanceKm / 1.60934
+                    estimated = rate * Decimal(miles)
+                }
         }
 
         if estimated == nil, odometer == nil, distanceKm == nil, fuelCost == nil {
@@ -248,7 +248,10 @@ enum MileageLogTracker {
         if let from = firstCapture(pattern: #"from[:\s]+(.{2,40}?)\s+to[:\s]+(.{2,40})"#, in: lower) {
             return from.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let leg = firstCapture(pattern: #"([A-Za-z][A-Za-z\s\-]{2,30})\s*(?:→|->| to )\s*([A-Za-z][A-Za-z\s\-]{2,30})"#, in: corpus) {
+        if let leg = firstCapture(
+            pattern: #"([A-Za-z][A-Za-z\s\-]{2,30})\s*(?:→|->| to )\s*([A-Za-z][A-Za-z\s\-]{2,30})"#,
+            in: corpus
+        ) {
             return leg.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return nil
@@ -256,7 +259,7 @@ enum MileageLogTracker {
 
     private static func firstCapture(pattern: String, in text: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
-        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, options: [], range: range) else { return nil }
 
         if match.numberOfRanges > 2,

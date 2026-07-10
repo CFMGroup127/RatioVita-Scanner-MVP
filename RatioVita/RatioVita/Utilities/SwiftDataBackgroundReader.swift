@@ -21,6 +21,6 @@ enum SwiftDataBackgroundReader {
         default defaultValue: T,
         _ work: @Sendable @escaping (ModelContext) throws -> T
     ) async -> T {
-        (try? await perform(container: container, priority: priority, work)) ?? defaultValue
+        await (try? perform(container: container, priority: priority, work)) ?? defaultValue
     }
 }

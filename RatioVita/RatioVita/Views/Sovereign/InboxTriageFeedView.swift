@@ -67,33 +67,33 @@ struct InboxTriageFeedView: View {
         }
         .navigationTitle("Inbox Triage")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
-        .safeAreaInset(edge: .top, spacing: 0) {
-            SovereignContextSwitcherBar()
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .padding(.vertical, DesignSystem.Spacing.sm)
-        }
-        .onAppear {
-            CrossEntityTriageEngine.scanLinkedInboxImports(modelContext: modelContext)
-        }
-        .sheet(isPresented: Binding(
-            get: { selectedReceipt != nil },
-            set: { if !$0 { selectedReceipt = nil } }
-        )) {
-            if let receipt = selectedReceipt {
-                NavigationStack {
-                    InboxTriageDetailView(
-                        receipt: receipt,
-                        destinations: destinations,
-                        selectedLineIDs: $selectedLineIDs
-                    )
-                }
-                #if os(iOS)
-                .presentationDetents([.large])
-                #endif
+            .safeAreaInset(edge: .top, spacing: 0) {
+                SovereignContextSwitcherBar()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
             }
-        }
+            .onAppear {
+                CrossEntityTriageEngine.scanLinkedInboxImports(modelContext: modelContext)
+            }
+            .sheet(isPresented: Binding(
+                get: { selectedReceipt != nil },
+                set: { if !$0 { selectedReceipt = nil } }
+            )) {
+                if let receipt = selectedReceipt {
+                    NavigationStack {
+                        InboxTriageDetailView(
+                            receipt: receipt,
+                            destinations: destinations,
+                            selectedLineIDs: $selectedLineIDs
+                        )
+                    }
+                    #if os(iOS)
+                    .presentationDetents([.large])
+                    #endif
+                }
+            }
     }
 
     @ViewBuilder
@@ -115,7 +115,12 @@ struct InboxTriageFeedView: View {
 
             HStack(spacing: 8) {
                 Label("\(receipt.lineItems.count) lines", systemImage: "list.bullet")
-                if receipt.lineItems.contains(where: { !$0.allocationIsPersonal && $0.allocatedBusinessEntity == nil && $0.allocatedProductionProject == nil }) {
+                if receipt.lineItems
+                    .contains(where: {
+                        !$0.allocationIsPersonal && $0.allocatedBusinessEntity == nil && $0
+                            .allocatedProductionProject == nil
+                    })
+                {
                     StatusBadge.warning("Needs routing")
                 } else {
                     StatusBadge.info("Partially routed")
@@ -170,13 +175,13 @@ private struct InboxTriageDetailView: View {
         }
         .navigationTitle("Re-allocate")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Done") { dismiss() }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
             }
-        }
     }
 
     private var reallocateWholeReceiptSection: some View {

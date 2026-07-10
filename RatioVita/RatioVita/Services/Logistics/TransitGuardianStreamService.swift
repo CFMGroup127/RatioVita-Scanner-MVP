@@ -36,7 +36,8 @@ final class TransitGuardianStreamService: ObservableObject {
 
         if trimmedProduction == activeProductionId,
            callSheetId == activeCallSheetId,
-           isListening {
+           isListening
+        {
             return
         }
 
@@ -62,7 +63,8 @@ final class TransitGuardianStreamService: ObservableObject {
                 if let callSheetId, !callSheetId.isEmpty {
                     attachTransitListener(productionId: trimmedProduction, callSheetId: callSheetId)
                 } else if let cachedSheet = LogisticsLocalCacheStore.shared.productionDayState?.activeCallSheetId,
-                          !cachedSheet.isEmpty {
+                          !cachedSheet.isEmpty
+                {
                     attachTransitListener(productionId: trimmedProduction, callSheetId: cachedSheet)
                 } else {
                     attachLatestCallSheetListener(productionId: trimmedProduction)
@@ -131,7 +133,8 @@ final class TransitGuardianStreamService: ObservableObject {
                 LogisticsLocalCacheStore.shared.applyRemoteState(parsed)
                 self.applyProductionDayState(parsed, source: "firestore")
                 if let sheetId = parsed.activeCallSheetId, !sheetId.isEmpty,
-                   sheetId != self.activeCallSheetId {
+                   sheetId != self.activeCallSheetId
+                {
                     self.attachTransitListener(productionId: productionId, callSheetId: sheetId)
                 }
             }
@@ -166,8 +169,7 @@ final class TransitGuardianStreamService: ObservableObject {
         activeCallSheetId = callSheetId
 
         guard let collection = FirestoreCollectionRefs
-            .transitExceptions(productionId: productionId, callSheetId: callSheetId)
-        else { return }
+            .transitExceptions(productionId: productionId, callSheetId: callSheetId) else { return }
 
         transitListener = collection
             .addSnapshotListener { [weak self] snapshot, error in

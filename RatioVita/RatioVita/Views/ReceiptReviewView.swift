@@ -244,8 +244,7 @@ struct ReceiptReviewView: View {
                 guard count > 0,
                       reviewQueue.hasMorePages,
                       !reviewQueue.isLoadingPage,
-                      count >= reviewQueue.loadedReceipts.count - 8
-                else { return }
+                      count >= reviewQueue.loadedReceipts.count - 8 else { return }
                 Task {
                     await reviewQueue.loadNextPage(context: modelContext, container: modelContext.container)
                 }

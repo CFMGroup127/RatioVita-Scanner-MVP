@@ -64,9 +64,9 @@ enum SovereignAssetPrivacySanitizer {
 
         var errorDescription: String? {
             switch self {
-            case .unreadableSource: return "Could not read the photo for privacy sanitization."
-            case .emptySource: return "Photo contained no image data."
-            case .writeFailed: return "Could not write sanitized photo."
+                case .unreadableSource: "Could not read the photo for privacy sanitization."
+                case .emptySource: "Photo contained no image data."
+                case .writeFailed: "Could not write sanitized photo."
             }
         }
     }

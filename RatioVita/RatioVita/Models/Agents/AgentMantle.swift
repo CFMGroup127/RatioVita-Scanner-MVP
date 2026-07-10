@@ -40,22 +40,22 @@ extension AgentMantle: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         switch try container.decode(Lane.self, forKey: .lane) {
-        case .production:
-            self = .production(try container.decode(ProductionContext.self, forKey: .production))
-        case .venture:
-            self = .venture(try container.decode(VentureContext.self, forKey: .venture))
+            case .production:
+                self = try .production(container.decode(ProductionContext.self, forKey: .production))
+            case .venture:
+                self = try .venture(container.decode(VentureContext.self, forKey: .venture))
         }
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .production(let context):
-            try container.encode(Lane.production, forKey: .lane)
-            try container.encode(context, forKey: .production)
-        case .venture(let context):
-            try container.encode(Lane.venture, forKey: .lane)
-            try container.encode(context, forKey: .venture)
+            case let .production(context):
+                try container.encode(Lane.production, forKey: .lane)
+                try container.encode(context, forKey: .production)
+            case let .venture(context):
+                try container.encode(Lane.venture, forKey: .lane)
+                try container.encode(context, forKey: .venture)
         }
     }
 }
@@ -63,15 +63,15 @@ extension AgentMantle: Codable {
 extension AgentMantle {
     var laneTitle: String {
         switch self {
-        case .production: "Production"
-        case .venture: "Venture"
+            case .production: "Production"
+            case .venture: "Venture"
         }
     }
 
     var storageKey: String {
         switch self {
-        case .production: "production"
-        case .venture: "venture"
+            case .production: "production"
+            case .venture: "venture"
         }
     }
 

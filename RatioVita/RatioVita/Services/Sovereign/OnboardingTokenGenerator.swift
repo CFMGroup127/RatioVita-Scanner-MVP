@@ -3,7 +3,7 @@ import Foundation
 
 /// Packages professional identity into signed QR / short-serial onboarding tokens.
 enum OnboardingTokenGenerator {
-    private static let defaultTTL: TimeInterval = 86_400
+    private static let defaultTTL: TimeInterval = 86400
 
     static func generate(
         profile: SovereignProfile,
@@ -25,7 +25,8 @@ enum OnboardingTokenGenerator {
             department: profile.department.isEmpty ? nil : profile.department,
             unionStatus: profile.unionStatus.isEmpty ? nil : profile.unionStatus,
             loanOutEntity: profile.loanOutEntity.isEmpty ? nil : profile.loanOutEntity,
-            routingEmail: PrivacyShieldEngine.mask(profile: profile, tier: tier).routingEmail ?? profile.obfuscatedRoutingEmail,
+            routingEmail: PrivacyShieldEngine.mask(profile: profile, tier: tier).routingEmail ?? profile
+                .obfuscatedRoutingEmail,
             shareTier: tier,
             issuedAt: issuedAt,
             expiresAt: expiresAt,
@@ -68,7 +69,8 @@ enum OnboardingTokenGenerator {
         }
         guard payload.expiresAt > Date() else { throw TokenError.expired }
         guard let pubData = Data(base64Encoded: payload.publicKeyBase64),
-              let signatureData = Data(base64Encoded: payload.signatureBase64) else {
+              let signatureData = Data(base64Encoded: payload.signatureBase64) else
+        {
             throw TokenError.invalidEncoding
         }
         let publicKey = try Curve25519.Signing.PublicKey(rawRepresentation: pubData)
@@ -85,11 +87,11 @@ enum OnboardingTokenGenerator {
 
         var errorDescription: String? {
             switch self {
-            case .invalidPrefix: return "Not a RatioVita sovereign token."
-            case .invalidEncoding: return "Token payload could not be decoded."
-            case .expired: return "Onboarding token has expired."
-            case .unsupportedVersion: return "Unsupported token version."
-            case .invalidSignature: return "Token signature verification failed."
+                case .invalidPrefix: "Not a RatioVita sovereign token."
+                case .invalidEncoding: "Token payload could not be decoded."
+                case .expired: "Onboarding token has expired."
+                case .unsupportedVersion: "Unsupported token version."
+                case .invalidSignature: "Token signature verification failed."
             }
         }
     }

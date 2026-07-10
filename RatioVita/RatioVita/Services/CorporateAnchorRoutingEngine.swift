@@ -251,7 +251,9 @@ enum CorporateAnchorRoutingEngine {
             extractShowTitle(from: ocr),
         ]
         let projects = (try? context.fetch(FetchDescriptor<ProductionProject>())) ?? []
-        for hint in showHints.compactMap({ $0?.trimmingCharacters(in: .whitespacesAndNewlines) }).filter({ !$0.isEmpty }) {
+        for hint in showHints.compactMap({ $0?.trimmingCharacters(in: .whitespacesAndNewlines) })
+            .filter({ !$0.isEmpty })
+        {
             if let match = projects.first(where: {
                 $0.title.localizedCaseInsensitiveCompare(hint) == .orderedSame
             }) {
@@ -313,8 +315,7 @@ enum CorporateAnchorRoutingEngine {
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern),
                   let match = regex.firstMatch(in: ocr, range: NSRange(ocr.startIndex..., in: ocr)),
-                  let range = Range(match.range(at: 1), in: ocr)
-            else { continue }
+                  let range = Range(match.range(at: 1), in: ocr) else { continue }
             let title = String(ocr[range]).trimmingCharacters(in: .whitespacesAndNewlines)
             if title.count >= 3 { return title }
         }
@@ -362,18 +363,21 @@ enum CorporateAnchorRoutingEngine {
         }
         let venturesLine = "Ventures parent: \(entity.legalName)"
         if receipt.notes?.contains(venturesLine) != true {
-            receipt.notes = [receipt.notes, venturesLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+            receipt.notes = [receipt.notes, venturesLine].compactMap { $0 }.filter { !$0.isEmpty }
+                .joined(separator: "\n")
         }
         if let client = payingClient?.trimmingCharacters(in: .whitespacesAndNewlines), !client.isEmpty {
             let clientLine = "Paying client: \(client)"
             if receipt.notes?.contains(clientLine) != true {
-                receipt.notes = [receipt.notes, clientLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+                receipt.notes = [receipt.notes, clientLine].compactMap { $0 }.filter { !$0.isEmpty }
+                    .joined(separator: "\n")
             }
         }
         if let show = (productionProject ?? receipt.productionProject)?.title {
             let showLine = "Production track: \(show)"
             if receipt.notes?.contains(showLine) != true {
-                receipt.notes = [receipt.notes, showLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+                receipt.notes = [receipt.notes, showLine].compactMap { $0 }.filter { !$0.isEmpty }
+                    .joined(separator: "\n")
             }
         }
     }
@@ -407,12 +411,12 @@ enum CorporateAnchorRoutingEngine {
             ownerLegalName: InternalIdentityRegistry.ownerLegalName,
             nameVariances: InternalIdentityRegistry.ownerNameVariances
         )
-        || CorporateIdentityMatcher.matchesInternalOwner(
-            contactName: ocr,
-            companyName: nil,
-            ownerLegalName: InternalIdentityRegistry.ownerLegalName,
-            nameVariances: InternalIdentityRegistry.ownerNameVariances
-        )
+            || CorporateIdentityMatcher.matchesInternalOwner(
+                contactName: ocr,
+                companyName: nil,
+                ownerLegalName: InternalIdentityRegistry.ownerLegalName,
+                nameVariances: InternalIdentityRegistry.ownerNameVariances
+            )
     }
 
     private static func findOrCreateProduction(

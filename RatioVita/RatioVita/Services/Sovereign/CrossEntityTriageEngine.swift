@@ -3,7 +3,6 @@ import SwiftData
 
 /// Flags mixed-use imports and determines when triage is complete.
 enum CrossEntityTriageEngine {
-
     static func markImportedFromSecureInbox(
         receipt: Receipt,
         inboxAccount: SecureIngestionVaultStore.SecureInboxAccount

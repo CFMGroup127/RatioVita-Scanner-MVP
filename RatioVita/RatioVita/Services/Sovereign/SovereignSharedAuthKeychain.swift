@@ -94,8 +94,8 @@ enum SovereignSharedAuthKeychain {
 
         var errorDescription: String? {
             switch self {
-            case .unhandled(let status):
-                return "Sovereign shared auth Keychain error (status \(status))."
+                case let .unhandled(status):
+                    "Sovereign shared auth Keychain error (status \(status))."
             }
         }
     }

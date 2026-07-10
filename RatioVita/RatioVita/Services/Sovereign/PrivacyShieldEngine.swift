@@ -19,45 +19,45 @@ enum PrivacyShieldEngine {
 
     static func mask(profile: SovereignProfile, tier: SovereignPrivacyTier) -> SovereignMaskedIdentity {
         switch tier {
-        case .logisticalOnly:
-            return SovereignMaskedIdentity(
-                spid: profile.userSPID,
-                displayName: profile.legalName,
-                routingEmail: profile.obfuscatedRoutingEmail,
-                guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
-                department: nil,
-                unionStatus: nil,
-                loanOutEntity: profile.loanOutEntity.isEmpty ? nil : profile.loanOutEntity,
-                directPhone: nil,
-                directEmail: nil,
-                shareTier: tier
-            )
-        case .peerToPeer:
-            return SovereignMaskedIdentity(
-                spid: profile.userSPID,
-                displayName: profile.legalName,
-                routingEmail: profile.obfuscatedRoutingEmail,
-                guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
-                department: profile.department.isEmpty ? nil : profile.department,
-                unionStatus: profile.unionStatus.isEmpty ? nil : profile.unionStatus,
-                loanOutEntity: nil,
-                directPhone: nil,
-                directEmail: nil,
-                shareTier: tier
-            )
-        case .circleOfTrust:
-            return SovereignMaskedIdentity(
-                spid: profile.userSPID,
-                displayName: profile.legalName,
-                routingEmail: profile.directEmail.isEmpty ? profile.obfuscatedRoutingEmail : profile.directEmail,
-                guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
-                department: profile.department.isEmpty ? nil : profile.department,
-                unionStatus: profile.unionStatus.isEmpty ? nil : profile.unionStatus,
-                loanOutEntity: profile.loanOutEntity.isEmpty ? nil : profile.loanOutEntity,
-                directPhone: profile.directPhone.isEmpty ? nil : profile.directPhone,
-                directEmail: profile.directEmail.isEmpty ? nil : profile.directEmail,
-                shareTier: tier
-            )
+            case .logisticalOnly:
+                SovereignMaskedIdentity(
+                    spid: profile.userSPID,
+                    displayName: profile.legalName,
+                    routingEmail: profile.obfuscatedRoutingEmail,
+                    guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
+                    department: nil,
+                    unionStatus: nil,
+                    loanOutEntity: profile.loanOutEntity.isEmpty ? nil : profile.loanOutEntity,
+                    directPhone: nil,
+                    directEmail: nil,
+                    shareTier: tier
+                )
+            case .peerToPeer:
+                SovereignMaskedIdentity(
+                    spid: profile.userSPID,
+                    displayName: profile.legalName,
+                    routingEmail: profile.obfuscatedRoutingEmail,
+                    guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
+                    department: profile.department.isEmpty ? nil : profile.department,
+                    unionStatus: profile.unionStatus.isEmpty ? nil : profile.unionStatus,
+                    loanOutEntity: nil,
+                    directPhone: nil,
+                    directEmail: nil,
+                    shareTier: tier
+                )
+            case .circleOfTrust:
+                SovereignMaskedIdentity(
+                    spid: profile.userSPID,
+                    displayName: profile.legalName,
+                    routingEmail: profile.directEmail.isEmpty ? profile.obfuscatedRoutingEmail : profile.directEmail,
+                    guildNumber: profile.guildNumber.isEmpty ? nil : profile.guildNumber,
+                    department: profile.department.isEmpty ? nil : profile.department,
+                    unionStatus: profile.unionStatus.isEmpty ? nil : profile.unionStatus,
+                    loanOutEntity: profile.loanOutEntity.isEmpty ? nil : profile.loanOutEntity,
+                    directPhone: profile.directPhone.isEmpty ? nil : profile.directPhone,
+                    directEmail: profile.directEmail.isEmpty ? nil : profile.directEmail,
+                    shareTier: tier
+                )
         }
     }
 

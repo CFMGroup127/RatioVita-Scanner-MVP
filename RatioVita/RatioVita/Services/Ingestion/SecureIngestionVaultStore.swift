@@ -3,7 +3,6 @@ import Security
 
 /// Keychain-backed credentials for supplier email ingestion (OAuth tokens, multi-inbox IMAP).
 enum SecureIngestionVaultStore {
-
     // MARK: - Provider kinds
 
     enum Provider: String, CaseIterable, Identifiable, Codable {
@@ -14,15 +13,15 @@ enum SecureIngestionVaultStore {
 
         var title: String {
             switch self {
-            case .gmailOAuth: "Gmail"
-            case .outlookOAuth: "Outlook / Microsoft 365"
+                case .gmailOAuth: "Gmail"
+                case .outlookOAuth: "Outlook / Microsoft 365"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .gmailOAuth: "envelope.fill"
-            case .outlookOAuth: "envelope.badge.fill"
+                case .gmailOAuth: "envelope.fill"
+                case .outlookOAuth: "envelope.badge.fill"
             }
         }
 
@@ -39,28 +38,28 @@ enum SecureIngestionVaultStore {
 
         var title: String {
             switch self {
-            case .yahoo: "Yahoo Mail"
-            case .iCloud: "iCloud / Apple Mail"
-            case .outlookHotmail: "Outlook / Hotmail"
-            case .customIMAP: "Custom IMAP"
+                case .yahoo: "Yahoo Mail"
+                case .iCloud: "iCloud / Apple Mail"
+                case .outlookHotmail: "Outlook / Hotmail"
+                case .customIMAP: "Custom IMAP"
             }
         }
 
         var systemImage: String {
             switch self {
-            case .yahoo: "y.circle.fill"
-            case .iCloud: "icloud.fill"
-            case .outlookHotmail: "envelope.badge.fill"
-            case .customIMAP: "server.rack"
+                case .yahoo: "y.circle.fill"
+                case .iCloud: "icloud.fill"
+                case .outlookHotmail: "envelope.badge.fill"
+                case .customIMAP: "server.rack"
             }
         }
 
         var defaultIMAPHost: String {
             switch self {
-            case .yahoo: "imap.mail.yahoo.com"
-            case .iCloud: "imap.mail.me.com"
-            case .outlookHotmail: "outlook.office365.com"
-            case .customIMAP: ""
+                case .yahoo: "imap.mail.yahoo.com"
+                case .iCloud: "imap.mail.me.com"
+                case .outlookHotmail: "outlook.office365.com"
+                case .customIMAP: ""
             }
         }
     }
@@ -130,8 +129,8 @@ enum SecureIngestionVaultStore {
         migrateLegacyIMAPAccountIfNeeded()
         guard
             let data = UserDefaults.standard.data(forKey: inboxRegistryKey),
-            let decoded = try? JSONDecoder().decode([SecureInboxAccount].self, from: data)
-        else {
+            let decoded = try? JSONDecoder().decode([SecureInboxAccount].self, from: data) else
+        {
             return []
         }
         return decoded.sorted { $0.linkedAt < $1.linkedAt }
@@ -288,9 +287,9 @@ enum SecureIngestionVaultStore {
 
         var errorDescription: String? {
             switch self {
-            case .invalidCredentials: "Enter a valid email, IMAP host, and app-specific password."
-            case .duplicateInbox: "That inbox is already linked."
-            case .secretUnavailable: "Could not read credentials from the secure vault."
+                case .invalidCredentials: "Enter a valid email, IMAP host, and app-specific password."
+                case .duplicateInbox: "That inbox is already linked."
+                case .secretUnavailable: "Could not read credentials from the secure vault."
             }
         }
     }

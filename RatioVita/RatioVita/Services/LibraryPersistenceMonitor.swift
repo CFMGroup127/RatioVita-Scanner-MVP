@@ -96,7 +96,7 @@ enum LibraryPersistenceMonitor {
         }
     }
 
-    nonisolated private static func captureOnBackground(container: ModelContainer) -> Snapshot {
+    private nonisolated static func captureOnBackground(container: ModelContainer) -> Snapshot {
         let context = ModelContext(container)
         context.autosaveEnabled = false
         var descriptor = FetchDescriptor<Receipt>()

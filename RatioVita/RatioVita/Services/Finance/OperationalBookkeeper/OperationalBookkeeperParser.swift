@@ -195,7 +195,7 @@ enum OperationalBookkeeperParser {
         if let net, let tax, net > .zero {
             let impliedRate = (tax as NSDecimalNumber).doubleValue / (net as NSDecimalNumber).doubleValue
             let isCanadian = currency.uppercased() == "CAD"
-            let expectedBand = isCanadian ? 0.05 ... 0.15 : 0.0 ... 0.12
+            let expectedBand = isCanadian ? 0.05...0.15 : 0.0...0.12
             if !expectedBand.contains(impliedRate) {
                 flags.append("tax_rate_mismatch")
             }
@@ -279,15 +279,14 @@ private enum MonetaryExtractionRules {
     private static func inferCanadianTaxFromRateLines(corpus: String, net: Decimal?) -> Decimal? {
         guard let net, net > .zero else { return nil }
         let lower = corpus.lowercased()
-        let rate: Decimal?
-        if lower.contains("hst 13") || lower.contains("13% hst") || lower.contains("hst @ 13") {
-            rate = Decimal(string: "0.13")
+        let rate: Decimal? = if lower.contains("hst 13") || lower.contains("13% hst") || lower.contains("hst @ 13") {
+            Decimal(string: "0.13")
         } else if lower.contains("gst 5") || lower.contains("5% gst") || lower.contains("gst @ 5") {
-            rate = Decimal(string: "0.05")
+            Decimal(string: "0.05")
         } else if lower.contains("pst 7") || lower.contains("7% pst") {
-            rate = Decimal(string: "0.07")
+            Decimal(string: "0.07")
         } else {
-            rate = nil
+            nil
         }
         guard let rate else { return nil }
         return net * rate
@@ -314,11 +313,10 @@ private enum MonetaryExtractionRules {
 
     private static func firstCapture(pattern: String, in text: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
-        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, options: [], range: range),
               match.numberOfRanges > 1,
-              let capture = Range(match.range(at: 1), in: text)
-        else { return nil }
+              let capture = Range(match.range(at: 1), in: text) else { return nil }
         return String(text[capture])
     }
 }
@@ -404,15 +402,15 @@ private enum LogisticsDocumentInterceptor {
         let taxCategory: String
         let glCode: String
         switch kind {
-        case "payroll_info_sheet":
-            taxCategory = "Payroll_ProductionLogistics"
-            glCode = costCodes.first ?? "GL-6100-PAYROLL"
-        case "sustainability_memo":
-            taxCategory = "Production_Sustainability"
-            glCode = costCodes.first ?? "GL-5220-SUSTAIN"
-        default:
-            taxCategory = "Production_Logistics"
-            glCode = costCodes.first ?? "GL-5200-LOGISTICS"
+            case "payroll_info_sheet":
+                taxCategory = "Payroll_ProductionLogistics"
+                glCode = costCodes.first ?? "GL-6100-PAYROLL"
+            case "sustainability_memo":
+                taxCategory = "Production_Sustainability"
+                glCode = costCodes.first ?? "GL-5220-SUSTAIN"
+            default:
+                taxCategory = "Production_Logistics"
+                glCode = costCodes.first ?? "GL-5200-LOGISTICS"
         }
 
         return ParseResult(
@@ -427,7 +425,9 @@ private enum LogisticsDocumentInterceptor {
 
     private static func classifyDocumentKind(corpus: String, filenameHint: String) -> String {
         let combined = "\(filenameHint) \(corpus)"
-        if combined.range(of: #"(?i)payroll\s+info\s+sheet|\d+\s*tm\s*-\s*payroll"#, options: .regularExpression) != nil {
+        if combined
+            .range(of: #"(?i)payroll\s+info\s+sheet|\d+\s*tm\s*-\s*payroll"#, options: .regularExpression) != nil
+        {
             return "payroll_info_sheet"
         }
         if combined.range(of: #"(?i)sustainability\s+memo"#, options: .regularExpression) != nil {
@@ -465,11 +465,10 @@ private enum LogisticsDocumentInterceptor {
         var found: [String] = []
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { continue }
-            let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+            let range = NSRange(text.startIndex..<text.endIndex, in: text)
             regex.enumerateMatches(in: text, options: [], range: range) { match, _, _ in
                 guard let match, match.numberOfRanges > 1,
-                      let capture = Range(match.range(at: 1), in: text)
-                else { return }
+                      let capture = Range(match.range(at: 1), in: text) else { return }
                 let token = String(text[capture]).trimmingCharacters(in: .whitespacesAndNewlines)
                 if !token.isEmpty, !found.contains(token) {
                     found.append(token)
@@ -481,11 +480,10 @@ private enum LogisticsDocumentInterceptor {
 
     private static func firstCapture(pattern: String, in text: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
-        let range = NSRange(text.startIndex ..< text.endIndex, in: text)
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, options: [], range: range),
               match.numberOfRanges > 1,
-              let capture = Range(match.range(at: 1), in: text)
-        else { return nil }
+              let capture = Range(match.range(at: 1), in: text) else { return nil }
         return String(text[capture])
     }
 }
@@ -496,34 +494,37 @@ struct BookkeepingScope: Sendable {
     let requiresPUID: Bool
     let requiresVentureEntity: Bool
 
-    static func fromSovereignContext(_ context: SovereignContextManager, modelContext: ModelContext) -> BookkeepingScope {
+    static func fromSovereignContext(
+        _ context: SovereignContextManager,
+        modelContext: ModelContext
+    ) -> BookkeepingScope {
         switch context.activeHub {
-        case .production:
-            let puid: String? = {
-                guard let id = context.activeProductionID else { return nil }
-                let projects = (try? modelContext.fetch(FetchDescriptor<ProductionProject>())) ?? []
-                return projects.first(where: { $0.id == id })?.sovereignPUID
-            }()
-            return BookkeepingScope(
-                productionPUID: puid,
-                ventureEntityID: nil,
-                requiresPUID: true,
-                requiresVentureEntity: false
-            )
-        case .ventures:
-            return BookkeepingScope(
-                productionPUID: nil,
-                ventureEntityID: context.activeVentureEntityID,
-                requiresPUID: false,
-                requiresVentureEntity: true
-            )
-        case .personal:
-            return BookkeepingScope(
-                productionPUID: nil,
-                ventureEntityID: nil,
-                requiresPUID: false,
-                requiresVentureEntity: false
-            )
+            case .production:
+                let puid: String? = {
+                    guard let id = context.activeProductionID else { return nil }
+                    let projects = (try? modelContext.fetch(FetchDescriptor<ProductionProject>())) ?? []
+                    return projects.first(where: { $0.id == id })?.sovereignPUID
+                }()
+                return BookkeepingScope(
+                    productionPUID: puid,
+                    ventureEntityID: nil,
+                    requiresPUID: true,
+                    requiresVentureEntity: false
+                )
+            case .ventures:
+                return BookkeepingScope(
+                    productionPUID: nil,
+                    ventureEntityID: context.activeVentureEntityID,
+                    requiresPUID: false,
+                    requiresVentureEntity: true
+                )
+            case .personal:
+                return BookkeepingScope(
+                    productionPUID: nil,
+                    ventureEntityID: nil,
+                    requiresPUID: false,
+                    requiresVentureEntity: false
+                )
         }
     }
 }

@@ -11,9 +11,9 @@ enum LaunchModal: Identifiable, Equatable {
 
     var priority: Int {
         switch self {
-        case .setOSOnboarding: 0
-        case .sovereignOnboarding: 1
-        case .consultantLauncher: 2
+            case .setOSOnboarding: 0
+            case .sovereignOnboarding: 1
+            case .consultantLauncher: 2
         }
     }
 }
@@ -67,22 +67,22 @@ enum LaunchModalPresenter {
         consultantSession: ConsultantSessionManager
     ) -> some View {
         switch modal {
-        case .setOSOnboarding:
-            OnboardingWizardView {
-                activeLaunchModal.wrappedValue = nil
-            }
-            .interactiveDismissDisabled(true)
-        case .sovereignOnboarding:
-            OnboardingMasterSetupView {
-                activeLaunchModal.wrappedValue = nil
-            }
-        case .consultantLauncher:
-            if let intent = consultantSession.pendingLauncherIntent {
-                AppShortcutIntentRouter.destination(for: intent)
-                    .onDisappear {
-                        _ = consultantSession.consumeLauncherIntent()
-                    }
-            }
+            case .setOSOnboarding:
+                OnboardingWizardView {
+                    activeLaunchModal.wrappedValue = nil
+                }
+                .interactiveDismissDisabled(true)
+            case .sovereignOnboarding:
+                OnboardingMasterSetupView {
+                    activeLaunchModal.wrappedValue = nil
+                }
+            case .consultantLauncher:
+                if let intent = consultantSession.pendingLauncherIntent {
+                    AppShortcutIntentRouter.destination(for: intent)
+                        .onDisappear {
+                            _ = consultantSession.consumeLauncherIntent()
+                        }
+                }
         }
     }
 }

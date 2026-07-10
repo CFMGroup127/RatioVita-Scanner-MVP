@@ -10,36 +10,36 @@ enum SovereignLedgerExtension: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .advancedAssets: "Advanced Assets Module"
-        case .toolInventoryTracking: "Tool & Inventory Tracking"
-        case .productionKitPullForward: "Kit Pull-Forward Bridge"
+            case .advancedAssets: "Advanced Assets Module"
+            case .toolInventoryTracking: "Tool & Inventory Tracking"
+            case .productionKitPullForward: "Kit Pull-Forward Bridge"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .advancedAssets:
-            "High-value property, appraisals, gallery loans, transit ledgers."
-        case .toolInventoryTracking:
-            "Utility trailers, fabrication gear, and venture-scoped inventory."
-        case .productionKitPullForward:
-            "Link personal / venture kit onto the active production token."
+            case .advancedAssets:
+                "High-value property, appraisals, gallery loans, transit ledgers."
+            case .toolInventoryTracking:
+                "Utility trailers, fabrication gear, and venture-scoped inventory."
+            case .productionKitPullForward:
+                "Link personal / venture kit onto the active production token."
         }
     }
 
     var systemImage: String {
         switch self {
-        case .advancedAssets: "sparkles.rectangle.stack"
-        case .toolInventoryTracking: "wrench.and.screwdriver"
-        case .productionKitPullForward: "arrow.triangle.branch"
+            case .advancedAssets: "sparkles.rectangle.stack"
+            case .toolInventoryTracking: "wrench.and.screwdriver"
+            case .productionKitPullForward: "arrow.triangle.branch"
         }
     }
 
     var hub: SovereignHubKind {
         switch self {
-        case .advancedAssets: .personal
-        case .toolInventoryTracking: .ventures
-        case .productionKitPullForward: .production
+            case .advancedAssets: .personal
+            case .toolInventoryTracking: .ventures
+            case .productionKitPullForward: .production
         }
     }
 

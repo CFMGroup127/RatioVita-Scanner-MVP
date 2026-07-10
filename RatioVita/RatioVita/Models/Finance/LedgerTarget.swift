@@ -39,16 +39,16 @@ struct LedgerTargetAssignment: Equatable, Sendable {
 
     var displaySummary: String {
         switch kind {
-        case .personal:
-            regimenTrackingEnabled ? "Personal / Regimen" : "Personal"
-        case .cateringCompany:
-            "Catering" + (ventureEntityID.map { " (\($0.uuidString.prefix(8)))" } ?? "")
-        case .property:
-            "Property" + (ventureEntityID.map { " (\($0.uuidString.prefix(8)))" } ?? "")
-        case .wardrobeKit:
-            "Wardrobe Kit"
-        case .gift:
-            "Gift"
+            case .personal:
+                regimenTrackingEnabled ? "Personal / Regimen" : "Personal"
+            case .cateringCompany:
+                "Catering" + (ventureEntityID.map { " (\($0.uuidString.prefix(8)))" } ?? "")
+            case .property:
+                "Property" + (ventureEntityID.map { " (\($0.uuidString.prefix(8)))" } ?? "")
+            case .wardrobeKit:
+                "Wardrobe Kit"
+            case .gift:
+                "Gift"
         }
     }
 }

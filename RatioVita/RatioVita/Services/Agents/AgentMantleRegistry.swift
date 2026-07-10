@@ -114,19 +114,19 @@ final class AgentMantleRegistry: ObservableObject {
         activeHub: SovereignHubKind?
     ) -> AgentMantle {
         switch mantle {
-        case .production(var ctx):
-            if ctx.productionID == nil {
-                ctx.productionID = productionID?.uuidString
-            }
-            return .production(ctx)
-        case .venture(var ctx):
-            if ctx.ventureEntityID == nil {
-                ctx.ventureEntityID = ventureEntityID?.uuidString
-            }
-            if ctx.subsidiaryLabel == nil, activeHub == .ventures {
-                ctx.subsidiaryLabel = "New Horizons"
-            }
-            return .venture(ctx)
+            case var .production(ctx):
+                if ctx.productionID == nil {
+                    ctx.productionID = productionID?.uuidString
+                }
+                return .production(ctx)
+            case var .venture(ctx):
+                if ctx.ventureEntityID == nil {
+                    ctx.ventureEntityID = ventureEntityID?.uuidString
+                }
+                if ctx.subsidiaryLabel == nil, activeHub == .ventures {
+                    ctx.subsidiaryLabel = "New Horizons"
+                }
+                return .venture(ctx)
         }
     }
 

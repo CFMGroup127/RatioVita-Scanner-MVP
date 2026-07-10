@@ -28,25 +28,25 @@ struct ContinuityStyleVaultView: View {
         .background(Color.ratioVitaAdaptiveBackground.ignoresSafeArea())
         .navigationTitle("Continuity & Style")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.large)
         #endif
-        .sheet(item: $selectedAsset) { asset in
-            LookBoardDetailSheet(asset: asset) { payload in
-                sharePayload = payload
+            .sheet(item: $selectedAsset) { asset in
+                LookBoardDetailSheet(asset: asset) { payload in
+                    sharePayload = payload
+                }
             }
-        }
-        .sheet(item: $sharePayload) { payload in
-            LookBoardShareSheet(payload: payload)
-        }
-        .onAppear {
-            vaultStream.startListening(productionId: forensicActiveProductionID)
-        }
-        .onDisappear {
-            vaultStream.stopListening()
-        }
-        .onChange(of: forensicActiveProductionID) { _, newValue in
-            vaultStream.startListening(productionId: newValue)
-        }
+            .sheet(item: $sharePayload) { payload in
+                LookBoardShareSheet(payload: payload)
+            }
+            .onAppear {
+                vaultStream.startListening(productionId: forensicActiveProductionID)
+            }
+            .onDisappear {
+                vaultStream.stopListening()
+            }
+            .onChange(of: forensicActiveProductionID) { _, newValue in
+                vaultStream.startListening(productionId: newValue)
+            }
     }
 
     private var headerCard: some View {
@@ -165,14 +165,14 @@ private struct LookBoardThumbnailView: View {
             if let url = asset.thumbnailURL ?? asset.fullImageURL {
                 AsyncImage(url: url) { phase in
                     switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        placeholder
-                    default:
-                        ProgressView()
+                        case let .success(image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            placeholder
+                        default:
+                            ProgressView()
                     }
                 }
             } else {
@@ -240,20 +240,20 @@ private struct LookBoardDetailSheet: View {
             }
             .navigationTitle("Look board")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        onShare(LookBoardSharePayload(asset: asset))
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            onShare(LookBoardSharePayload(asset: asset))
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
                     }
                 }
-            }
         }
     }
 }
@@ -284,7 +284,7 @@ private struct FlowTagWrap: View {
 private struct WrapLayout: Layout {
     var spacing: CGFloat = 8
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
         let width = proposal.width ?? 0
         var x: CGFloat = 0
         var y: CGFloat = 0
@@ -303,7 +303,7 @@ private struct WrapLayout: Layout {
         return CGSize(width: width, height: y + rowHeight)
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
         var x = bounds.minX
         var y = bounds.minY
         var rowHeight: CGFloat = 0
@@ -376,13 +376,13 @@ private struct LookBoardShareSheet: View {
             .padding(DesignSystem.Spacing.xl)
             .navigationTitle("Share look board")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
-            }
         }
     }
 }

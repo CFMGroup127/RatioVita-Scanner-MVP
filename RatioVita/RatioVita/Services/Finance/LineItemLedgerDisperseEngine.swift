@@ -12,7 +12,7 @@ enum LineItemLedgerDisperseEngine {
     static func applyAndDisperse(
         manifest: MasterInvoiceManifest,
         context: ModelContext,
-        bookkeepingPassID: String = UUID().uuidString
+        bookkeepingPassID _: String = UUID().uuidString
     ) async throws -> DisperseResult {
         guard manifest.allLinesAssigned else {
             throw LineItemLedgerDisperseError.incompleteAssignments
@@ -50,8 +50,8 @@ enum LineItemLedgerDisperseError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .incompleteAssignments:
-            "Assign a ledger target to every line item before dispersing."
+            case .incompleteAssignments:
+                "Assign a ledger target to every line item before dispersing."
         }
     }
 }

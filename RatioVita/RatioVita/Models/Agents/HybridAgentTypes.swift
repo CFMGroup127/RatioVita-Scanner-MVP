@@ -16,22 +16,22 @@ enum ContextualMantleKind: String, Codable, CaseIterable, Identifiable, Sendable
 
     var title: String {
         switch self {
-        case .productionMode: "Production mode"
-        case .ventureMode: "Venture mode"
+            case .productionMode: "Production mode"
+            case .ventureMode: "Venture mode"
         }
     }
 
     var agentMantle: AgentMantle {
         switch self {
-        case .productionMode: .production(.empty)
-        case .ventureMode: .venture(.empty)
+            case .productionMode: .production(.empty)
+            case .ventureMode: .venture(.empty)
         }
     }
 
     init(agentMantle: AgentMantle) {
         switch agentMantle {
-        case .production: self = .productionMode
-        case .venture: self = .ventureMode
+            case .production: self = .productionMode
+            case .venture: self = .ventureMode
         }
     }
 }
@@ -46,9 +46,9 @@ enum FinancialExpertStrategy: String, Codable, CaseIterable, Identifiable, Senda
 
     var title: String {
         switch self {
-        case .operationalBookkeeper: "Operational bookkeeper"
-        case .taxationAuditor: "Taxation auditor"
-        case .corporateComptroller: "Corporate comptroller"
+            case .operationalBookkeeper: "Operational bookkeeper"
+            case .taxationAuditor: "Taxation auditor"
+            case .corporateComptroller: "Corporate comptroller"
         }
     }
 }
@@ -116,7 +116,8 @@ struct HybridAgentRequest: Codable, Identifiable, Sendable {
 
     private static func encodeMantle(_ mantle: AgentMantle) -> String {
         guard let data = try? JSONEncoder().encode(mantle),
-              let json = String(data: data, encoding: .utf8) else {
+              let json = String(data: data, encoding: .utf8) else
+        {
             return mantle.storageKey
         }
         return json
@@ -124,7 +125,8 @@ struct HybridAgentRequest: Codable, Identifiable, Sendable {
 
     private static func decodeMantle(_ raw: String) -> AgentMantle? {
         if let data = raw.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode(AgentMantle.self, from: data) {
+           let decoded = try? JSONDecoder().decode(AgentMantle.self, from: data)
+        {
             return decoded
         }
         return AgentMantle.from(storageKey: raw)

@@ -41,9 +41,9 @@ enum LocalIndexEnvironmentGuard {
         SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         configureFirestorePersistenceCapacity()
 
-        if reviewQueueCount >= 1_500 {
+        if reviewQueueCount >= 1500 {
             setDisableSystemIndexing(true)
-            deferSystemDonations(for: 3_600)
+            deferSystemDonations(for: 3600)
             #if DEBUG
             print(
                 "[LocalIndexEnvironmentGuard] Large review queue (\(reviewQueueCount)) — disableSystemIndexing=true."
@@ -56,7 +56,7 @@ enum LocalIndexEnvironmentGuard {
     static func recordMapFullPressureDetected() {
         UserDefaults.standard.set(true, forKey: mapFullCircuitBreakerKey)
         setDisableSystemIndexing(true)
-        deferSystemDonations(for: 86_400)
+        deferSystemDonations(for: 86400)
         #if DEBUG
         print("[LocalIndexEnvironmentGuard] Map-full pressure recorded — background indexing deferred 24h.")
         #endif

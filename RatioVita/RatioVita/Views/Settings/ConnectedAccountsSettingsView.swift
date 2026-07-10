@@ -66,20 +66,20 @@ struct ConnectedAccountsSettingsView: View {
         }
         .navigationTitle("Connected Accounts")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
-        .onAppear { reloadInboxes() }
-        .confirmationDialog("Add Secure Inbox", isPresented: $showAddInboxMenu, titleVisibility: .visible) {
-            ForEach(SecureIngestionVaultStore.SecureInboxKind.allCases) { kind in
-                Button(kind.title) {
-                    beginAddInbox(kind)
+            .onAppear { reloadInboxes() }
+            .confirmationDialog("Add Secure Inbox", isPresented: $showAddInboxMenu, titleVisibility: .visible) {
+                ForEach(SecureIngestionVaultStore.SecureInboxKind.allCases) { kind in
+                    Button(kind.title) {
+                        beginAddInbox(kind)
+                    }
                 }
+                Button("Cancel", role: .cancel) {}
             }
-            Button("Cancel", role: .cancel) {}
-        }
-        .sheet(item: $pendingInboxKind) { kind in
-            addInboxSheet(kind: kind)
-        }
+            .sheet(item: $pendingInboxKind) { kind in
+                addInboxSheet(kind: kind)
+            }
     }
 
     @ViewBuilder
@@ -157,22 +157,22 @@ struct ConnectedAccountsSettingsView: View {
             }
             .navigationTitle("Link Inbox")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        pendingInboxKind = nil
-                        resetDraftFields()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            pendingInboxKind = nil
+                            resetDraftFields()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            saveInbox(kind: kind)
+                        }
+                        .disabled(!canSaveInbox(kind: kind))
                     }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveInbox(kind: kind)
-                    }
-                    .disabled(!canSaveInbox(kind: kind))
-                }
-            }
         }
         #if os(iOS)
         .presentationDetents([.medium, .large])

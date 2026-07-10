@@ -16,9 +16,9 @@ enum FinancialIntelligenceEngine {
         }
 
         var reports: [FinancialIntelligenceReport] = []
-        reports.append(try runOperationalBookkeeper(modelContext: modelContext))
-        reports.append(try TaxationAuditorStrategy.run(modelContext: modelContext))
-        reports.append(try CorporateComptrollerStrategy.run(modelContext: modelContext))
+        try reports.append(runOperationalBookkeeper(modelContext: modelContext))
+        try reports.append(TaxationAuditorStrategy.run(modelContext: modelContext))
+        try reports.append(CorporateComptrollerStrategy.run(modelContext: modelContext))
         try modelContext.save()
 
         let summary = reports.flatMap(\.warnings).prefix(3).joined(separator: " · ")
@@ -68,7 +68,8 @@ enum TaxationAuditorStrategy {
         let freelancerKeywords = ["home office", "kit", "equipment", "professional", "union", "iatse"]
         var deductionHints = 0
         for receipt in scoped where receipt.taxCategory == nil {
-            let corpus = [receipt.merchant, receipt.notes ?? "", receipt.department ?? ""].joined(separator: " ").lowercased()
+            let corpus = [receipt.merchant, receipt.notes ?? "", receipt.department ?? ""].joined(separator: " ")
+                .lowercased()
             if freelancerKeywords.contains(where: { corpus.contains($0) }) {
                 deductionHints += 1
             }
@@ -85,8 +86,11 @@ enum TaxationAuditorStrategy {
                 guard calendar.isDate(receipt.createdAt, equalTo: Date(), toGranularity: .quarter) else { return partial }
                 return partial + receipt.total
             }
-            if quarterSpend > 5_000 {
-                warnings.append("Quarterly installment vulnerability: \(month)/\(calendar.component(.year, from: Date())) — review CRA/IRS estimated payments.")
+            if quarterSpend > 5000 {
+                warnings
+                    .append(
+                        "Quarterly installment vulnerability: \(month)/\(calendar.component(.year, from: Date())) — review CRA/IRS estimated payments."
+                    )
             } else {
                 findings.append("Quarterly tax window open — spend within expected freelancer threshold.")
             }
@@ -114,7 +118,10 @@ enum CorporateComptrollerStrategy {
         let ledgerRows = try modelContext.fetch(FetchDescriptor<SovereignLedgerEntry>())
 
         let ventureLinked = projects.filter { $0.businessEntity != nil }
-        findings.append("Corporate comptroller tracking \(entities.count) entity(ies), \(ventureLinked.count) linked production(s).")
+        findings
+            .append(
+                "Corporate comptroller tracking \(entities.count) entity(ies), \(ventureLinked.count) linked production(s)."
+            )
         findings.append("Sovereign ledger: \(ledgerRows.count) normalized row(s) from bookkeeper pipeline.")
 
         let flaggedLedger = ledgerRows.filter { !$0.anomalyFlags.isEmpty }
@@ -134,7 +141,7 @@ enum CorporateComptrollerStrategy {
         }
 
         let capitalAssets = assets.filter { asset in
-            (asset.sourceReceipt?.total ?? .zero) > 1_000 || (asset.dailyRentalRateCAD ?? .zero) > 0
+            (asset.sourceReceipt?.total ?? .zero) > 1000 || (asset.dailyRentalRateCAD ?? .zero) > 0
         }
         if !capitalAssets.isEmpty {
             findings.append("Capital asset register: \(capitalAssets.count) tracked equipment item(s).")
@@ -143,7 +150,10 @@ enum CorporateComptrollerStrategy {
         let unlinkedVentureReceipts = try modelContext.fetch(FetchDescriptor<Receipt>())
             .filter { $0.trashedAt == nil && $0.productionProject?.businessEntity == nil && $0.total > 500 }
         if unlinkedVentureReceipts.count > 5 {
-            warnings.append("Inter-company gap: \(unlinkedVentureReceipts.count) high-value receipt(s) not linked to a corporate entity.")
+            warnings
+                .append(
+                    "Inter-company gap: \(unlinkedVentureReceipts.count) high-value receipt(s) not linked to a corporate entity."
+                )
         }
 
         return FinancialIntelligenceReport(

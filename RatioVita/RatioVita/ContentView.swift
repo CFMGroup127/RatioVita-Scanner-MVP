@@ -16,8 +16,8 @@ private enum RootPresentationModal: Identifiable {
 
     var id: String {
         switch self {
-        case .launch(let modal): "launch-\(modal.id)"
-        case .shell(let modal): "shell-\(String(describing: modal.id))"
+            case let .launch(modal): "launch-\(modal.id)"
+            case let .shell(modal): "shell-\(String(describing: modal.id))"
         }
     }
 }
@@ -207,9 +207,9 @@ struct ContentView: View {
         }
         .sheet(item: rootPresentationBinding) { modal in
             rootModalContent(modal)
-                #if os(macOS)
+            #if os(macOS)
                 .frame(minWidth: 560, minHeight: 640)
-                #endif
+            #endif
         }
         .alert(userMessages.title, isPresented: $userMessages.isPresented) {
             Button("OK", role: .cancel) {
@@ -257,18 +257,18 @@ struct ContentView: View {
     @ViewBuilder
     private func shellModalContent(_ modal: ShellPresentationModal) -> some View {
         switch modal {
-        case .corporateRegistry:
-            NavigationStack { CorporateRegistryView() }
-        case .productionRegistry:
-            NavigationStack { ProductionWorkspaceView() }
-        case .sovereignAudit:
-            NavigationStack { SovereignAuditLogListView() }
-        case .contacts:
-            NavigationStack { ProductionContactsLibraryView() }
-        case .inventory:
-            InventoryModuleView()
-        case .crewFeedback:
-            CrewFeedbackOverlayView()
+            case .corporateRegistry:
+                NavigationStack { CorporateRegistryView() }
+            case .productionRegistry:
+                NavigationStack { ProductionWorkspaceView() }
+            case .sovereignAudit:
+                NavigationStack { SovereignAuditLogListView() }
+            case .contacts:
+                NavigationStack { ProductionContactsLibraryView() }
+            case .inventory:
+                InventoryModuleView()
+            case .crewFeedback:
+                CrewFeedbackOverlayView()
         }
     }
 
@@ -285,15 +285,15 @@ struct ContentView: View {
             },
             set: { newValue in
                 switch newValue {
-                case .launch(let modal):
-                    activeLaunchModal = modal
-                    activeShellModal = nil
-                case .shell(let modal):
-                    activeShellModal = modal
-                    activeLaunchModal = nil
-                case nil:
-                    activeLaunchModal = nil
-                    activeShellModal = nil
+                    case let .launch(modal):
+                        activeLaunchModal = modal
+                        activeShellModal = nil
+                    case let .shell(modal):
+                        activeShellModal = modal
+                        activeLaunchModal = nil
+                    case nil:
+                        activeLaunchModal = nil
+                        activeShellModal = nil
                 }
             }
         )
@@ -302,14 +302,14 @@ struct ContentView: View {
     @ViewBuilder
     private func rootModalContent(_ modal: RootPresentationModal) -> some View {
         switch modal {
-        case .launch(let launchModal):
-            LaunchModalPresenter.content(
-                for: launchModal,
-                activeLaunchModal: $activeLaunchModal,
-                consultantSession: consultantSession
-            )
-        case .shell(let shellModal):
-            shellModalContent(shellModal)
+            case let .launch(launchModal):
+                LaunchModalPresenter.content(
+                    for: launchModal,
+                    activeLaunchModal: $activeLaunchModal,
+                    consultantSession: consultantSession
+                )
+            case let .shell(shellModal):
+                shellModalContent(shellModal)
         }
     }
 }

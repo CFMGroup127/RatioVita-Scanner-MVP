@@ -77,7 +77,9 @@ final class ReceiptReviewQueueStore: ObservableObject {
             descriptor.fetchLimit = 100
             descriptor.fetchOffset = offset
             guard let chunk = try? context.fetch(descriptor), !chunk.isEmpty else { break }
-            for receipt in chunk { mutate(receipt) }
+            for receipt in chunk {
+                mutate(receipt)
+            }
             offset += chunk.count
             if chunk.count < 100 { break }
         }

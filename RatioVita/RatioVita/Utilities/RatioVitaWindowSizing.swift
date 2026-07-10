@@ -51,13 +51,13 @@ private struct RatioVitaWindowSizeConfigurator: NSViewRepresentable {
     let maximum: NSSize
     let preferred: NSSize
 
-    func makeNSView(context: Context) -> NSView {
+    func makeNSView(context _: Context) -> NSView {
         let view = NSView(frame: .zero)
         DispatchQueue.main.async { apply(to: view) }
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func updateNSView(_ nsView: NSView, context _: Context) {
         DispatchQueue.main.async { apply(to: nsView) }
     }
 

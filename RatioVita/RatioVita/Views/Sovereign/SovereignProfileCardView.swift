@@ -32,7 +32,9 @@ struct SovereignProfileCardView: View {
                     ContentUnavailableView(
                         "No sovereign profile",
                         systemImage: "person.crop.circle.badge.questionmark",
-                        description: Text("Complete Sovereign setup in Settings to generate your SPID and onboarding QR.")
+                        description: Text(
+                            "Complete Sovereign setup in Settings to generate your SPID and onboarding QR."
+                        )
                     )
                 }
             }
@@ -40,14 +42,14 @@ struct SovereignProfileCardView: View {
         }
         .navigationTitle("Sovereign profile")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)
         #endif
-        .onAppear {
-            syncFieldsFromProfile()
-            refreshToken()
-        }
-        .onChange(of: shareTier) { _, _ in refreshToken() }
-        .onChange(of: selectedProductionID) { _, _ in refreshToken() }
+            .onAppear {
+                syncFieldsFromProfile()
+                refreshToken()
+            }
+            .onChange(of: shareTier) { _, _ in refreshToken() }
+            .onChange(of: selectedProductionID) { _, _ in refreshToken() }
     }
 
     @ViewBuilder

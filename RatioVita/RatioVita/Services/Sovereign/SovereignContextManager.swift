@@ -12,17 +12,17 @@ enum SovereignHubKind: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .personal: "Personal Hub"
-        case .ventures: "Ventures Hub"
-        case .production: "Production Mode"
+            case .personal: "Personal Hub"
+            case .ventures: "Ventures Hub"
+            case .production: "Production Mode"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .personal: "person.crop.circle.fill"
-        case .ventures: "building.2.fill"
-        case .production: "film.stack.fill"
+            case .personal: "person.crop.circle.fill"
+            case .ventures: "building.2.fill"
+            case .production: "film.stack.fill"
         }
     }
 }
@@ -70,16 +70,16 @@ final class SovereignContextManager: ObservableObject {
 
     var displaySubtitle: String {
         switch activeHub {
-        case .personal:
-            "Subscriptions · household · personal gifts"
-        case .ventures:
-            activeVentureEntityID == nil
-                ? "Side ventures · property · New Horizons"
-                : "Venture entity selected"
-        case .production:
-            activeProductionID == nil
-                ? "Pick an active show for isolation"
-                : "Strict production containment"
+            case .personal:
+                "Subscriptions · household · personal gifts"
+            case .ventures:
+                activeVentureEntityID == nil
+                    ? "Side ventures · property · New Horizons"
+                    : "Venture entity selected"
+            case .production:
+                activeProductionID == nil
+                    ? "Pick an active show for isolation"
+                    : "Strict production containment"
         }
     }
 
@@ -91,18 +91,18 @@ final class SovereignContextManager: ObservableObject {
     /// Maps sovereign hub to agent mantle lane (Production vs Venture).
     var activeAgentMantle: AgentMantle {
         switch activeHub {
-        case .production:
-            return .production(ProductionContext(
-                productionID: activeProductionID?.uuidString,
-                activeDayState: nil
-            ))
-        case .ventures:
-            return .venture(VentureContext(
-                ventureEntityID: activeVentureEntityID?.uuidString,
-                subsidiaryLabel: "New Horizons"
-            ))
-        case .personal:
-            return .venture(VentureContext(subsidiaryLabel: "Personal Hub"))
+            case .production:
+                .production(ProductionContext(
+                    productionID: activeProductionID?.uuidString,
+                    activeDayState: nil
+                ))
+            case .ventures:
+                .venture(VentureContext(
+                    ventureEntityID: activeVentureEntityID?.uuidString,
+                    subsidiaryLabel: "New Horizons"
+                ))
+            case .personal:
+                .venture(VentureContext(subsidiaryLabel: "Personal Hub"))
         }
     }
 
@@ -153,16 +153,16 @@ final class SovereignContextManager: ObservableObject {
 
     var isolationScopeLabel: String {
         switch activeHub {
-        case .personal:
-            "Personal ledger only"
-        case .ventures:
-            activeVentureEntityID == nil
-                ? "All venture ledgers"
-                : "Single venture ledger"
-        case .production:
-            activeProductionID == nil
-                ? "Production ledger (unpinned)"
-                : "Production isolation active"
+            case .personal:
+                "Personal ledger only"
+            case .ventures:
+                activeVentureEntityID == nil
+                    ? "All venture ledgers"
+                    : "Single venture ledger"
+            case .production:
+                activeProductionID == nil
+                    ? "Production ledger (unpinned)"
+                    : "Production isolation active"
         }
     }
 
@@ -183,8 +183,8 @@ final class SovereignContextManager: ObservableObject {
     private func scheduleDeferredSideEffects() {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.applyMantleContext()
-            self.setupFirebaseListenersIfReady()
+            applyMantleContext()
+            setupFirebaseListenersIfReady()
         }
     }
 

@@ -9,31 +9,30 @@ enum SovereignEntityDestination: Equatable, Identifiable {
 
     var id: String {
         switch self {
-        case .personalHub: "personal"
-        case let .venture(entity): "venture-\(entity.id.uuidString)"
-        case let .production(project): "production-\(project.id.uuidString)"
+            case .personalHub: "personal"
+            case let .venture(entity): "venture-\(entity.id.uuidString)"
+            case let .production(project): "production-\(project.id.uuidString)"
         }
     }
 
     var title: String {
         switch self {
-        case .personalHub: "Personal Hub"
-        case let .venture(entity): entity.legalName
-        case let .production(project): project.title
+            case .personalHub: "Personal Hub"
+            case let .venture(entity): entity.legalName
+            case let .production(project): project.title
         }
     }
 
     var systemImage: String {
         switch self {
-        case .personalHub: "person.crop.circle"
-        case .venture: "building.2"
-        case .production: "film.stack"
+            case .personalHub: "person.crop.circle"
+            case .venture: "building.2"
+            case .production: "film.stack"
         }
     }
 }
 
 enum CrossEntityReallocationService {
-
     static func destinations(
         ventures: [BusinessEntity],
         productions: [ProductionProject]
@@ -53,33 +52,33 @@ enum CrossEntityReallocationService {
         let targetLines = filteredLines(receipt: receipt, lineIDs: lineIDs)
 
         switch destination {
-        case .personalHub:
-            for line in targetLines {
-                line.allocationIsPersonal = true
-                line.allocatedBusinessEntity = nil
-                line.allocatedProductionProject = nil
-            }
-            if lineIDs == nil {
-                receipt.productionProject = nil
-            }
-        case let .venture(entity):
-            for line in targetLines {
-                line.allocationIsPersonal = false
-                line.allocatedBusinessEntity = entity
-                line.allocatedProductionProject = nil
-            }
-            if lineIDs == nil {
-                receipt.productionProject = nil
-            }
-        case let .production(project):
-            for line in targetLines {
-                line.allocationIsPersonal = false
-                line.allocatedBusinessEntity = project.businessEntity
-                line.allocatedProductionProject = project
-            }
-            if lineIDs == nil {
-                receipt.productionProject = project
-            }
+            case .personalHub:
+                for line in targetLines {
+                    line.allocationIsPersonal = true
+                    line.allocatedBusinessEntity = nil
+                    line.allocatedProductionProject = nil
+                }
+                if lineIDs == nil {
+                    receipt.productionProject = nil
+                }
+            case let .venture(entity):
+                for line in targetLines {
+                    line.allocationIsPersonal = false
+                    line.allocatedBusinessEntity = entity
+                    line.allocatedProductionProject = nil
+                }
+                if lineIDs == nil {
+                    receipt.productionProject = nil
+                }
+            case let .production(project):
+                for line in targetLines {
+                    line.allocationIsPersonal = false
+                    line.allocatedBusinessEntity = project.businessEntity
+                    line.allocatedProductionProject = project
+                }
+                if lineIDs == nil {
+                    receipt.productionProject = project
+                }
         }
 
         CrossEntityTriageEngine.refreshTriageState(for: receipt)

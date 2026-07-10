@@ -220,8 +220,8 @@ struct ReceiptItemAllocationView: View {
 
         guard case let .venture(venture) = destination, ids.count == 1, let lineID = ids.first,
               let line = sortedLines.first(where: { $0.id == lineID }),
-              let prompt = AssetRegistrationBridge.prompt(for: line, venture: venture, receipt: receipt)
-        else {
+              let prompt = AssetRegistrationBridge.prompt(for: line, venture: venture, receipt: receipt) else
+        {
             pendingAssetRegistration = nil
             return
         }

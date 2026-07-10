@@ -93,18 +93,21 @@ final class LookBoardVaultStreamService: ObservableObject {
     }
 
     func groupedAssets(filterTag: String?) -> [(tag: String, items: [LookBoardAsset])] {
-        let pool: [LookBoardAsset]
-        if let filterTag, !filterTag.isEmpty {
-            pool = assets.filter { asset in
+        let pool: [LookBoardAsset] = if let filterTag, !filterTag.isEmpty {
+            assets.filter { asset in
                 asset.tags.contains { $0.caseInsensitiveCompare(filterTag) == .orderedSame }
             }
         } else {
-            pool = assets
+            assets
         }
 
         let grouped = Dictionary(grouping: pool) { $0.primaryGroupTag }
         return grouped.keys.sorted().map { key in
-            (tag: key, items: grouped[key]?.sorted(by: { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }) ?? [])
+            (
+                tag: key,
+                items: grouped[key]?
+                    .sorted(by: { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }) ?? []
+            )
         }
     }
 

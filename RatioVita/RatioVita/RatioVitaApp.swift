@@ -84,9 +84,9 @@ struct RatioVitaApp: App {
                 .environment(libraryNavigationCoordinator)
                 .environmentObject(SovereignContextManager.shared)
                 .environmentObject(ReceiptReviewQueueStore.shared)
-                #if os(macOS)
+            #if os(macOS)
                 .ratioVitaWindowSizing()
-                #endif
+            #endif
                 .logisticsLiveSync()
                 .onOpenURL { url in
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
@@ -103,7 +103,9 @@ struct RatioVitaApp: App {
                             title: "Library database upgraded",
                             message: recovery
                         )
-                    } else if let regression = await LibraryPersistenceMonitor.regressionHint(container: sharedModelContainer) {
+                    } else if let regression = await LibraryPersistenceMonitor
+                        .regressionHint(container: sharedModelContainer)
+                    {
                         UserMessageCenter.shared.present(
                             title: "Library count changed",
                             message: regression

@@ -110,11 +110,10 @@ struct ReceiptsView: View {
     }
 
     private var receiptsForLibraryList: [Receipt] {
-        let base: [Receipt]
-        if let cid = libraryNavigationCoordinator.receiptsContactFilterContactID {
-            base = receipts.filter { $0.counterpartyContact?.id == cid }
+        let base: [Receipt] = if let cid = libraryNavigationCoordinator.receiptsContactFilterContactID {
+            receipts.filter { $0.counterpartyContact?.id == cid }
         } else {
-            base = receipts
+            receipts
         }
         return SovereignScopeFilter.filterReceipts(base, context: sovereignContext)
     }

@@ -2,7 +2,6 @@ import Foundation
 
 /// Decoupled-ledger visibility — filters receipts, line items, and scoped totals by active sovereign hub.
 enum SovereignScopeFilter {
-
     // MARK: - Receipt visibility
 
     /// Whether a receipt (or any of its lines) belongs in the active hub's ledgers.
@@ -23,7 +22,12 @@ enum SovereignScopeFilter {
     ) -> Bool {
         let lines = receipt.lineItems
         if !lines.isEmpty {
-            return lines.contains { lineMatchesScope($0, hub: hub, ventureEntityID: ventureEntityID, productionID: productionID) }
+            return lines.contains { lineMatchesScope(
+                $0,
+                hub: hub,
+                ventureEntityID: ventureEntityID,
+                productionID: productionID
+            ) }
         }
         return receiptLevelMatchesScope(receipt, hub: hub, ventureEntityID: ventureEntityID, productionID: productionID)
     }
@@ -32,7 +36,12 @@ enum SovereignScopeFilter {
     static func triageReceiptIsVisible(_ receipt: Receipt, context: SovereignContextManager) -> Bool {
         let lines = receipt.lineItems
         if lines.isEmpty {
-            return receiptLevelMatchesScope(receipt, hub: context.activeHub, ventureEntityID: context.activeVentureEntityID, productionID: context.isolationProductionID)
+            return receiptLevelMatchesScope(
+                receipt,
+                hub: context.activeHub,
+                ventureEntityID: context.activeVentureEntityID,
+                productionID: context.isolationProductionID
+            )
                 || context.activeHub == .personal
         }
         if lines.contains(where: { lineIsUnallocated($0) }) {
@@ -73,29 +82,29 @@ enum SovereignScopeFilter {
         }
         if let project = line.allocatedProductionProject {
             switch hub {
-            case .personal:
-                return false
-            case .ventures:
-                if let ventureEntityID {
-                    return project.businessEntity?.id == ventureEntityID
-                }
-                return project.businessEntity != nil
-            case .production:
-                guard let productionID else { return true }
-                return project.id == productionID
+                case .personal:
+                    return false
+                case .ventures:
+                    if let ventureEntityID {
+                        return project.businessEntity?.id == ventureEntityID
+                    }
+                    return project.businessEntity != nil
+                case .production:
+                    guard let productionID else { return true }
+                    return project.id == productionID
             }
         }
         if let entity = line.allocatedBusinessEntity {
             switch hub {
-            case .personal:
-                return false
-            case .ventures:
-                if let ventureEntityID {
-                    return entity.id == ventureEntityID
-                }
-                return true
-            case .production:
-                return false
+                case .personal:
+                    return false
+                case .ventures:
+                    if let ventureEntityID {
+                        return entity.id == ventureEntityID
+                    }
+                    return true
+                case .production:
+                    return false
             }
         }
         return hub == .personal
@@ -156,18 +165,22 @@ enum SovereignScopeFilter {
 
     // MARK: - Bank reconciliation
 
-    static func bankTransactionIsVisible(_ tx: BankTransaction, context: SovereignContextManager, openReceipts: [Receipt]) -> Bool {
+    static func bankTransactionIsVisible(
+        _ tx: BankTransaction,
+        context: SovereignContextManager,
+        openReceipts: [Receipt]
+    ) -> Bool {
         if let matched = tx.matchedReceipt {
             return receiptIsVisible(matched, context: context)
         }
         switch context.activeHub {
-        case .personal:
-            return true
-        case .ventures, .production:
-            return openReceipts.contains { receipt in
-                receiptIsVisible(receipt, context: context)
-                    && receipt.currencyCode.caseInsensitiveCompare(tx.currencyCode) == .orderedSame
-            }
+            case .personal:
+                return true
+            case .ventures, .production:
+                return openReceipts.contains { receipt in
+                    receiptIsVisible(receipt, context: context)
+                        && receipt.currencyCode.caseInsensitiveCompare(tx.currencyCode) == .orderedSame
+                }
         }
     }
 
@@ -180,21 +193,21 @@ enum SovereignScopeFilter {
         productionID: UUID?
     ) -> Bool {
         switch hub {
-        case .personal:
-            if receipt.productionProject != nil { return false }
-            if let pct = receipt.businessUsePercent, pct >= 100 { return false }
-            return true
-        case .ventures:
-            guard let project = receipt.productionProject else {
-                return ventureEntityID == nil && (receipt.businessUsePercent ?? 0) > 0
-            }
-            if let ventureEntityID {
-                return project.businessEntity?.id == ventureEntityID
-            }
-            return project.businessEntity != nil || receipt.businessUsePercent ?? 0 > 0
-        case .production:
-            guard let productionID else { return receipt.productionProject != nil }
-            return receipt.productionProject?.id == productionID
+            case .personal:
+                if receipt.productionProject != nil { return false }
+                if let pct = receipt.businessUsePercent, pct >= 100 { return false }
+                return true
+            case .ventures:
+                guard let project = receipt.productionProject else {
+                    return ventureEntityID == nil && (receipt.businessUsePercent ?? 0) > 0
+                }
+                if let ventureEntityID {
+                    return project.businessEntity?.id == ventureEntityID
+                }
+                return project.businessEntity != nil || receipt.businessUsePercent ?? 0 > 0
+            case .production:
+                guard let productionID else { return receipt.productionProject != nil }
+                return receipt.productionProject?.id == productionID
         }
     }
 }

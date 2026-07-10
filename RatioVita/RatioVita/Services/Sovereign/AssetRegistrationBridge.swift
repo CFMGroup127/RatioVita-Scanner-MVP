@@ -3,7 +3,6 @@ import SwiftData
 
 /// Bridges venture line-item allocations into the property inventory matrix.
 enum AssetRegistrationBridge {
-
     struct RegistrationPrompt: Identifiable, Equatable {
         let id: UUID
         let lineID: UUID

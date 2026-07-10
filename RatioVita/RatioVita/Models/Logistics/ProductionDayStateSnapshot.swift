@@ -62,18 +62,19 @@ enum ProductionDayStateParser {
         let totalLogisticsFileCount = data["totalLogisticsFileCount"] as? Int
         let totalLogEntryCount = data["totalLogEntryCount"] as? Int
 
-        let transitSummaries: [ProductionDayTransitSnapshot] = (data["transitExceptionSummaries"] as? [[String: Any]] ?? [])
-            .compactMap { row in
-                guard let id = row["id"] as? String else { return nil }
-                return ProductionDayTransitSnapshot(
-                    id: id,
-                    callSheetId: row["callSheetId"] as? String ?? "",
-                    descriptionNotes: row["descriptionNotes"] as? String ?? "",
-                    affectedArterial: row["affectedArterial"] as? String ?? "",
-                    severity: row["severity"] as? String ?? "Critical_Closure",
-                    loggedAt: parseDate(row["loggedAt"]) ?? .now
-                )
-            }
+        let transitSummaries: [ProductionDayTransitSnapshot] =
+            (data["transitExceptionSummaries"] as? [[String: Any]] ?? [])
+                .compactMap { row in
+                    guard let id = row["id"] as? String else { return nil }
+                    return ProductionDayTransitSnapshot(
+                        id: id,
+                        callSheetId: row["callSheetId"] as? String ?? "",
+                        descriptionNotes: row["descriptionNotes"] as? String ?? "",
+                        affectedArterial: row["affectedArterial"] as? String ?? "",
+                        severity: row["severity"] as? String ?? "Critical_Closure",
+                        loggedAt: parseDate(row["loggedAt"]) ?? .now
+                    )
+                }
 
         return ProductionDayStateSnapshot(
             productionId: pid,

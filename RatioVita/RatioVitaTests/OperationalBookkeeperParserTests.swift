@@ -38,7 +38,10 @@ final class OperationalBookkeeperParserTests: XCTestCase {
         Employee: Jane Smith hours 8
         - LED panel recycling $250.00
         """
-        let parsed = OperationalBookkeeperParserTestSupport.parseLogistics(corpus: corpus, hint: "Sustainability Memo.pdf")
+        let parsed = OperationalBookkeeperParserTestSupport.parseLogistics(
+            corpus: corpus,
+            hint: "Sustainability Memo.pdf"
+        )
         XCTAssertEqual(parsed.documentKind, "sustainability_memo")
         XCTAssertTrue(parsed.departmentalCostCodes.contains("DEPT-4401"))
         XCTAssertTrue(parsed.crewNameTokens.contains(where: { $0.contains("Jane") }))
@@ -85,7 +88,12 @@ enum OperationalBookkeeperParserTestSupport {
         let receipt = Receipt(merchant: "Test", total: 0, currencyCode: currency, notes: corpus)
         let parsed = OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         )
         return (parsed.grossAmount, parsed.netAmount, parsed.taxAmount, parsed.canadianTaxRegistration)
     }
@@ -94,7 +102,12 @@ enum OperationalBookkeeperParserTestSupport {
         let receipt = Receipt(merchant: corpus, total: 10)
         return OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         ).detectedVendorSignature
     }
 
@@ -102,7 +115,12 @@ enum OperationalBookkeeperParserTestSupport {
         let receipt = Receipt(merchant: "Test", total: 0, notes: corpus)
         return OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         ).canadianTaxRegistration
     }
 
@@ -110,7 +128,12 @@ enum OperationalBookkeeperParserTestSupport {
         let receipt = Receipt(merchant: hint, total: 0)
         let parsed = OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         )
         return parsed.logisticsDocumentKind != nil
     }
@@ -123,7 +146,12 @@ enum OperationalBookkeeperParserTestSupport {
         let receipt = Receipt(merchant: hint, total: 250, notes: corpus)
         let parsed = OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         )
         return (
             parsed.logisticsDocumentKind ?? "",
@@ -134,11 +162,18 @@ enum OperationalBookkeeperParserTestSupport {
 }
 
 enum MileageLogTrackerTestSupport {
-    static func parseCorpus(_ corpus: String, currency: String, gross: Decimal) -> MileageLogTracker.MileageParseResult? {
+    static func parseCorpus(_ corpus: String, currency: String, gross: Decimal) -> MileageLogTracker
+        .MileageParseResult?
+    {
         let receipt = Receipt(merchant: "Travel", total: gross, currencyCode: currency, notes: corpus)
         let parsed = OperationalBookkeeperParser.parse(
             receipt: receipt,
-            scope: BookkeepingScope(productionPUID: nil, ventureEntityID: nil, requiresPUID: false, requiresVentureEntity: false)
+            scope: BookkeepingScope(
+                productionPUID: nil,
+                ventureEntityID: nil,
+                requiresPUID: false,
+                requiresVentureEntity: false
+            )
         )
         return MileageLogTracker.parse(receipt: receipt, parsed: parsed)
     }

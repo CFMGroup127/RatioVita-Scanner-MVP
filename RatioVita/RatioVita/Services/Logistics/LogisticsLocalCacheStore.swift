@@ -31,7 +31,8 @@ final class LogisticsLocalCacheStore: ObservableObject {
     func loadCachedState(productionId: String) -> ProductionDayStateSnapshot? {
         let url = cacheURL(for: productionId)
         guard let data = try? Data(contentsOf: url),
-              let snapshot = try? decoder.decode(ProductionDayStateSnapshot.self, from: data) else {
+              let snapshot = try? decoder.decode(ProductionDayStateSnapshot.self, from: data) else
+        {
             return nil
         }
         productionDayState = snapshot

@@ -22,10 +22,11 @@ final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
         _ = Self.firebaseOrdering
     }
 
-    func applicationWillFinishLaunching(_ notification: Notification) {
+    func applicationWillFinishLaunching(_: Notification) {
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }
 }
+
 #elseif canImport(UIKit)
 final class RatioVitaAppDelegate: NSObject, UIApplicationDelegate {
     private static let firebaseOrdering: Void = {
@@ -39,8 +40,8 @@ final class RatioVitaAppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+        _: UIApplication,
+        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         RatioVitaFirebaseBootstrap.ensureConfigured()
         return true

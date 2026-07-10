@@ -77,7 +77,8 @@ final class HybridAgentBrokerService: ObservableObject {
     private func loadQueue() -> [HybridAgentRequest] {
         let url = queueURL.appendingPathComponent("pending-requests.json")
         guard let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([HybridAgentRequest].self, from: data) else {
+              let decoded = try? JSONDecoder().decode([HybridAgentRequest].self, from: data) else
+        {
             return []
         }
         return decoded
@@ -88,7 +89,8 @@ final class HybridAgentBrokerService: ObservableObject {
         guard RatioVitaFirebaseBootstrap.isConfigured,
               let productionId = request.productionId?.trimmingCharacters(in: .whitespacesAndNewlines),
               !productionId.isEmpty,
-              let db = RatioVitaFirebaseBootstrap.firestore() else {
+              let db = RatioVitaFirebaseBootstrap.firestore() else
+        {
             return false
         }
 

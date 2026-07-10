@@ -647,9 +647,11 @@ struct ReceiptMacReviewView: View {
                                 commitReceiptShowTitle(draftReceiptShowTitle)
                             }
                             HStack {
-                                Text("Press Return or Save to link this show — typing alone does not create a production.")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                Text(
+                                    "Press Return or Save to link this show — typing alone does not create a production."
+                                )
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                                 Spacer()
                                 Button("Save show") {
                                     commitReceiptShowTitle(draftReceiptShowTitle)

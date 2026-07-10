@@ -10,20 +10,20 @@ enum SovereignPrivacyTier: String, Codable, CaseIterable, Identifiable, Sendable
 
     var title: String {
         switch self {
-        case .logisticalOnly: "Logistical only"
-        case .peerToPeer: "Peer-to-peer"
-        case .circleOfTrust: "Circle of trust"
+            case .logisticalOnly: "Logistical only"
+            case .peerToPeer: "Peer-to-peer"
+            case .circleOfTrust: "Circle of trust"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .logisticalOnly:
-            "Routing token, obfuscated email — accounting, deal memos, EP Hub."
-        case .peerToPeer:
-            "Name, department, union status — crew references, day players."
-        case .circleOfTrust:
-            "Direct phone, email, socials — close department colleagues."
+            case .logisticalOnly:
+                "Routing token, obfuscated email — accounting, deal memos, EP Hub."
+            case .peerToPeer:
+                "Name, department, union status — crew references, day players."
+            case .circleOfTrust:
+                "Direct phone, email, socials — close department colleagues."
         }
     }
 }

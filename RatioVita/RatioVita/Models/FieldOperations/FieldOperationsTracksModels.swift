@@ -218,17 +218,23 @@ final class LSPLocationTask {
 
     var taskKind: LSPTaskKind {
         get { LSPTaskKind(rawValue: taskKindRaw) ?? .coning }
-        set { taskKindRaw = newValue.rawValue; updatedAt = .now }
+        set { taskKindRaw = newValue.rawValue
+            updatedAt = .now
+        }
     }
 
     var status: LSPTaskStatus {
         get { LSPTaskStatus(rawValue: statusRaw) ?? .open }
-        set { statusRaw = newValue.rawValue; updatedAt = .now }
+        set { statusRaw = newValue.rawValue
+            updatedAt = .now
+        }
     }
 
     var layoutPins: [LSPLayoutPinPayload] {
         get { Self.decodePins(layoutPinsJSON) }
-        set { layoutPinsJSON = Self.encodePins(newValue); updatedAt = .now }
+        set { layoutPinsJSON = Self.encodePins(newValue)
+            updatedAt = .now
+        }
     }
 
     private static func encodePins(_ pins: [LSPLayoutPinPayload]) -> String {

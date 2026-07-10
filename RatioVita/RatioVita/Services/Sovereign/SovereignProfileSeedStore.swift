@@ -73,8 +73,8 @@ enum SovereignProfileSeedStore {
 
         var errorDescription: String? {
             switch self {
-            case .unhandled(let status):
-                return "Sovereign Keychain error (status \(status))."
+                case let .unhandled(status):
+                    "Sovereign Keychain error (status \(status))."
             }
         }
     }

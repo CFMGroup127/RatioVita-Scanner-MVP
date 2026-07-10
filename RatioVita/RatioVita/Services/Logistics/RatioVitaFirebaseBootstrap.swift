@@ -12,7 +12,7 @@ import FirebaseFirestore
 
 /// Firebase bootstrap — synchronous configure at process launch before any Firestore access.
 enum RatioVitaFirebaseBootstrap {
-    static private(set) var isConfigured = false
+    private(set) static var isConfigured = false
 
     /// Evaluated the first time this type is referenced — before `@main` App property initializers.
     static let moduleBootstrap: Void = {
@@ -77,8 +77,8 @@ enum RatioVitaFirebaseBootstrap {
         guard let rawFirebaseConfig = runtimeFirebaseConfigJSON(),
               let configData = rawFirebaseConfig.data(using: .utf8),
               let configDict = try? JSONSerialization.jsonObject(with: configData) as? [String: Any],
-              let options = firebaseOptions(from: configDict)
-        else {
+              let options = firebaseOptions(from: configDict) else
+        {
             #if DEBUG
             print("RatioVita Firebase: GoogleService-Info.plist missing from app bundle.")
             #endif
@@ -154,8 +154,8 @@ enum RatioVitaFirebaseBootstrap {
     private static func firebaseOptions(from dict: [String: Any]) -> FirebaseOptions? {
         guard
             let googleAppID = dict["googleAppID"] as? String,
-            let gcmSenderID = dict["gcmSenderID"] as? String
-        else {
+            let gcmSenderID = dict["gcmSenderID"] as? String else
+        {
             return nil
         }
         let options = FirebaseOptions(googleAppID: googleAppID, gcmSenderID: gcmSenderID)
