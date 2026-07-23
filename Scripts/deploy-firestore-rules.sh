@@ -2,8 +2,8 @@
 # Deploy Firestore security rules to the ratiovita-c1a79 Firebase project.
 #
 # Usage:
-#   ./scripts/deploy-firestore-rules.sh bootstrap    # signed-in users only (dev / emergency)
-#   ./scripts/deploy-firestore-rules.sh production   # clearance-gated production rules (default)
+#   ./Scripts/deploy-firestore-rules.sh bootstrap    # signed-in users only (dev / emergency)
+#   ./Scripts/deploy-firestore-rules.sh production   # clearance-gated production rules (default)
 #
 # Prerequisites:
 #   npm install -g firebase-tools

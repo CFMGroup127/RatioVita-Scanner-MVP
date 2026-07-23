@@ -38,10 +38,10 @@ npm install -g firebase-tools
 firebase login
 
 # Not ready for clearance gating yet — stops the lockout:
-./scripts/deploy-firestore-rules.sh bootstrap
+./Scripts/deploy-firestore-rules.sh bootstrap
 
 # Ready for production clearance model:
-./scripts/deploy-firestore-rules.sh production
+./Scripts/deploy-firestore-rules.sh production
 ```
 
 ## RatioVita paths covered
