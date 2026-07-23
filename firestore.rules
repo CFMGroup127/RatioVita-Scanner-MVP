@@ -1,0 +1,445 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper functions — production clearance gate at the studio perimeter
+    // -------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function clearanceDoc(productionId) {
+      return get(/databases/$(database)/documents/productions/$(productionId)/security_clearance/$(request.auth.uid));
+    }
+
+    function hasProductionClearance(productionId) {
+      return isSignedIn() && clearanceDoc(productionId).data.role != null;
+    }
+
+    function getUserRole(productionId) {
+      return clearanceDoc(productionId).data.role;
+    }
+
+    function getClearanceTier(productionId) {
+      return clearanceDoc(productionId).data.tier;
+    }
+
+    function isTierOne(productionId) {
+      return hasProductionClearance(productionId) && getClearanceTier(productionId) == 1;
+    }
+
+    function isSupervisorOrCostumer(productionId) {
+      return hasProductionClearance(productionId)
+        && (getUserRole(productionId) == 'SetSupervisor' || getUserRole(productionId) == 'Costumer');
+    }
+
+    function isLogisticsWriter(productionId) {
+      return isSupervisorOrCostumer(productionId)
+        || getUserRole(productionId) == 'Producer'
+        || getUserRole(productionId) == 'ExecutiveProducer';
+    }
+
+    function isProductionManager(productionId) {
+      return hasProductionClearance(productionId)
+        && getUserRole(productionId) == 'ProductionManager';
+    }
+
+    function isHeadOfDepartment(productionId) {
+      return hasProductionClearance(productionId)
+        && getUserRole(productionId) == 'HeadOfDepartment';
+    }
+
+    function isExpenseTracker(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'Tracker'
+        || getUserRole(productionId) == 'Buyer'
+        || getUserRole(productionId) == 'Costumer'
+        || getUserRole(productionId) == 'SetSupervisor'
+        || getUserRole(productionId) == 'HeadOfDepartment'
+      );
+    }
+
+    function expenseAuditCompliant(data) {
+      return !('auditMetadata' in data)
+        || data.auditMetadata.isFlaggedMissingDetails == false
+        || data.reconciliationStatus == 'Pending_PM_Review';
+    }
+
+    function expenseWriteAllowed(productionId, data) {
+      return isExpenseTracker(productionId) && expenseAuditCompliant(data);
+    }
+
+    function canApproveBudgets(productionId) {
+      return isTierOne(productionId)
+        || isProductionManager(productionId)
+        || getUserRole(productionId) == 'Producer';
+    }
+
+    function isProcurementDrafter(productionId) {
+      return hasProductionClearance(productionId) && (
+        isHeadOfDepartment(productionId)
+        || getUserRole(productionId) == 'Buyer'
+        || getUserRole(productionId) == 'Tracker'
+        || isProductionManager(productionId)
+      );
+    }
+
+    function canReconcileProcurement(productionId) {
+      return isProductionManager(productionId) || isTierOne(productionId);
+    }
+
+    function procurementWriteAllowed(productionId, data) {
+      return isProcurementDrafter(productionId)
+        && (data.documentStatus != 'Reconciled_Paid' || canReconcileProcurement(productionId));
+    }
+
+    function isInventoryManager(productionId) {
+      return isExpenseTracker(productionId) || isProductionManager(productionId);
+    }
+
+    function isTransportFleetWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'TransportCaptain'
+        || getUserRole(productionId) == 'TransportCoordinator'
+        || isProductionManager(productionId)
+      );
+    }
+
+    function isCommsInventoryWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'FirstAD'
+        || getUserRole(productionId) == 'SecondAD'
+        || getUserRole(productionId) == 'ThirdAD'
+        || getUserRole(productionId) == 'ProductionCoordinator'
+        || getUserRole(productionId) == 'Tracker'
+      );
+    }
+
+    function isIngestionReader(productionId) {
+      return hasProductionClearance(productionId);
+    }
+
+    function isIngestionWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        isProductionManager(productionId)
+        || isTierOne(productionId)
+        || getUserRole(productionId) == 'Tracker'
+        || getUserRole(productionId) == 'ProductionCoordinator'
+      );
+    }
+
+    function isScriptRevisionWriter(productionId) {
+      return isIngestionWriter(productionId)
+        || getUserRole(productionId) == 'ScriptSupervisor';
+    }
+
+    function isScriptManagerRevisionWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'ProductionCoordinator'
+        || isProductionManager(productionId)
+        || isTierOne(productionId)
+      );
+    }
+
+    function isScriptSceneWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'FirstAD'
+        || getUserRole(productionId) == 'ProductionCoordinator'
+        || getUserRole(productionId) == 'Tracker'
+        || isProductionManager(productionId)
+      );
+    }
+
+    function isCallSheetPublisher(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'FirstAD'
+        || getUserRole(productionId) == 'SecondAD'
+        || getUserRole(productionId) == 'ProductionCoordinator'
+        || isProductionManager(productionId)
+      );
+    }
+
+    function isCrewGridReader(productionId, crewUid) {
+      return hasProductionClearance(productionId) && (
+        request.auth.uid == crewUid
+        || getUserRole(productionId) == 'FirstAD'
+        || isProductionManager(productionId)
+        || isTierOne(productionId)
+      );
+    }
+
+    function isCrewGridWriter(productionId) {
+      return hasProductionClearance(productionId)
+        && getUserRole(productionId) == 'SecondAD';
+    }
+
+    function isTransitExceptionWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'ProductionCoordinator'
+        || isProductionManager(productionId)
+      );
+    }
+
+    function canAccessTimecard(productionId, crewUid) {
+      return hasProductionClearance(productionId) && (
+        request.auth.uid == crewUid
+        || getUserRole(productionId) == 'Tracker'
+        || isProductionManager(productionId)
+        || isTierOne(productionId)
+      );
+    }
+
+    function isIngestionLogWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'ProductionCoordinator'
+        || isTierOne(productionId)
+        || isProductionManager(productionId)
+      );
+    }
+
+    function isTravelBookingWriter(productionId) {
+      return hasProductionClearance(productionId) && (
+        getUserRole(productionId) == 'ProductionCoordinator'
+        || getUserRole(productionId) == 'TravelCoordinator'
+        || getUserRole(productionId) == 'AssistantProductionManager'
+        || isProductionManager(productionId)
+        || isTierOne(productionId)
+      );
+    }
+
+    function canReadTravelBooking(productionId, bookingData) {
+      return hasProductionClearance(productionId) && (
+        request.auth.uid == bookingData.crewUid
+        || isTravelBookingWriter(productionId)
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 1: /productions document tree
+    // -------------------------------------------------------------------------
+
+    match /productions/{productionId} {
+
+      allow read: if hasProductionClearance(productionId);
+      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isTierOne(productionId);
+
+      match /security_clearance/{userId} {
+        allow read: if hasProductionClearance(productionId);
+        allow write: if isTierOne(productionId);
+      }
+
+      match /scripts/{scriptVersionId} {
+        allow read: if hasProductionClearance(productionId);
+        allow write: if isLogisticsWriter(productionId);
+      }
+
+      match /breakdown_elements/{elementId} {
+        allow read: if hasProductionClearance(productionId);
+        allow write: if isSupervisorOrCostumer(productionId)
+          || getUserRole(productionId) == 'Producer';
+      }
+
+      match /call_sheets/{callSheetId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isCallSheetPublisher(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+
+        match /crew_grid/{crewUid} {
+          allow read: if isCrewGridReader(productionId, crewUid);
+          allow create, update: if isCrewGridWriter(productionId) || isCallSheetPublisher(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+
+        match /transit_exceptions/{exceptionId} {
+          allow read: if hasProductionClearance(productionId);
+          allow create, update: if isTransitExceptionWriter(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+      }
+
+      match /crew_timecards_and_dtr/{timecardId} {
+        allow read: if canAccessTimecard(productionId, resource.data.crewUid);
+        allow create: if canAccessTimecard(productionId, request.resource.data.crewUid);
+        allow update: if canAccessTimecard(productionId, resource.data.crewUid)
+          && canAccessTimecard(productionId, request.resource.data.crewUid);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /financial_ledger/{ledgerId} {
+        allow read, write: if isTierOne(productionId);
+      }
+
+      match /department_budgets/{budgetId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create: if isHeadOfDepartment(productionId)
+          || isProductionManager(productionId)
+          || isTierOne(productionId);
+        allow update: if canApproveBudgets(productionId)
+          || (isHeadOfDepartment(productionId)
+              && resource.data.approvalStatus == 'Pending_HOD');
+        allow delete: if isTierOne(productionId);
+      }
+
+      match /expense_tracker/{expenseId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create: if expenseWriteAllowed(productionId, request.resource.data);
+        allow update: if isTierOne(productionId)
+          || isProductionManager(productionId)
+          || (isExpenseTracker(productionId)
+              && resource.data.buyerUid == request.auth.uid
+              && expenseAuditCompliant(request.resource.data));
+        allow delete: if isTierOne(productionId);
+
+        match /mileage_logs/{logId} {
+          allow read: if hasProductionClearance(productionId);
+          allow create, update: if isExpenseTracker(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+      }
+
+      match /purchase_orders_and_invoices/{documentId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create: if procurementWriteAllowed(productionId, request.resource.data);
+        allow update: if procurementWriteAllowed(productionId, request.resource.data);
+        allow delete: if isTierOne(productionId);
+      }
+
+      match /inventory_registry/{itemId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isInventoryManager(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /transport_fleet/{vehicleId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isTransportFleetWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /comms_inventory/{hardwareId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isCommsInventoryWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /ingested_paper_trail/{messageId} {
+        allow read: if isIngestionReader(productionId);
+        allow create, update: if isIngestionWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /script_revisions/{revisionId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isScriptRevisionWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /daily_sides/{sidesId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isScriptRevisionWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /script_manager/{hubId} {
+        match /revisions/{revisionId} {
+          allow read: if hasProductionClearance(productionId);
+          allow create, update: if isScriptManagerRevisionWriter(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+
+        match /scenes/{sceneId} {
+          allow read: if hasProductionClearance(productionId);
+          allow create, update: if isScriptSceneWriter(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+
+        match /continuity_registry/{elementId} {
+          allow read: if hasProductionClearance(productionId);
+          allow create, update: if isSignedIn();
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+      }
+
+      match /ingestion_logs/{logId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isIngestionLogWriter(productionId);
+        allow delete: if isTierOne(productionId);
+      }
+
+      // RatioVita live logistics sync paths (FirestoreCollectionRefs)
+      match /production_day_state/{docId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isIngestionLogWriter(productionId)
+          || isLogisticsWriter(productionId)
+          || isTransitExceptionWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /look_board_assets/{assetId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isSupervisorOrCostumer(productionId)
+          || isLogisticsWriter(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /medic_incidents/{incidentId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if hasProductionClearance(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /medic_kit_supplies/{supplyId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if hasProductionClearance(productionId);
+        allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+      }
+
+      match /medic_coverage_logs/{logId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isIngestionLogWriter(productionId);
+        allow delete: if isTierOne(productionId);
+      }
+
+      match /lsp_location_tasks/{taskId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isLogisticsWriter(productionId)
+          || isProductionManager(productionId);
+        allow delete: if isTierOne(productionId);
+      }
+
+      match /security_access_logs/{logId} {
+        allow read: if isTierOne(productionId) || isProductionManager(productionId);
+        allow create: if hasProductionClearance(productionId);
+        allow update, delete: if false;
+      }
+
+      match /travel_and_housing/{hubId} {
+        match /bookings/{bookingId} {
+          allow read: if canReadTravelBooking(productionId, resource.data);
+          allow create, update: if isTravelBookingWriter(productionId);
+          allow delete: if isTierOne(productionId) || isProductionManager(productionId);
+        }
+      }
+    }
+
+    match /shared_venue_registry/{venueId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // VitaLogic artifact tree (FirebaseService paths)
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /artifacts/{appId}/public/data/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}

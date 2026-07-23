@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // BOOTSTRAP RULES — emergency replacement for expiring Firestore test mode.
+    //
+    // Use ONLY until production clearance documents are seeded for each show.
+    // Requires Firebase Auth (anonymous sign-in satisfies isSignedIn()).
+    //
+    // Deploy with:
+    //   ./scripts/deploy-firestore-rules.sh bootstrap
+    //
+    // Migrate to production rules when ready:
+    //   ./scripts/deploy-firestore-rules.sh production
+    // -------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /productions/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /shared_venue_registry/{document=**} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /artifacts/{appId}/public/data/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}
