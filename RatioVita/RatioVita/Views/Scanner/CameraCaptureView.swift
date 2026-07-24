@@ -62,6 +62,8 @@ struct CameraCaptureView: View {
     /// Prevents overlapping “Send to review” work (double taps / duplicate actions).
     @State private var isSubmittingReview = false
 
+    @State private var showLiveCameraSession = false
+
     @AppStorage("libraryScanVaultPathPrefix") private var libraryScanVaultPathPrefix: String = ""
 
     @State private var dropHover = false
@@ -255,6 +257,13 @@ struct CameraCaptureView: View {
                         "Imports every library image not yet in RatioVita’s registry—one receipt per photo, oldest first. Reset the registry in Settings to re-import."
                     )
                 }
+                .fullScreenCover(isPresented: $showLiveCameraSession) {
+                    if let live = scanner.liveMultiPageCamera {
+                        LiveCameraMultiPageCaptureView(liveScanner: live) { images in
+                            await ingestLiveCameraBatch(images)
+                        }
+                    }
+                }
         }
     }
 
@@ -291,10 +300,17 @@ struct CameraCaptureView: View {
 
             VStack(spacing: DesignSystem.Spacing.md) {
                 Button {
-                    Task { await captureFromCamera() }
+                    if scanner.liveMultiPageCamera != nil, scanner.isCameraAvailable() {
+                        showLiveCameraSession = true
+                    } else {
+                        Task { await captureFromCamera() }
+                    }
                 } label: {
-                    Label("Capture with camera", systemImage: "camera.fill")
-                        .frame(maxWidth: .infinity)
+                    Label(
+                        scanner.liveMultiPageCamera != nil ? "Live camera (multi-page)" : "Capture with camera",
+                        systemImage: "camera.fill"
+                    )
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.ratioVitaPrimary)
@@ -504,6 +520,26 @@ struct CameraCaptureView: View {
             .accessibilityLabel("Remove page \(index + 1)")
         }
         .padding(.vertical, 4)
+    }
+
+    @MainActor
+    private func ingestLiveCameraBatch(_ images: [UIImage]) async {
+        guard !images.isEmpty else { return }
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            let scan = try await ReceiptScanPipeline.processImportedImages(
+                images: images,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled
+            )
+            usedCameraThisSession = true
+            draftPages.append(contentsOf: scan.scannedPages)
+            showReview = true
+        } catch {
+            errorMessage = error.ratioVitaUserDescription
+        }
     }
 
     @MainActor
@@ -831,7 +867,7 @@ struct CameraCaptureView: View {
 #elseif os(macOS)
 import AppKit
 
-/// macOS: file import and drag-and-drop only (no camera). Same review-queue behavior as iOS.
+/// macOS: file import, drag-and-drop, and live multi-page camera when available.
 struct CameraCaptureView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -862,6 +898,8 @@ struct CameraCaptureView: View {
 
     /// Prevents overlapping “Send to review” work (double taps / duplicate actions).
     @State private var isSubmittingReview = false
+
+    @State private var showLiveCameraSession = false
 
     @AppStorage("libraryScanVaultPathPrefix") private var libraryScanVaultPathPrefix: String = ""
 
@@ -992,6 +1030,13 @@ struct CameraCaptureView: View {
             } message: {
                 Text("Combine every file into one draft receipt, or save each file as its own receipt in Review.")
             }
+            .sheet(isPresented: $showLiveCameraSession) {
+                if let live = scanner.liveMultiPageCamera {
+                    LiveCameraMultiPageCaptureView(liveScanner: live) { images in
+                        await ingestLiveCameraBatch(images)
+                    }
+                }
+            }
         }
     }
 
@@ -1013,7 +1058,7 @@ struct CameraCaptureView: View {
             }
 
             Text(
-                "Drop images or PDFs here, or use Choose files. Multiple files prompt for one receipt vs many."
+                "Drop images or PDFs here, use the live camera for multi-page capture, or choose files."
             )
             .font(DesignSystem.Typography.subheadline)
             .foregroundStyle(Color.ratioVitaTextSecondary)
@@ -1024,6 +1069,18 @@ struct CameraCaptureView: View {
                     .font(DesignSystem.Typography.footnote)
                     .foregroundStyle(Color.ratioVitaError)
                     .multilineTextAlignment(.center)
+            }
+
+            if scanner.liveMultiPageCamera != nil, scanner.isCameraAvailable() {
+                Button {
+                    showLiveCameraSession = true
+                } label: {
+                    Label("Live camera (multi-page)", systemImage: "camera.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(isBusy)
             }
 
             Button {
@@ -1374,6 +1431,26 @@ struct CameraCaptureView: View {
         }
         importStatus = nil
         dismiss()
+    }
+
+    @MainActor
+    private func ingestLiveCameraBatch(_ images: [NSImage]) async {
+        guard !images.isEmpty else { return }
+        errorMessage = nil
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            let scan = try await ReceiptScanPipeline.processImportedImages(
+                images: images,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled
+            )
+            usedCameraThisSession = true
+            draftPages.append(contentsOf: scan.scannedPages)
+            showReview = true
+        } catch {
+            errorMessage = error.ratioVitaUserDescription
+        }
     }
 
     @MainActor

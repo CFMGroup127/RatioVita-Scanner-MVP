@@ -69,6 +69,19 @@ final class PreviewScannerService: ScannerService {
     func getVideoPreviewLayer() -> Any? { nil }
     func switchCamera() {}
     func focusCamera(at _: CGPoint) {}
+
+    // MARK: - Live multi-page (previews / simulator)
+
+    func prepareLiveCameraSession() async throws {
+        try await Task.sleep(nanoseconds: 150_000_000)
+    }
+
+    func captureLiveCameraPhoto() async throws -> RVImage {
+        try await Task.sleep(nanoseconds: 200_000_000)
+        return Self.placeholderImage()
+    }
+
+    func tearDownLiveCameraSession() async {}
     
     // MARK: - Cross-platform placeholder
     
@@ -115,3 +128,5 @@ final class PreviewScannerService: ScannerService {
         #endif
     }
 }
+
+extension PreviewScannerService: LiveMultiPageCameraScanning {}

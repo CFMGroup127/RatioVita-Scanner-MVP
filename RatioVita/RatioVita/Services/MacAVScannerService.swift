@@ -27,6 +27,7 @@ final class MacAVScannerService: NSObject, ScannerService {
     private let configuration: ScannerConfiguration
 
     private var isCaptureConfigured = false
+    private var isLiveMultiPageSessionActive = false
 
     override init() {
         configuration = ScannerConfiguration()
@@ -126,6 +127,45 @@ final class MacAVScannerService: NSObject, ScannerService {
         } catch {
             await stopCaptureSession()
             throw error
+        }
+    }
+
+    // MARK: - LiveMultiPageCameraScanning
+
+    func prepareLiveCameraSession() async throws {
+        try await ensureCameraAuthorizedForCapture()
+        isLiveMultiPageSessionActive = true
+        await ensureCaptureConfigured()
+        await startCaptureSessionIfNeeded()
+    }
+
+    func captureLiveCameraPhoto() async throws -> NSImage {
+        guard isLiveMultiPageSessionActive else {
+            throw ScannerError.captureFailed
+        }
+        return try await captureImage()
+    }
+
+    func tearDownLiveCameraSession() async {
+        isLiveMultiPageSessionActive = false
+        await stopCaptureSession()
+    }
+
+    private func ensureCameraAuthorizedForCapture() async throws {
+        guard isCameraAvailable() else {
+            throw ScannerError.cameraUnavailable
+        }
+        let status = getCameraPermissionStatus()
+        switch status {
+            case .authorized:
+                break
+            case .notDetermined:
+                let granted = await requestCameraPermission()
+                guard granted else {
+                    throw ScannerError.cameraPermissionDenied
+                }
+            case .denied, .restricted, .unavailable:
+                throw ScannerError.cameraPermissionDenied
         }
     }
 
@@ -310,6 +350,8 @@ final class MacAVScannerService: NSObject, ScannerService {
         )
     }
 }
+
+extension MacAVScannerService: LiveMultiPageCameraScanning {}
 
 // MARK: - Photo Capture Delegate
 

@@ -33,6 +33,7 @@ class RealScannerService: NSObject, ScannerService {
     // Configuration
     private let configuration: ScannerConfiguration
     private var isCaptureConfigured = false
+    private var isLiveMultiPageSessionActive = false
     
     // MARK: - Initialization
 
@@ -49,24 +50,7 @@ class RealScannerService: NSObject, ScannerService {
     // MARK: - ScannerService Implementation
     
     func scanReceipt(ocrEnabled: Bool, compressionEnabled: Bool) async throws -> ScanResult {
-        // 1) Camera availability
-        guard isCameraAvailable() else {
-            throw ScannerError.cameraUnavailable
-        }
-        
-        // 2) Permission flow (avoid guard else that doesn't exit)
-        let status = getCameraPermissionStatus()
-        switch status {
-            case .authorized:
-                break
-            case .notDetermined:
-                let granted = await requestCameraPermission()
-                guard granted else {
-                    throw ScannerError.cameraPermissionDenied
-                }
-            case .denied, .restricted, .unavailable:
-                throw ScannerError.cameraPermissionDenied
-        }
+        try await ensureCameraAuthorizedForCapture()
         
         // 3) Configure capture hardware lazily, then start session if not running
         await ensureCaptureConfigured()
@@ -140,6 +124,45 @@ class RealScannerService: NSObject, ScannerService {
         } catch {
             await stopCaptureSession()
             throw error
+        }
+    }
+
+    // MARK: - LiveMultiPageCameraScanning
+
+    func prepareLiveCameraSession() async throws {
+        try await ensureCameraAuthorizedForCapture()
+        isLiveMultiPageSessionActive = true
+        await ensureCaptureConfigured()
+        await startCaptureSessionIfNeeded()
+    }
+
+    func captureLiveCameraPhoto() async throws -> UIImage {
+        guard isLiveMultiPageSessionActive else {
+            throw ScannerError.captureFailed
+        }
+        return try await captureImage()
+    }
+
+    func tearDownLiveCameraSession() async {
+        isLiveMultiPageSessionActive = false
+        await stopCaptureSession()
+    }
+
+    private func ensureCameraAuthorizedForCapture() async throws {
+        guard isCameraAvailable() else {
+            throw ScannerError.cameraUnavailable
+        }
+        let status = getCameraPermissionStatus()
+        switch status {
+            case .authorized:
+                break
+            case .notDetermined:
+                let granted = await requestCameraPermission()
+                guard granted else {
+                    throw ScannerError.cameraPermissionDenied
+                }
+            case .denied, .restricted, .unavailable:
+                throw ScannerError.cameraPermissionDenied
         }
     }
     
@@ -365,6 +388,8 @@ class RealScannerService: NSObject, ScannerService {
         }
     }
 }
+
+extension RealScannerService: LiveMultiPageCameraScanning {}
 
 // MARK: - Photo Capture Delegate
 

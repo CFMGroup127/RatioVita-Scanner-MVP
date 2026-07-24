@@ -85,7 +85,8 @@ enum ReceiptScanPipeline {
         )
     }
 
-    /// Processes one or more imported/captured still images through enhancement + Vision OCR.
+    /// Processes one or more imported/captured still images through enhancement + Vision OCR, then merges extraction.
+    /// Used by live multi-page camera **Done** and photo batch imports.
     static func processImportedImages(
         images: [RVImage],
         ocrEnabled: Bool,

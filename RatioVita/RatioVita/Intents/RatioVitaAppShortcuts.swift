@@ -1,3 +1,9 @@
+// App Intents are omitted from Debug builds: linking AppShortcutsProvider triggers
+// CSInlineDonation / SetStoreUpdateService even when `appShortcuts` is empty.
+// Use `ratiovita://` URLs via NativeLauncherShortcutManager during development.
+
+#if !DEBUG
+
 import AppIntents
 
 // MARK: - Per-department App Shortcuts (Home Screen / Spotlight)
@@ -98,11 +104,7 @@ struct RatioVitaShortcuts: AppShortcutsProvider {
         if SystemIndexingDonationGuard.isSuppressed {
             return []
         }
-        #if DEBUG
-        return []
-        #else
         return productionAppShortcuts
-        #endif
     }
 
     @AppShortcutsBuilder
@@ -172,3 +174,5 @@ struct RatioVitaShortcuts: AppShortcutsProvider {
         )
     }
 }
+
+#endif

@@ -110,7 +110,6 @@ private final class WindowSizingAnchorView: NSView {
         self.maximum = maximum
         self.preferred = preferred
         self.coordinator = coordinator
-        scheduleInitialClampIfNeeded()
     }
 
     override func viewDidMoveToWindow() {

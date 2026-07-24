@@ -24,14 +24,15 @@ Debug runs set **`RV_DISABLE_SYSTEM_INDEXING=1`** on the **RatioVita** scheme an
 
 `[SECURITY BYPASS] Skipping system indexing donation in development…`
 
-If **`mdb_txn_commit … MDB_MAP_FULL`** or **`CSIndexErrorDomain Code=-1000`** still flood the console after a DerivedData flush, quit RatioVita and clear the local donation cache (Terminal.app):
+If **`mdb_txn_commit … MDB_MAP_FULL`** or **`CSInlineDonation … cfmgroup.RatioVita`** still appear after a **Debug** rebuild (`⌘⇧K` then `⌘B`), the local SetStore LMDB is already full. Quit RatioVita, then in **Terminal.app**:
 
 ```bash
-killall SetStoreUpdateService 2>/dev/null; true
-rm -rf ~/Library/Metadata/CoreSpotlight/NSFileProtectionCompleteUntilFirstUserAuthentication/index.spotlightV3
+killall RatioVita SetStoreUpdateService 2>/dev/null; true
+rm -rf ~/Library/Metadata/com.apple.SetStoreUpdateService
+rm -rf ~/Library/Caches/com.apple.SetStoreUpdateService 2>/dev/null; true
 ```
 
-Then relaunch from Xcode (**Debug**). Release / TestFlight builds use production App Shortcuts unless indexing is disabled in Settings.
+Relaunch from Xcode. **Debug builds omit `RatioVitaAppShortcuts.swift`** so the system should not request new inline donations; Release/TestFlight still includes App Shortcuts.
 
 ## Bundled receipt samples (DEBUG QA)
 
