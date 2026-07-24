@@ -8,6 +8,8 @@
 
 **Prioritized phased schedule:** See **`PHASED_WORK_SCHEDULE.md`** — work grouped into **Phase 1** (ship hardening) through **Phase 6** (blueprint-scale backlog), with rough week ranges.
 
+**Unified Pages / Numbers / Keynote vision (future):** See **`UNIFIED_DOCUMENT_SUITE_BACKLOG.md`** — production-native document + grid + canvas engine over shared sovereign data; logged 2026-07-23, not scheduled yet.
+
 **Blueprint vs shipped (traceability matrix):** See **`BLUEPRINT_TRACEABILITY.md`** — maps the full “Next Generation” prompt to **Shipped / Partial / Not started** in this repo so scope is explicit for everyone.
 
 **Bundled real receipt samples (QA):** Put PDFs and receipt images in the repo-root folder **`Scanned receips PDF format?/`** (exact name, including `?`). Run **`./Scripts/sync_bundled_scanned_receipts.sh`** to copy them into `RatioVita/RatioVita/Resources/` as `RVArchive2020__*` (flattened names). The script strips Finder/xattr metadata so **codesign** succeeds. Then build the app. **DEBUG** → Receipts **Samples → Import 2020 bundle** runs `ReceiptScanPipeline` + Vision + **`OCRParsing`**. For public Git remotes, consider Git LFS or omit generated `RVArchive2020__*` from tracking.
@@ -165,6 +167,7 @@ Prioritized themes; order is suggestive, not fixed. For the **full** aspirationa
 - [ ] **Batch scan** session (several receipts in one flow).
 
 **Reporting & Apple suite**
+- [ ] **Unified document suite (Pages + Numbers + Keynote)** — production-native document, grid, and canvas views over shared sovereign data; agent-driven cross-updates. See **`UNIFIED_DOCUMENT_SUITE_BACKLOG.md`** (future, logged 2026-07-23).
 - [ ] **Richer Numbers / Pages AppleScript** (true templates, formulas, charts).
 - [ ] **Email / share sheet** export presets.
 - [ ] **Audit trail** export (who scanned when — if multi-user later).
