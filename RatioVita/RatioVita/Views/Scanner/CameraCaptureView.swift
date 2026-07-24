@@ -1035,6 +1035,10 @@ struct CameraCaptureView: View {
                     LiveCameraMultiPageCaptureView(liveScanner: live) { images in
                         await ingestLiveCameraBatch(images)
                     }
+                    .frame(
+                        width: SafeLayoutBounds.clampedLayoutDimension(960, max: SafeLayoutBounds.maxWorkspaceContentWidth),
+                        height: SafeLayoutBounds.clampedLayoutDimension(640, max: SafeLayoutBounds.maxWindowHeight)
+                    )
                 }
             }
         }

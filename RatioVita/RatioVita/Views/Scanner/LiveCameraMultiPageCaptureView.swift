@@ -107,11 +107,14 @@ struct LiveCameraMultiPageCaptureView: View {
                             }
                             .offset(x: 6, y: -6)
                         }
+                        .frame(width: 64, height: 80)
                     }
                 }
                 .padding(.vertical, 4)
             }
+            .frame(maxWidth: .infinity)
             .frame(height: buffer.isEmpty ? 0 : 88)
+            .clipped()
         }
     }
 
@@ -257,23 +260,38 @@ struct LiveCameraMultiPageCaptureView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                ReceiptLiveCameraPreviewRepresentableMac(scanner: liveScanner)
-                    .ignoresSafeArea()
+            GeometryReader { geometry in
+                let width = SafeLayoutBounds.clampedLayoutDimension(
+                    geometry.size.width,
+                    max: SafeLayoutBounds.maxWorkspaceContentWidth
+                )
+                let height = SafeLayoutBounds.clampedLayoutDimension(
+                    geometry.size.height,
+                    max: SafeLayoutBounds.maxWindowHeight
+                )
 
-                VStack {
-                    Spacer()
-                    macThumbnailStrip
-                    macControls
-                }
-                .padding(DesignSystem.Spacing.md)
+                ZStack {
+                    Color.black
+                    ReceiptLiveCameraPreviewRepresentableMac(scanner: liveScanner)
+                        .frame(width: width, height: height)
+                        .clipped()
 
-                if isPreparing || isProcessing {
-                    ProgressView(isProcessing ? "Processing batch…" : "Starting camera…")
-                        .padding()
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    VStack {
+                        Spacer(minLength: 0)
+                        macThumbnailStrip
+                            .frame(maxWidth: width)
+                        macControls
+                            .frame(maxWidth: width)
+                    }
+                    .padding(DesignSystem.Spacing.md)
+
+                    if isPreparing || isProcessing {
+                        ProgressView(isProcessing ? "Processing batch…" : "Starting camera…")
+                            .padding()
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
                 }
+                .frame(width: width, height: height)
             }
             .navigationTitle("Scan pages")
             .toolbar {
@@ -288,7 +306,14 @@ struct LiveCameraMultiPageCaptureView: View {
                 Task { await liveScanner.tearDownLiveCameraSession() }
             }
         }
-        .frame(minWidth: 640, minHeight: 480)
+        .frame(
+            minWidth: 640,
+            idealWidth: 960,
+            maxWidth: SafeLayoutBounds.maxWorkspaceContentWidth,
+            minHeight: 480,
+            idealHeight: 640,
+            maxHeight: SafeLayoutBounds.maxWindowHeight
+        )
     }
 
     private var macThumbnailStrip: some View {
@@ -300,8 +325,8 @@ struct LiveCameraMultiPageCaptureView: View {
                     .foregroundStyle(Color.ratioVitaError)
                     .font(.caption)
             }
-            ScrollView(.horizontal) {
-                HStack {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
                     ForEach(Array(buffer.pages.enumerated()), id: \.element.id) { index, page in
                         ZStack(alignment: .topTrailing) {
                             Image(nsImage: page.image)
@@ -315,10 +340,13 @@ struct LiveCameraMultiPageCaptureView: View {
                             Button("×") { buffer.remove(id: page.id) }
                                 .buttonStyle(.plain)
                         }
+                        .frame(width: 64, height: 80)
                     }
                 }
             }
+            .frame(maxWidth: SafeLayoutBounds.maxWorkspaceContentWidth)
             .frame(height: buffer.isEmpty ? 0 : 80)
+            .clipped()
         }
     }
 
@@ -379,27 +407,67 @@ struct LiveCameraMultiPageCaptureView: View {
 private struct ReceiptLiveCameraPreviewRepresentableMac: NSViewRepresentable {
     let scanner: any ScannerService
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        view.wantsLayer = true
-        if let layer = scanner.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
-            layer.frame = view.bounds
-            view.layer?.addSublayer(layer)
-            context.coordinator.previewLayer = layer
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.previewLayer?.frame = nsView.bounds
-    }
-
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
+    func makeNSView(context: Context) -> MacCameraPreviewHostView {
+        let view = MacCameraPreviewHostView()
+        context.coordinator.attachPreview(from: scanner, to: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: MacCameraPreviewHostView, context: Context) {
+        context.coordinator.layoutPreview(in: nsView)
+    }
+
     final class Coordinator {
         var previewLayer: AVCaptureVideoPreviewLayer?
+
+        func attachPreview(from scanner: any ScannerService, to view: MacCameraPreviewHostView) {
+            guard let layer = scanner.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer else { return }
+            layer.videoGravity = .resizeAspectFill
+            previewLayer = layer
+            if layer.superlayer !== view.layer {
+                view.layer?.addSublayer(layer)
+            }
+            layoutPreview(in: view)
+        }
+
+        func layoutPreview(in view: MacCameraPreviewHostView) {
+            let bounds = view.bounds
+            guard bounds.width.isFinite, bounds.height.isFinite,
+                  bounds.width > 0, bounds.height > 0,
+                  bounds.width <= SafeLayoutBounds.maxWindowWidth,
+                  bounds.height <= SafeLayoutBounds.maxWindowHeight else { return }
+            previewLayer?.frame = bounds
+        }
+    }
+
+    /// Host view that keeps the preview layer within finite AppKit bounds.
+    final class MacCameraPreviewHostView: NSView {
+        override var isFlipped: Bool { true }
+
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            wantsLayer = true
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            wantsLayer = true
+        }
+
+        override func layout() {
+            super.layout()
+            guard bounds.width.isFinite, bounds.height.isFinite,
+                  bounds.width > 0, bounds.width <= SafeLayoutBounds.maxWindowWidth else { return }
+            layer?.sublayers?.forEach { sub in
+                if sub is AVCaptureVideoPreviewLayer {
+                    sub.frame = bounds
+                }
+            }
+        }
     }
 }
 #endif
