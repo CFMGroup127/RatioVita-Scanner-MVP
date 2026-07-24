@@ -49,7 +49,17 @@ final class ReceiptReviewQueueStore: ObservableObject {
         descriptor.fetchLimit = Self.pageSize
         descriptor.fetchOffset = nextOffset
 
-        guard let page = try? context.fetch(descriptor), !page.isEmpty else {
+        let page: [Receipt]
+        do {
+            page = try context.fetch(descriptor)
+        } catch {
+            #if DEBUG
+            print("RatioVita: review queue page fetch failed: \(error.localizedDescription)")
+            #endif
+            return
+        }
+
+        guard !page.isEmpty else {
             hasMorePages = false
             return
         }

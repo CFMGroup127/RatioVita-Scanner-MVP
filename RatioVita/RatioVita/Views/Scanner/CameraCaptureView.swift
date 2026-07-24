@@ -24,6 +24,26 @@ private enum PadTrait {
     }
 }
 
+/// Stable hub flags — read from `scanner` once per appearance, not on every `body` pass.
+private struct IOSCaptureHubSnapshot {
+    var hasLiveMultiPage = false
+    var cameraAvailable = false
+
+    var showsQuickCapture: Bool { cameraAvailable || !hasLiveMultiPage }
+}
+
+private struct QuickCaptureButtonChrome: ViewModifier {
+    let secondary: Bool
+
+    func body(content: Content) -> some View {
+        if secondary {
+            content.buttonStyle(.bordered)
+        } else {
+            content.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
 /// Receipt capture / import for iPhone, iPad, and visionOS.
 struct CameraCaptureView: View {
     @Environment(\.dismiss) private var dismiss
@@ -63,6 +83,9 @@ struct CameraCaptureView: View {
     @State private var isSubmittingReview = false
 
     @State private var showLiveCameraSession = false
+
+    /// Cached scanner capabilities for the import hub (refreshed on appear, not during `body`).
+    @State private var captureHubSnapshot = IOSCaptureHubSnapshot()
 
     @AppStorage("libraryScanVaultPathPrefix") private var libraryScanVaultPathPrefix: String = ""
 
@@ -157,6 +180,25 @@ struct CameraCaptureView: View {
                             }
                             .disabled(!draftPages
                                 .contains(where: { ReceiptMergePageHeuristics.isLikelyBoilerplatePage(for: $0) }))
+                        }
+                    } else {
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            PhotosPicker(
+                                selection: $photoPickerItems,
+                                maxSelectionCount: nil,
+                                matching: .images,
+                                preferredItemEncoding: .automatic
+                            ) {
+                                Label("Photos", systemImage: "photo.on.rectangle.angled")
+                            }
+                            .disabled(isBusy)
+
+                            Button {
+                                showImporter = true
+                            } label: {
+                                Label("Files", systemImage: "folder")
+                            }
+                            .disabled(isBusy)
                         }
                     }
                 }
@@ -268,106 +310,139 @@ struct CameraCaptureView: View {
     }
 
     private var hubContent: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            if PadTrait.isPad {
-                ipadDropZone
-            }
-
-            if !draftPages.isEmpty {
-                draftSummaryCard
-            }
-
-            if let importStatus {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text(importStatus)
-                        .font(DesignSystem.Typography.footnote)
-                        .foregroundStyle(Color.ratioVitaTextSecondary)
+        ScrollView {
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                if PadTrait.isPad {
+                    ipadDropZone
                 }
-            }
 
-            Text("Choose how to add images. Combine sources, then review and send everything to the Review tab.")
-                .font(DesignSystem.Typography.subheadline)
+                if !draftPages.isEmpty {
+                    draftSummaryCard
+                }
+
+                if let importStatus {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(importStatus)
+                            .font(DesignSystem.Typography.footnote)
+                            .foregroundStyle(Color.ratioVitaTextSecondary)
+                    }
+                }
+
+                Text("Choose how to add images. Combine sources, then review and send everything to the Review tab.")
+                    .font(DesignSystem.Typography.subheadline)
+                    .foregroundStyle(Color.ratioVitaTextSecondary)
+                    .multilineTextAlignment(.center)
+
+                #if targetEnvironment(simulator)
+                Text(
+                    "Simulator has no real camera — use Photos or Files below, or Live camera for placeholder pages."
+                )
+                .font(DesignSystem.Typography.caption)
                 .foregroundStyle(Color.ratioVitaTextSecondary)
                 .multilineTextAlignment(.center)
+                #endif
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(DesignSystem.Typography.footnote)
-                    .foregroundStyle(Color.ratioVitaError)
-                    .multilineTextAlignment(.center)
-            }
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(DesignSystem.Typography.footnote)
+                        .foregroundStyle(Color.ratioVitaError)
+                        .multilineTextAlignment(.center)
+                }
 
-            VStack(spacing: DesignSystem.Spacing.md) {
-                Button {
-                    if scanner.liveMultiPageCamera != nil, scanner.isCameraAvailable() {
-                        showLiveCameraSession = true
-                    } else {
-                        Task { await captureFromCamera() }
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    iosCaptureHubButtons(snapshot: captureHubSnapshot)
+
+                    PhotosPicker(
+                        selection: $photoPickerItems,
+                        maxSelectionCount: nil,
+                        matching: .images,
+                        preferredItemEncoding: .automatic
+                    ) {
+                        Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
+                            .frame(maxWidth: .infinity)
                     }
-                } label: {
-                    Label(
-                        scanner.liveMultiPageCamera != nil ? "Live camera (multi-page)" : "Capture with camera",
-                        systemImage: "camera.fill"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.ratioVitaPrimary)
-                .controlSize(.large)
-                .disabled(isBusy)
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(isBusy)
 
-                PhotosPicker(
-                    selection: $photoPickerItems,
-                    maxSelectionCount: nil,
-                    matching: .images,
-                    preferredItemEncoding: .automatic
-                ) {
-                    Label("Select from Photos", systemImage: "photo.on.rectangle.angled")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .disabled(isBusy)
+                    Button {
+                        Task { await preparePhotoLibraryBulkScan() }
+                    } label: {
+                        Label("Import new from Photos library", systemImage: "sparkles.rectangle.stack")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(isBusy)
 
-                Button {
-                    Task { await preparePhotoLibraryBulkScan() }
-                } label: {
-                    Label("Import new from Photos library", systemImage: "sparkles.rectangle.stack")
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        showImporter = true
+                    } label: {
+                        Label("Select files…", systemImage: "folder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(isBusy)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .disabled(isBusy)
 
-                Button {
-                    showImporter = true
-                } label: {
-                    Label("Select files…", systemImage: "folder")
+                if !draftPages.isEmpty {
+                    Button {
+                        showReview = true
+                    } label: {
+                        Text(
+                            draftPages.count > 1
+                                ? "Merge \(draftPages.count) pages…"
+                                : "Review & queue (1 page)"
+                        )
+                        .font(DesignSystem.Typography.bodyEmphasized)
                         .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.ratioVitaPrimary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .disabled(isBusy)
             }
+            .padding(.vertical, DesignSystem.Spacing.sm)
+        }
+        .onAppear {
+            refreshCaptureHubSnapshot()
+        }
+    }
 
-            if !draftPages.isEmpty {
-                Button {
-                    showReview = true
-                } label: {
-                    Text(
-                        draftPages.count > 1
-                            ? "Merge \(draftPages.count) pages…"
-                            : "Review & queue (1 page)"
-                    )
-                    .font(DesignSystem.Typography.bodyEmphasized)
+    private func refreshCaptureHubSnapshot() {
+        captureHubSnapshot = IOSCaptureHubSnapshot(
+            hasLiveMultiPage: scanner.liveMultiPageCamera != nil,
+            cameraAvailable: scanner.isCameraAvailable()
+        )
+    }
+
+    @ViewBuilder
+    private func iosCaptureHubButtons(snapshot: IOSCaptureHubSnapshot) -> some View {
+        if snapshot.hasLiveMultiPage {
+            Button {
+                showLiveCameraSession = true
+            } label: {
+                Label("Live camera (multi-page)", systemImage: "camera.viewfinder")
                     .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.ratioVitaPrimary)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.ratioVitaPrimary)
+            .controlSize(.large)
+            .disabled(isBusy)
+        }
 
-            Spacer(minLength: DesignSystem.Spacing.sm)
+        if snapshot.showsQuickCapture {
+            Button {
+                Task { await captureFromCamera() }
+            } label: {
+                Label("Quick capture (one page)", systemImage: "camera.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .modifier(QuickCaptureButtonChrome(secondary: snapshot.hasLiveMultiPage))
+            .tint(Color.ratioVitaPrimary)
+            .controlSize(.large)
+            .disabled(isBusy)
         }
     }
 
@@ -867,6 +942,11 @@ struct CameraCaptureView: View {
 #elseif os(macOS)
 import AppKit
 
+private struct MacCaptureHubSnapshot {
+    var hasLiveMultiPage = false
+    var cameraAvailable = false
+}
+
 /// macOS: file import, drag-and-drop, and live multi-page camera when available.
 struct CameraCaptureView: View {
     @Environment(\.dismiss) private var dismiss
@@ -900,6 +980,8 @@ struct CameraCaptureView: View {
     @State private var isSubmittingReview = false
 
     @State private var showLiveCameraSession = false
+
+    @State private var captureHubSnapshot = MacCaptureHubSnapshot()
 
     @AppStorage("libraryScanVaultPathPrefix") private var libraryScanVaultPathPrefix: String = ""
 
@@ -989,6 +1071,15 @@ struct CameraCaptureView: View {
                         .disabled(!draftPages
                             .contains(where: { ReceiptMergePageHeuristics.isLikelyBoilerplatePage(for: $0) }))
                     }
+                } else {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showImporter = true
+                        } label: {
+                            Label("Choose files…", systemImage: "folder")
+                        }
+                        .disabled(isBusy)
+                    }
                 }
             }
             .fileImporter(
@@ -1036,7 +1127,10 @@ struct CameraCaptureView: View {
                         await ingestLiveCameraBatch(images)
                     }
                     .frame(
-                        width: SafeLayoutBounds.clampedLayoutDimension(960, max: SafeLayoutBounds.maxWorkspaceContentWidth),
+                        width: SafeLayoutBounds.clampedLayoutDimension(
+                            960,
+                            max: SafeLayoutBounds.maxWorkspaceContentWidth
+                        ),
                         height: SafeLayoutBounds.clampedLayoutDimension(640, max: SafeLayoutBounds.maxWindowHeight)
                     )
                 }
@@ -1045,85 +1139,110 @@ struct CameraCaptureView: View {
     }
 
     private var hubContent: some View {
-        VStack(spacing: DesignSystem.Spacing.lg) {
-            dropZone
+        ScrollView {
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                dropZone
 
-            if !draftPages.isEmpty {
-                draftSummaryCard
-            }
-
-            if let importStatus {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text(importStatus)
-                        .font(DesignSystem.Typography.footnote)
-                        .foregroundStyle(Color.ratioVitaTextSecondary)
+                if !draftPages.isEmpty {
+                    draftSummaryCard
                 }
-            }
 
-            Text(
-                "Drop images or PDFs here, use the live camera for multi-page capture, or choose files."
-            )
-            .font(DesignSystem.Typography.subheadline)
-            .foregroundStyle(Color.ratioVitaTextSecondary)
-            .multilineTextAlignment(.center)
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(DesignSystem.Typography.footnote)
-                    .foregroundStyle(Color.ratioVitaError)
-                    .multilineTextAlignment(.center)
-            }
-
-            if scanner.liveMultiPageCamera != nil, scanner.isCameraAvailable() {
-                Button {
-                    showLiveCameraSession = true
-                } label: {
-                    Label("Live camera (multi-page)", systemImage: "camera.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .disabled(isBusy)
-            }
-
-            Button {
-                showImporter = true
-            } label: {
-                Label("Choose files…", systemImage: "folder")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.ratioVitaPrimary)
-            .controlSize(.large)
-            .disabled(isBusy)
-
-            if !draftPages.isEmpty {
-                HStack(spacing: DesignSystem.Spacing.md) {
-                    Button("Clear pages") {
-                        draftPages = []
+                if let importStatus {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(importStatus)
+                            .font(DesignSystem.Typography.footnote)
+                            .foregroundStyle(Color.ratioVitaTextSecondary)
                     }
-                    .buttonStyle(.bordered)
+                }
+
+                Text(
+                    "Drop images or PDFs here, use the live camera for multi-page capture, or choose files."
+                )
+                .font(DesignSystem.Typography.subheadline)
+                .foregroundStyle(Color.ratioVitaTextSecondary)
+                .multilineTextAlignment(.center)
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(DesignSystem.Typography.footnote)
+                        .foregroundStyle(Color.ratioVitaError)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    macCaptureHubButtons(snapshot: captureHubSnapshot)
 
                     Button {
-                        showReview = true
+                        showImporter = true
                     } label: {
-                        Text(
-                            draftPages.count > 1
-                                ? "Merge \(draftPages.count) pages…"
-                                : "Review & queue (1)"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Label("Choose files…", systemImage: "folder")
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color.ratioVitaPrimary)
+                    .controlSize(.large)
+                    .disabled(isBusy)
+                }
+
+                if !draftPages.isEmpty {
+                    HStack(spacing: DesignSystem.Spacing.md) {
+                        Button("Clear pages") {
+                            draftPages = []
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            showReview = true
+                        } label: {
+                            Text(
+                                draftPages.count > 1
+                                    ? "Merge \(draftPages.count) pages…"
+                                    : "Review & queue (1)"
+                            )
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color.ratioVitaPrimary)
+                    }
                 }
             }
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.sm)
         }
         .onAppear {
-            _ = scanner.isCameraAvailable()
+            refreshCaptureHubSnapshot()
+        }
+    }
+
+    private func refreshCaptureHubSnapshot() {
+        captureHubSnapshot = MacCaptureHubSnapshot(
+            hasLiveMultiPage: scanner.liveMultiPageCamera != nil,
+            cameraAvailable: scanner.isCameraAvailable()
+        )
+    }
+
+    @ViewBuilder
+    private func macCaptureHubButtons(snapshot: MacCaptureHubSnapshot) -> some View {
+        if snapshot.hasLiveMultiPage {
+            Button {
+                showLiveCameraSession = true
+            } label: {
+                Label("Live camera (multi-page)", systemImage: "camera.viewfinder")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(isBusy || !snapshot.cameraAvailable)
+            .help("Opens a live viewfinder; tap Done when all pages are captured.")
+
+            if !snapshot.cameraAvailable {
+                Text(
+                    "Camera access is off or no camera is connected. Allow RatioVita in System Settings → Privacy → Camera."
+                )
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(Color.ratioVitaTextSecondary)
+                .multilineTextAlignment(.center)
+            }
         }
     }
 

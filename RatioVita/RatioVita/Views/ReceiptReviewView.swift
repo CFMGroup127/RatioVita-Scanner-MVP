@@ -47,12 +47,9 @@ struct ReceiptReviewView: View {
         } else {
             pendingReceipts
         }
-        return base.filter { receipt in
-            if CrossEntityTriageEngine.needsTriage(receipt) {
-                return SovereignScopeFilter.triageReceiptIsVisible(receipt, context: sovereignContext)
-            }
-            return sovereignContext.receiptIsVisible(receipt)
-        }
+        // Human review queue: show every pending item regardless of sovereign hub filter (filed items respect scope
+        // later).
+        return base
     }
 
     var body: some View {
@@ -124,6 +121,13 @@ struct ReceiptReviewView: View {
                 header
                 if reviewQueue.totalCount == 0, !reviewQueue.isLoadingPage {
                     emptyState
+                } else if sorted.isEmpty {
+                    if reviewQueue.isLoadingPage {
+                        ProgressView("Loading review queue…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        reviewQueueLoadOrFilterEmptyState
+                    }
                 } else if groupByMerchant {
                     merchantGroupedReviewList(sorted: sorted)
                 } else {
@@ -771,6 +775,41 @@ struct ReceiptReviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var reviewQueueLoadOrFilterEmptyState: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            if reviewQueue.totalCount > 0 {
+                Image(systemName: "tray.full")
+                    .font(.system(size: 44))
+                    .foregroundStyle(brandAccent.opacity(0.85))
+                Text("\(reviewQueue.totalCount) item(s) in review")
+                    .font(DesignSystem.Typography.title3)
+                    .foregroundStyle(Color.ratioVitaAdaptiveText)
+                Text(
+                    searchText.isEmpty
+                        ? "The list could not load from the library. Pull to refresh or tap Retry."
+                        : "No rows match your search. Clear search or adjust filters."
+                )
+                .font(DesignSystem.Typography.body)
+                .foregroundStyle(Color.ratioVitaTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                Button("Retry loading") {
+                    Task {
+                        await reviewQueue.resetAndLoadFirstPage(
+                            context: modelContext,
+                            container: modelContext.container
+                        )
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(brandAccent)
+            } else {
+                emptyState
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func moveSelectionToTrash() {
         let now = Date()
         for id in selection {
@@ -871,17 +910,10 @@ struct ReceiptReviewView: View {
 
         do {
             for receipt in targets {
-                receipt.filingCabinetKindRaw = ReceiptCabinetRouting.suggestedCabinetKindRaw(
-                    taxCategory: receipt.taxCategory,
-                    merchant: receipt.merchant,
-                    productionType: receipt.productionType
-                )
-                ReceiptWorkspaceBatchGuard.clearPinOnFile(receipt)
-                receipt.pendingHumanReview = false
+                ReceiptReviewFiling.applyFile(to: receipt)
                 if mirrorScannedReceiptsToPhotoLibrary, receipt.scannedViaCamera {
                     await ReceiptPhotosLibraryExporter.mirrorSavedReceipt(receipt)
                 }
-                receipt.reviewChecklistDone = false
             }
             try modelContext.save()
             await reviewQueue.refreshTotalCount(container: modelContext.container)

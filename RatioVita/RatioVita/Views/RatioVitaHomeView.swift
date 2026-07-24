@@ -282,9 +282,10 @@ struct RatioVitaHomeView: View {
                 Label("Scan call sheet (crew call + set)", systemImage: "doc.text.viewfinder")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(activeProject == nil)
             .accessibilityHint(
-                "OCR page one of the daily call sheet, then open the matching work day in Labor Sentinel to apply crew call and location."
+                activeProject == nil
+                    ? "OCR page one of the call sheet. Pin a show in Labor Sentinel to attach the scan to a production when ingesting."
+                    : "OCR page one of the daily call sheet, then open the matching work day in Labor Sentinel to apply crew call and location."
             )
             if !zeroLinkProductions.isEmpty {
                 Button {
@@ -396,8 +397,10 @@ struct RatioVitaHomeView: View {
                 showInsurance = true
             case .sovereignAudit:
                 showSovereignAudit = true
-            case .contacts, .finances, .arcticVault, .laborSentinel:
+            case .contacts, .finances, .laborSentinel:
                 libraryNavigationCoordinator.navigateFromHome(module)
+            case .arcticVault:
+                libraryNavigationCoordinator.navigateFromHome(.arcticVault)
             case .continuityStyleVault:
                 showContinuityStyleVault = true
             case .inboxTriage:
@@ -438,14 +441,18 @@ struct RatioVitaHomeView: View {
             showSovereignAudit = true
             return
         }
-        guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
+        guard let dest = libraryNavigationCoordinator.pendingHomeDestination else { return }
         switch dest {
             case .productions:
+                _ = libraryNavigationCoordinator.consumeHomeDestination()
                 openProductionsModule()
             case .inboxTriage:
+                _ = libraryNavigationCoordinator.consumeHomeDestination()
                 showInboxTriage = true
-            default:
+            case .arcticVault, .laborSentinel, .finances, .contacts:
                 break
+            default:
+                _ = libraryNavigationCoordinator.consumeHomeDestination()
         }
     }
 

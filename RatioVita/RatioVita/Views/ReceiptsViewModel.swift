@@ -26,6 +26,7 @@ final class ReceiptsViewModel: ObservableObject {
     func bootstrapScannerIfNeeded() {
         guard scannerStorage == nil else { return }
         scannerStorage = PreviewScannerService()
+        objectWillChange.send()
     }
 
     /// Scanner passed into capture sheets after explicit bootstrap (read-only accessor).
@@ -49,23 +50,26 @@ final class ReceiptsViewModel: ObservableObject {
         context
     }
 
-    /// Swaps the preview placeholder for a production AVFoundation scanner only when capture is requested.
+    /// Swaps the preview placeholder for a production AVFoundation scanner when capture is requested.
     func ensureProductionScannerIfNeeded() {
+        #if os(iOS) || os(visionOS)
+        #if targetEnvironment(simulator)
+        // Simulator: keep PreviewScannerService (Photos / Files / live placeholder capture).
+        if scannerStorage == nil {
+            scannerStorage = PreviewScannerService()
+            objectWillChange.send()
+        }
+        return
+        #else
         guard scannerStorage == nil || scannerStorage is PreviewScannerService else { return }
-        #if os(iOS)
-        #if targetEnvironment(simulator)
-        return
-        #else
         scannerStorage = RealScannerService()
-        #endif
-        #elseif os(visionOS)
-        #if targetEnvironment(simulator)
+        objectWillChange.send()
         return
-        #else
-        scannerStorage = RealScannerService()
         #endif
         #elseif os(macOS)
+        guard scannerStorage == nil || scannerStorage is PreviewScannerService else { return }
         scannerStorage = MacAVScannerService()
+        objectWillChange.send()
         #endif
     }
 
@@ -110,6 +114,8 @@ final class ReceiptsViewModel: ObservableObject {
     // MARK: - Scanner Presentation
     
     func showScannerUI() {
+        bootstrapScannerIfNeeded()
+        ensureProductionScannerIfNeeded()
         showScanner = true
     }
     

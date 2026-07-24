@@ -15,7 +15,10 @@ import UIKit
 
 struct MultiPageScanBufferPage: Identifiable, Equatable {
     let id = UUID()
+    /// Downsampled page for batch OCR (not full sensor resolution).
     let image: RVImage
+    /// Small raster for the live session thumbnail strip.
+    let thumbnail: RVImage
     let capturedAt: Date
 
     static func == (lhs: MultiPageScanBufferPage, rhs: MultiPageScanBufferPage) -> Bool {
@@ -32,7 +35,13 @@ final class MultiPageScanBuffer: ObservableObject {
     var isEmpty: Bool { pages.isEmpty }
 
     func append(_ image: RVImage) {
-        pages.append(MultiPageScanBufferPage(image: image, capturedAt: Date()))
+        autoreleasepool {
+            let normalized = LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(image)
+            let thumb = LiveMultiPageCaptureImagePrep.stripThumbnail(from: normalized)
+            pages.append(
+                MultiPageScanBufferPage(image: normalized, thumbnail: thumb, capturedAt: Date())
+            )
+        }
     }
 
     func remove(id: UUID) {

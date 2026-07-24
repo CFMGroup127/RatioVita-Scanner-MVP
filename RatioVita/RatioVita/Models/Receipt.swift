@@ -135,7 +135,9 @@ final class Receipt {
 
     /// Cached first image for performance in list views
     var firstImage: RVImage? {
-        images.sorted(by: { $0.pageIndex < $1.pageIndex }).first?.platformImage
+        guard let page = images.sorted(by: { $0.pageIndex < $1.pageIndex }).first,
+              !page.imageData.isEmpty else { return nil }
+        return page.platformImage
     }
 
     /// Used for Finder-style **Column** view and “Project title” sorting.

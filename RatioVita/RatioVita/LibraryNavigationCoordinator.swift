@@ -70,6 +70,28 @@ final class LibraryNavigationCoordinator {
         return true
     }
 
+    /// iPhone tab shell: switch to Receipts without consuming `pendingHomeDestination`.
+    func focusReceiptsLibraryFromHome() {
+        focusReceiptsLibrarySignal += 1
+    }
+
+    // MARK: - Arctic Vault explorer (Receipts tab, merchant hierarchy)
+
+    private(set) var focusArcticVaultExplorerSignal: Int = 0
+    private(set) var lastConsumedFocusArcticVaultExplorerSignal: Int = 0
+
+    /// Opens the main library on the **Arctic Vault** merchant explorer (not the generic inbox list).
+    func focusArcticVaultExplorerFromHome() {
+        focusArcticVaultExplorerSignal += 1
+    }
+
+    func consumeFocusArcticVaultExplorerIfNeeded() -> Bool {
+        guard focusArcticVaultExplorerSignal > 0 else { return false }
+        guard focusArcticVaultExplorerSignal > lastConsumedFocusArcticVaultExplorerSignal else { return false }
+        lastConsumedFocusArcticVaultExplorerSignal = focusArcticVaultExplorerSignal
+        return true
+    }
+
     // MARK: - Home Launchpad
 
     private(set) var homeNavigationSignal: Int = 0

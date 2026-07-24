@@ -148,7 +148,31 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     func tearDownLiveCameraSession() async {
         isLiveMultiPageSessionActive = false
+        currentPhotoDelegate = nil
         await stopCaptureSession()
+        await releaseCaptureHardwareAfterLiveSession()
+    }
+
+    private func releaseCaptureHardwareAfterLiveSession() async {
+        await MainActor.run {
+            videoPreviewLayer?.removeFromSuperlayer()
+            videoPreviewLayer = nil
+
+            if let captureSession {
+                captureSession.beginConfiguration()
+                for input in captureSession.inputs {
+                    captureSession.removeInput(input)
+                }
+                for output in captureSession.outputs {
+                    captureSession.removeOutput(output)
+                }
+                captureSession.commitConfiguration()
+            }
+
+            photoOutput = nil
+            captureSession = nil
+            isCaptureConfigured = false
+        }
     }
 
     private func ensureCameraAuthorizedForCapture() async throws {
@@ -184,6 +208,11 @@ final class MacAVScannerService: NSObject, ScannerService {
     func getVideoPreviewLayer() -> Any? {
         ensureCaptureConfiguredSync()
         return videoPreviewLayer
+    }
+
+    func avCaptureSessionForPreview() -> AVCaptureSession? {
+        ensureCaptureConfiguredSync()
+        return captureSession
     }
 
     func switchCamera() {
@@ -288,9 +317,15 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     private func startCaptureSessionIfNeeded() async {
         guard let captureSession, !isSessionRunning else { return }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                captureSession.startRunning()
+                continuation.resume()
+            }
+        }
         await MainActor.run {
-            captureSession.startRunning()
             isSessionRunning = true
+            videoPreviewLayer?.session = captureSession
         }
     }
 
@@ -370,14 +405,16 @@ private final class MacPhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDele
             return
         }
 
-        guard let imageData = photo.fileDataRepresentation(),
-              let image = RVImage.rv_decodedNormalizingEXIFOrientation(from: imageData) ?? NSImage(data: imageData) else
-        {
-            onError(ScannerError.invalidImage)
-            return
-        }
+        autoreleasepool {
+            guard let imageData = photo.fileDataRepresentation(),
+                  let image = RVImage.rv_decodedNormalizingEXIFOrientation(from: imageData) ?? NSImage(data: imageData) else
+            {
+                onError(ScannerError.invalidImage)
+                return
+            }
 
-        onSuccess(image)
+            onSuccess(image)
+        }
     }
 }
 

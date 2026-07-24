@@ -238,6 +238,7 @@ struct ContentView: View {
         switch dest {
             case .arcticVault:
                 phoneLibraryTabSelection = 1
+                libraryNavigationCoordinator.focusArcticVaultExplorerFromHome()
             case .laborSentinel:
                 phoneLibraryTabSelection = 7
             case .productions:
@@ -518,7 +519,9 @@ private struct SidebarSplitShell: View {
         }
         guard let dest = libraryNavigationCoordinator.consumeHomeDestination() else { return }
         switch dest {
-            case .arcticVault: selection = .receipts
+            case .arcticVault:
+                selection = .receipts
+                libraryNavigationCoordinator.focusArcticVaultExplorerFromHome()
             case .laborSentinel: selection = .laborSentinel
             case .productions: selection = .productions
             case .finances: selection = .reconciliation

@@ -56,6 +56,9 @@ struct ReceiptDetailView: View {
     @State private var showReplacePageImporter = false
     @State private var rescanErrorMessage: String?
     @State private var exportSharePayload: ExportSharePayload?
+    @State private var persistInlineReceiptEdits: (() -> Void)?
+    @State private var isFilingFromReviewDetail = false
+    @AppStorage("mirrorScannedReceiptsToPhotoLibrary") private var mirrorScannedReceiptsToPhotoLibrary = true
 
     /// **Side-car** on every **iPad** (`regular` width), portrait or landscape. iPhone: stacked layout with pinned
     /// document strip (see `iphoneDocumentStrip`).
@@ -84,8 +87,13 @@ struct ReceiptDetailView: View {
                     .navigationSplitViewColumnWidth(min: 300, ideal: 420, max: 640)
             } detail: {
                 NavigationStack {
-                    EditReceiptView(receipt: receipt, chrome: .sideCarColumn, onBackFromSideCar: { dismiss() })
-                        .id(receipt.persistentModelID)
+                    EditReceiptView(
+                        receipt: receipt,
+                        chrome: .sideCarColumn,
+                        onBackFromSideCar: { dismiss() },
+                        onPersistHandlerReady: { persistInlineReceiptEdits = $0 }
+                    )
+                    .id(receipt.persistentModelID)
                 }
             }
         } else {
@@ -138,6 +146,69 @@ struct ReceiptDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
         #endif
             .toolbar { receiptDetailToolbar(r: r) }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if r.pendingHumanReview, r.trashedAt == nil {
+                    reviewQueueDetailActionBar(for: r)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func reviewQueueDetailActionBar(for r: Receipt) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: DesignSystem.Spacing.md) {
+                Button("Save changes") {
+                    persistInlineReceiptEdits?()
+                    ReceiptEditHaptics.verifiedSave()
+                }
+                .buttonStyle(.bordered)
+                Button {
+                    Task { await saveAndAcceptFromReviewDetail(r) }
+                } label: {
+                    Group {
+                        if isFilingFromReviewDetail {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Save & Accept")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isFilingFromReviewDetail)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+        }
+        .background(.bar)
+    }
+
+    @MainActor
+    private func saveAndAcceptFromReviewDetail(_ r: Receipt) async {
+        isFilingFromReviewDetail = true
+        defer { isFilingFromReviewDetail = false }
+        persistInlineReceiptEdits?()
+        do {
+            try await ReceiptReviewFiling.fileAndSave(
+                r,
+                context: modelContext,
+                mirrorScannedToPhotoLibrary: mirrorScannedReceiptsToPhotoLibrary
+            )
+            ReceiptEditHaptics.verifiedSave()
+            await ReceiptReviewQueueStore.shared.resetAndLoadFirstPage(
+                context: modelContext,
+                container: modelContext.container
+            )
+            dismiss()
+        } catch {
+            UserMessageCenter.shared.present(
+                title: "Couldn't file receipt",
+                message: error.ratioVitaUserDescription
+            )
+        }
     }
 
     @ToolbarContentBuilder
@@ -405,8 +476,12 @@ struct ReceiptDetailView: View {
                 Text("Receipt fields")
                     .font(DesignSystem.Typography.headline)
                     .foregroundStyle(brandAccent)
-                EditReceiptView(receipt: r, chrome: .inlineScrollStack)
-                    .id(receipt.persistentModelID)
+                EditReceiptView(
+                    receipt: r,
+                    chrome: .inlineScrollStack,
+                    onPersistHandlerReady: { persistInlineReceiptEdits = $0 }
+                )
+                .id(receipt.persistentModelID)
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.lg)
@@ -485,8 +560,12 @@ struct ReceiptDetailView: View {
             Text("Receipt fields")
                 .font(DesignSystem.Typography.headline)
                 .foregroundStyle(brandAccent)
-            EditReceiptView(receipt: r, chrome: .inlineScrollStack)
-                .id(receipt.persistentModelID)
+            EditReceiptView(
+                receipt: r,
+                chrome: .inlineScrollStack,
+                onPersistHandlerReady: { persistInlineReceiptEdits = $0 }
+            )
+            .id(receipt.persistentModelID)
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
         .padding(.bottom, DesignSystem.Spacing.lg)
@@ -1342,6 +1421,8 @@ struct EditReceiptView: View {
     var chrome: EditReceiptChrome = .modalSheet
     /// Pop the receipt detail (library list) when editing in the iPad side-car column.
     var onBackFromSideCar: (() -> Void)?
+    /// Parent detail view registers inline Save / Save & Accept against `persistEditsAndFollowUp`.
+    var onPersistHandlerReady: ((@escaping () -> Void) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var showDistributionPrompt = false
@@ -1382,10 +1463,16 @@ struct EditReceiptView: View {
             )
     }
 
-    init(receipt: Receipt, chrome: EditReceiptChrome = .modalSheet, onBackFromSideCar: (() -> Void)? = nil) {
+    init(
+        receipt: Receipt,
+        chrome: EditReceiptChrome = .modalSheet,
+        onBackFromSideCar: (() -> Void)? = nil,
+        onPersistHandlerReady: ((@escaping () -> Void) -> Void)? = nil
+    ) {
         self.receipt = receipt
         self.chrome = chrome
         self.onBackFromSideCar = onBackFromSideCar
+        self.onPersistHandlerReady = onPersistHandlerReady
         _merchant = State(initialValue: receipt.merchant)
         _total = State(initialValue: receipt.total.formatted(.currency(code: receipt.currencyCode)))
         _notes = State(initialValue: receipt.notes ?? "")
@@ -1435,8 +1522,14 @@ struct EditReceiptView: View {
             }
         }
         .ratioVitaTheme()
-        .onAppear { syncFromReceipt() }
-        .task(id: receipt.persistentModelID) { syncFromReceipt() }
+        .onAppear {
+            syncFromReceipt()
+            onPersistHandlerReady? { persistEditsAndFollowUp() }
+        }
+        .task(id: receipt.persistentModelID) {
+            syncFromReceipt()
+            onPersistHandlerReady? { persistEditsAndFollowUp() }
+        }
         .sheet(isPresented: $showDistributionPrompt) {
             ReceiptDistributionPromptSheet(
                 receipt: receipt,

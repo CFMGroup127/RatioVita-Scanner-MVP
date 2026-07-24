@@ -286,8 +286,19 @@ enum GeminiReceiptExtractionService {
             throw GeminiReceiptExtractionError.emptyCandidates
         }
 
-        let payloadData = Data(text.utf8)
+        let payloadData = Data(sanitizedJSONObjectText(from: text).utf8)
         return try JSONDecoder().decode(GeminiReceiptPayload.self, from: payloadData)
+    }
+
+    /// Strips markdown fences and leading/trailing prose so partial Gemini replies still decode.
+    private static func sanitizedJSONObjectText(from text: String) -> String {
+        var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.hasPrefix("```"), let first = t.firstIndex(of: "{"), let last = t.lastIndex(of: "}") {
+            t = String(t[first...last])
+        } else if let first = t.firstIndex(of: "{"), let last = t.lastIndex(of: "}") {
+            t = String(t[first...last])
+        }
+        return t
     }
 
     private static func buildPrompt(ocr: String) -> String {

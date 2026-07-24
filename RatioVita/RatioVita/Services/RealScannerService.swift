@@ -133,6 +133,7 @@ class RealScannerService: NSObject, ScannerService {
         try await ensureCameraAuthorizedForCapture()
         isLiveMultiPageSessionActive = true
         await ensureCaptureConfigured()
+        applyLiveSessionMemoryPresetIfNeeded()
         await startCaptureSessionIfNeeded()
     }
 
@@ -140,12 +141,46 @@ class RealScannerService: NSObject, ScannerService {
         guard isLiveMultiPageSessionActive else {
             throw ScannerError.captureFailed
         }
-        return try await captureImage()
+        let raw = try await captureImage()
+        return autoreleasepool {
+            LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(raw)
+        }
     }
 
     func tearDownLiveCameraSession() async {
         isLiveMultiPageSessionActive = false
+        currentPhotoDelegate = nil
         await stopCaptureSession()
+        await releaseCaptureHardwareAfterLiveSession()
+    }
+
+    private func releaseCaptureHardwareAfterLiveSession() async {
+        await MainActor.run {
+            videoPreviewLayer?.removeFromSuperlayer()
+            videoPreviewLayer = nil
+        }
+
+        guard let captureSession else { return }
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                captureSession.beginConfiguration()
+                for input in captureSession.inputs {
+                    captureSession.removeInput(input)
+                }
+                for output in captureSession.outputs {
+                    captureSession.removeOutput(output)
+                }
+                captureSession.commitConfiguration()
+                continuation.resume()
+            }
+        }
+
+        await MainActor.run {
+            photoOutput = nil
+            self.captureSession = nil
+            isCaptureConfigured = false
+        }
     }
 
     private func ensureCameraAuthorizedForCapture() async throws {
@@ -208,7 +243,11 @@ class RealScannerService: NSObject, ScannerService {
     
     private func setupCaptureSession() {
         captureSession = AVCaptureSession()
-        captureSession?.sessionPreset = .photo
+        if isLiveMultiPageSessionActive, captureSession?.canSetSessionPreset(.hd1920x1080) == true {
+            captureSession?.sessionPreset = .hd1920x1080
+        } else {
+            captureSession?.sessionPreset = .photo
+        }
         
         // Configure camera input (fallback for visionOS / single-lens devices)
         let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
@@ -269,6 +308,7 @@ class RealScannerService: NSObject, ScannerService {
         }
         await MainActor.run {
             isSessionRunning = true
+            videoPreviewLayer?.session = captureSession
         }
     }
 
@@ -297,10 +337,7 @@ class RealScannerService: NSObject, ScannerService {
             settings.flashMode = .auto
             #endif
             if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-                let dimensions = photoOutput.maxPhotoDimensions
-                if dimensions.width > 0, dimensions.height > 0 {
-                    settings.maxPhotoDimensions = dimensions
-                }
+                settings.maxPhotoDimensions = Self.cappedPhotoDimensions(for: photoOutput)
             }
             
             // Retain the delegate until we resume the continuation
@@ -353,6 +390,11 @@ class RealScannerService: NSObject, ScannerService {
         ensureCaptureConfiguredSync()
         return videoPreviewLayer
     }
+
+    func avCaptureSessionForPreview() -> AVCaptureSession? {
+        ensureCaptureConfiguredSync()
+        return captureSession
+    }
     
     func switchCamera() {
         cameraPosition = cameraPosition == .back ? .front : .back
@@ -387,6 +429,30 @@ class RealScannerService: NSObject, ScannerService {
             #endif
         }
     }
+
+    private func applyLiveSessionMemoryPresetIfNeeded() {
+        guard isLiveMultiPageSessionActive, let captureSession else { return }
+        captureSession.beginConfiguration()
+        if captureSession.canSetSessionPreset(.hd1920x1080) {
+            captureSession.sessionPreset = .hd1920x1080
+        } else if captureSession.canSetSessionPreset(.high) {
+            captureSession.sessionPreset = .high
+        }
+        captureSession.commitConfiguration()
+    }
+
+    @available(iOS 16.0, macOS 13.0, visionOS 1.0, *)
+    private static func cappedPhotoDimensions(for output: AVCapturePhotoOutput) -> CMVideoDimensions {
+        let maxDim = output.maxPhotoDimensions
+        let long = max(maxDim.width, maxDim.height)
+        let cap: Int32 = 2048
+        guard long > cap, long > 0 else { return maxDim }
+        let scale = Float(cap) / Float(long)
+        return CMVideoDimensions(
+            width: max(1, Int32((Float(maxDim.width) * scale).rounded(.down))),
+            height: max(1, Int32((Float(maxDim.height) * scale).rounded(.down)))
+        )
+    }
 }
 
 extension RealScannerService: LiveMultiPageCameraScanning {}
@@ -407,15 +473,18 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
             onError(error)
             return
         }
-        
-        guard let imageData = photo.fileDataRepresentation(),
-              let image = UIImage.rv_decodedNormalizingEXIFOrientation(from: imageData) else
-        {
-            onError(ScannerError.invalidImage)
-            return
+
+        autoreleasepool {
+            guard let imageData = photo.fileDataRepresentation(),
+                  let image = UIImage.rv_decodedNormalizingEXIFOrientation(from: imageData) else
+            {
+                onError(ScannerError.invalidImage)
+                return
+            }
+
+            let normalized = LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(image)
+            onSuccess(normalized)
         }
-        
-        onSuccess(image)
     }
 }
 

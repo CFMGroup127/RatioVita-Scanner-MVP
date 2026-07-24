@@ -24,12 +24,19 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
 
+    @State private var liveSessionTornDown = false
+
+    @State private var isPreviewSessionReady = false
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
-                ReceiptLiveCameraPreviewRepresentable(scanner: liveScanner)
-                    .ignoresSafeArea()
+                ReceiptLiveCameraPreviewRepresentable(
+                    scanner: liveScanner,
+                    sessionReady: isPreviewSessionReady
+                )
+                .ignoresSafeArea()
 
                 VStack {
                     Spacer()
@@ -61,7 +68,7 @@ struct LiveCameraMultiPageCaptureView: View {
                     await openSession()
                 }
                 .onDisappear {
-                    Task { await liveScanner.tearDownLiveCameraSession() }
+                    Task { await tearDownLiveSessionIfNeeded(clearBuffer: true) }
                 }
         }
     }
@@ -82,7 +89,7 @@ struct LiveCameraMultiPageCaptureView: View {
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     ForEach(Array(buffer.pages.enumerated()), id: \.element.id) { index, page in
                         ZStack(alignment: .topTrailing) {
-                            Image(uiImage: page.image)
+                            Image(uiImage: page.thumbnail)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 56, height: 72)
@@ -149,12 +156,25 @@ struct LiveCameraMultiPageCaptureView: View {
     }
 
     @MainActor
+    private func tearDownLiveSessionIfNeeded(clearBuffer: Bool) async {
+        guard !liveSessionTornDown else { return }
+        liveSessionTornDown = true
+        isPreviewSessionReady = false
+        if clearBuffer {
+            buffer.clear()
+        }
+        await liveScanner.tearDownLiveCameraSession()
+    }
+
+    @MainActor
     private func openSession() async {
         isPreparing = true
         errorMessage = nil
+        isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
             try await liveScanner.prepareLiveCameraSession()
+            isPreviewSessionReady = true
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -162,7 +182,7 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func closeSession() async {
-        await liveScanner.tearDownLiveCameraSession()
+        await tearDownLiveSessionIfNeeded(clearBuffer: true)
         dismiss()
     }
 
@@ -173,7 +193,9 @@ struct LiveCameraMultiPageCaptureView: View {
         defer { isCapturing = false }
         do {
             let image = try await liveScanner.captureLiveCameraPhoto()
-            buffer.append(image)
+            autoreleasepool {
+                buffer.append(image)
+            }
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -186,57 +208,80 @@ struct LiveCameraMultiPageCaptureView: View {
         errorMessage = nil
         defer { isProcessing = false }
         let batch = buffer.images
-        await liveScanner.tearDownLiveCameraSession()
+        await tearDownLiveSessionIfNeeded(clearBuffer: false)
         await onProcessBatch(batch)
+        buffer.clear()
         dismiss()
     }
 }
 
-private struct ReceiptLiveCameraPreviewRepresentable: UIViewRepresentable {
+private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresentable {
     let scanner: any ScannerService
+    var sessionReady: Bool
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    func makeUIViewController(context _: Context) -> LiveCameraPreviewViewController {
+        let controller = LiveCameraPreviewViewController()
+        controller.scanner = scanner
+        controller.sessionReady = sessionReady
+        return controller
     }
 
-    func makeUIView(context: Context) -> UIView {
-        let view = PreviewHostView()
-        view.backgroundColor = .black
-        context.coordinator.attachPreview(from: scanner, to: view)
-        return view
+    func updateUIViewController(_ uiViewController: LiveCameraPreviewViewController, context _: Context) {
+        uiViewController.scanner = scanner
+        uiViewController.sessionReady = sessionReady
+        uiViewController.syncPreviewIfNeeded()
+    }
+}
+
+/// Hosts an `AVCaptureVideoPreviewLayer` as the root view layer and binds the running capture session.
+final class LiveCameraPreviewViewController: UIViewController {
+    var scanner: (any ScannerService)?
+    var sessionReady = false
+
+    private let previewHost = CameraPreviewRootView()
+
+    override func loadView() {
+        view = previewHost
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.layoutPreview(in: uiView)
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        syncPreviewIfNeeded()
     }
 
-    final class Coordinator {
-        var previewLayer: AVCaptureVideoPreviewLayer?
-
-        func attachPreview(from scanner: any ScannerService, to view: UIView) {
-            guard let layer = scanner.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer else { return }
-            layer.videoGravity = .resizeAspectFill
-            previewLayer = layer
-            if layer.superlayer !== view.layer {
-                view.layer.insertSublayer(layer, at: 0)
-            }
-            layoutPreview(in: view)
+    func syncPreviewIfNeeded() {
+        guard sessionReady else {
+            previewHost.bindCaptureSession(nil)
+            return
         }
+        guard let session = scanner?.avCaptureSessionForPreview() else { return }
+        previewHost.bindCaptureSession(session)
+    }
+}
 
-        func layoutPreview(in view: UIView) {
-            previewLayer?.frame = view.bounds
-        }
+final class CameraPreviewRootView: UIView {
+    override class var layerClass: AnyClass {
+        AVCaptureVideoPreviewLayer.self
     }
 
-    final class PreviewHostView: UIView {
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            layer.sublayers?.forEach { sub in
-                if sub is AVCaptureVideoPreviewLayer {
-                    sub.frame = bounds
-                }
-            }
+    var previewLayer: AVCaptureVideoPreviewLayer {
+        guard let layer = layer as? AVCaptureVideoPreviewLayer else {
+            fatalError("Expected AVCaptureVideoPreviewLayer as root layer")
         }
+        return layer
+    }
+
+    func bindCaptureSession(_ session: AVCaptureSession?) {
+        previewLayer.videoGravity = .resizeAspectFill
+        if previewLayer.session !== session {
+            previewLayer.session = session
+        }
+        previewLayer.connection?.isEnabled = session != nil
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        previewLayer.frame = bounds
     }
 }
 
@@ -258,6 +303,10 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
 
+    @State private var liveSessionTornDown = false
+
+    @State private var isPreviewSessionReady = false
+
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
@@ -272,9 +321,12 @@ struct LiveCameraMultiPageCaptureView: View {
 
                 ZStack {
                     Color.black
-                    ReceiptLiveCameraPreviewRepresentableMac(scanner: liveScanner)
-                        .frame(width: width, height: height)
-                        .clipped()
+                    ReceiptLiveCameraPreviewRepresentableMac(
+                        scanner: liveScanner,
+                        sessionReady: isPreviewSessionReady
+                    )
+                    .frame(width: width, height: height)
+                    .clipped()
 
                     VStack {
                         Spacer(minLength: 0)
@@ -303,7 +355,7 @@ struct LiveCameraMultiPageCaptureView: View {
             }
             .task { await openSession() }
             .onDisappear {
-                Task { await liveScanner.tearDownLiveCameraSession() }
+                Task { await tearDownLiveSessionIfNeeded(clearBuffer: true) }
             }
         }
         .frame(
@@ -329,7 +381,7 @@ struct LiveCameraMultiPageCaptureView: View {
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     ForEach(Array(buffer.pages.enumerated()), id: \.element.id) { index, page in
                         ZStack(alignment: .topTrailing) {
-                            Image(nsImage: page.image)
+                            Image(nsImage: page.thumbnail)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 56, height: 72)
@@ -365,11 +417,24 @@ struct LiveCameraMultiPageCaptureView: View {
     }
 
     @MainActor
+    private func tearDownLiveSessionIfNeeded(clearBuffer: Bool) async {
+        guard !liveSessionTornDown else { return }
+        liveSessionTornDown = true
+        isPreviewSessionReady = false
+        if clearBuffer {
+            buffer.clear()
+        }
+        await liveScanner.tearDownLiveCameraSession()
+    }
+
+    @MainActor
     private func openSession() async {
         isPreparing = true
+        isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
             try await liveScanner.prepareLiveCameraSession()
+            isPreviewSessionReady = true
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -377,7 +442,7 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func closeSession() async {
-        await liveScanner.tearDownLiveCameraSession()
+        await tearDownLiveSessionIfNeeded(clearBuffer: true)
         dismiss()
     }
 
@@ -386,7 +451,10 @@ struct LiveCameraMultiPageCaptureView: View {
         isCapturing = true
         defer { isCapturing = false }
         do {
-            buffer.append(try await liveScanner.captureLiveCameraPhoto())
+            let image = try await liveScanner.captureLiveCameraPhoto()
+            autoreleasepool {
+                buffer.append(image)
+            }
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -398,76 +466,99 @@ struct LiveCameraMultiPageCaptureView: View {
         isProcessing = true
         defer { isProcessing = false }
         let batch = buffer.images
-        await liveScanner.tearDownLiveCameraSession()
+        await tearDownLiveSessionIfNeeded(clearBuffer: false)
         await onProcessBatch(batch)
+        buffer.clear()
         dismiss()
     }
 }
 
-private struct ReceiptLiveCameraPreviewRepresentableMac: NSViewRepresentable {
+private struct ReceiptLiveCameraPreviewRepresentableMac: NSViewControllerRepresentable {
     let scanner: any ScannerService
+    var sessionReady: Bool
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    func makeNSViewController(context _: Context) -> LiveCameraPreviewViewControllerMac {
+        let controller = LiveCameraPreviewViewControllerMac()
+        controller.scanner = scanner
+        controller.sessionReady = sessionReady
+        return controller
     }
 
-    func makeNSView(context: Context) -> MacCameraPreviewHostView {
-        let view = MacCameraPreviewHostView()
-        context.coordinator.attachPreview(from: scanner, to: view)
-        return view
+    func updateNSViewController(_ controller: LiveCameraPreviewViewControllerMac, context _: Context) {
+        controller.scanner = scanner
+        controller.sessionReady = sessionReady
+        controller.syncPreviewIfNeeded()
+    }
+}
+
+final class LiveCameraPreviewViewControllerMac: NSViewController {
+    var scanner: (any ScannerService)?
+    var sessionReady = false
+
+    private let previewHost = MacCameraPreviewRootView()
+
+    override func loadView() {
+        view = previewHost
     }
 
-    func updateNSView(_ nsView: MacCameraPreviewHostView, context: Context) {
-        context.coordinator.layoutPreview(in: nsView)
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        syncPreviewIfNeeded()
     }
 
-    final class Coordinator {
-        var previewLayer: AVCaptureVideoPreviewLayer?
-
-        func attachPreview(from scanner: any ScannerService, to view: MacCameraPreviewHostView) {
-            guard let layer = scanner.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer else { return }
-            layer.videoGravity = .resizeAspectFill
-            previewLayer = layer
-            if layer.superlayer !== view.layer {
-                view.layer?.addSublayer(layer)
-            }
-            layoutPreview(in: view)
+    func syncPreviewIfNeeded() {
+        guard sessionReady else {
+            previewHost.bindCaptureSession(nil)
+            return
         }
+        guard let session = scanner?.avCaptureSessionForPreview() else { return }
+        previewHost.bindCaptureSession(session)
+    }
+}
 
-        func layoutPreview(in view: MacCameraPreviewHostView) {
-            let bounds = view.bounds
-            guard bounds.width.isFinite, bounds.height.isFinite,
-                  bounds.width > 0, bounds.height > 0,
-                  bounds.width <= SafeLayoutBounds.maxWindowWidth,
-                  bounds.height <= SafeLayoutBounds.maxWindowHeight else { return }
-            previewLayer?.frame = bounds
-        }
+final class MacCameraPreviewRootView: NSView {
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
     }
 
-    /// Host view that keeps the preview layer within finite AppKit bounds.
-    final class MacCameraPreviewHostView: NSView {
-        override var isFlipped: Bool { true }
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+    }
 
-        override init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
-            wantsLayer = true
+    func bindCaptureSession(_ session: AVCaptureSession?) {
+        if session == nil {
+            previewLayer?.session = nil
+            previewLayer?.removeFromSuperlayer()
+            previewLayer = nil
+            return
         }
+        guard let session else { return }
+        let layer: AVCaptureVideoPreviewLayer
+        if let existing = previewLayer {
+            layer = existing
+        } else {
+            let created = AVCaptureVideoPreviewLayer(session: session)
+            created.videoGravity = .resizeAspectFill
+            self.layer?.addSublayer(created)
+            previewLayer = created
+            layer = created
+        }
+        if layer.session !== session {
+            layer.session = session
+        }
+        layer.connection?.isEnabled = true
+        layer.frame = bounds
+    }
 
-        required init?(coder: NSCoder) {
-            super.init(coder: coder)
-            wantsLayer = true
-        }
-
-        override func layout() {
-            super.layout()
-            guard bounds.width.isFinite, bounds.height.isFinite,
-                  bounds.width > 0, bounds.width <= SafeLayoutBounds.maxWindowWidth else { return }
-            layer?.sublayers?.forEach { sub in
-                if sub is AVCaptureVideoPreviewLayer {
-                    sub.frame = bounds
-                }
-            }
-        }
+    override func layout() {
+        super.layout()
+        previewLayer?.frame = bounds
     }
 }
 #endif

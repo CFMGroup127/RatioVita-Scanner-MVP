@@ -100,10 +100,12 @@ struct ReceiptsView: View {
         true
     }
 
-    /// iPhone can report `regular` width in landscape; keep Scan/Capture in the leading cluster for **all** phones.
-    private var prefersLeadingScanToolbarLayout: Bool {
+    /// Main library at root — show bottom add affordance when empty (iOS).
+    private var showsIOSAddReceiptFAB: Bool {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone
+        guard cabinetFilter == nil else { return false }
+        guard navReceiptPath.isEmpty else { return false }
+        return receipts.isEmpty
         #else
         false
         #endif
@@ -232,6 +234,15 @@ struct ReceiptsView: View {
                         }
                 }
             }
+            #if os(iOS)
+            .overlay(alignment: .bottomTrailing) {
+                if showsIOSAddReceiptFAB {
+                    iosAddReceiptFloatingButton
+                        .padding(.trailing, DesignSystem.Spacing.lg)
+                        .padding(.bottom, DesignSystem.Spacing.md)
+                }
+            }
+            #endif
         }
     }
 
@@ -286,6 +297,10 @@ struct ReceiptsView: View {
             #endif
 
             #if os(iOS)
+            ToolbarItem(placement: .primaryAction) {
+                iosAddReceiptToolbarControl
+            }
+
             ToolbarItemGroup(placement: .navigationBarLeading) {
                 Button {
                     goBackNavigation()
@@ -302,10 +317,6 @@ struct ReceiptsView: View {
                 }
                 .disabled(forwardReceiptPath.isEmpty)
                 .accessibilityLabel("Forward")
-
-                if prefersLeadingScanToolbarLayout {
-                    scanCaptureToolbarButton()
-                }
             }
             #endif
 
@@ -315,7 +326,7 @@ struct ReceiptsView: View {
                     toolbarControls(
                         sorted: sorted,
                         placement: .compact,
-                        includeScanButton: !prefersLeadingScanToolbarLayout
+                        includeScanButton: false
                     )
                 }
             }
@@ -360,9 +371,13 @@ struct ReceiptsView: View {
             )
             syncImportRequestWithScannerIfNeeded()
             openImportIfQueuedFromReview()
+            applyArcticVaultNavigationIfNeeded()
         }
         .onChange(of: libraryNavigationCoordinator.focusReceiptsLibrarySignal) { _, _ in
             openImportIfQueuedFromReview()
+        }
+        .onChange(of: libraryNavigationCoordinator.focusArcticVaultExplorerSignal) { _, _ in
+            applyArcticVaultNavigationIfNeeded()
         }
         .onChange(of: libraryNavigationCoordinator.importSheetSignal) { _, _ in
             syncImportRequestWithScannerIfNeeded()
@@ -401,6 +416,8 @@ struct ReceiptsView: View {
                     await viewModel.importManuscriptFile(at: url, vaultPathPrefix: libraryScanVaultPathPrefix)
                 }
             )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
             #elseif os(macOS)
             CameraCaptureView(
                 scanner: viewModel.scannerForUI,
@@ -413,6 +430,7 @@ struct ReceiptsView: View {
                     await viewModel.importManuscriptFile(at: url, vaultPathPrefix: libraryScanVaultPathPrefix)
                 }
             )
+            .frame(minWidth: 520, minHeight: 420)
             #else
             Text("Scanning is not available on this platform.")
             #endif
@@ -490,6 +508,16 @@ struct ReceiptsView: View {
         viewModel.showScannerUI()
     }
 
+    private func applyArcticVaultNavigationIfNeeded() {
+        guard libraryNavigationCoordinator.consumeFocusArcticVaultExplorerIfNeeded() else { return }
+        guard showsArcticVaultChrome else { return }
+        navReceiptPath.removeAll()
+        forwardReceiptPath.removeAll()
+        browsingCustomFolder = nil
+        arcticPhase = .vendorRoot
+        searchText = ""
+    }
+
     /// Prominent camera / capture entry — hoisted to the **leading** bar on compact iPhone so it is never crowded
     /// out by segmented controls in the trailing group.
     @ViewBuilder
@@ -512,6 +540,49 @@ struct ReceiptsView: View {
         .accessibilityLabel("Scan or capture receipt")
         .accessibilityHint("Opens the camera and import sheet.")
     }
+
+    #if os(iOS)
+    /// Always-visible trailing add control (not buried in overflow toolbar).
+    private var iosAddReceiptToolbarControl: some View {
+        Menu {
+            Button {
+                viewModel.showScannerUI()
+            } label: {
+                Label("Camera & live scan", systemImage: "camera.viewfinder")
+            }
+            Button {
+                viewModel.showScannerUI()
+            } label: {
+                Label("Photo library & files…", systemImage: "photo.on.rectangle.angled")
+            }
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .symbolRenderingMode(.hierarchical)
+                .font(.title2)
+                .foregroundStyle(brandAccent)
+        }
+        .accessibilityLabel("Add receipt")
+        .accessibilityHint("Opens capture, photo library, and file import.")
+        .disabled(viewModel.isScanning)
+    }
+
+    private var iosAddReceiptFloatingButton: some View {
+        Button {
+            viewModel.showScannerUI()
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Color.white)
+                .frame(width: 56, height: 56)
+                .background(brandAccent, in: Circle())
+                .shadow(color: .black.opacity(0.22), radius: 8, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add receipt")
+        .accessibilityHint("Capture or import a receipt.")
+        .disabled(viewModel.isScanning)
+    }
+    #endif
 
     private func delete(at offsets: IndexSet, from list: [Receipt]) {
         let now = Date()
@@ -537,7 +608,7 @@ struct ReceiptsView: View {
         }
         return isMac
             ? "Tap Import to add your first receipt (drag-and-drop in the import window). Use Review when you are ready to file items into your library."
-            : "Tap Scan to add your first receipt, then open the Review tab to file it into your library."
+            : "Tap + or Scan or import to add your first receipt, then open the Review tab to file it into your library."
     }
 
     private var emptyLibraryOverlay: some View {
@@ -562,6 +633,18 @@ struct ReceiptsView: View {
                 .foregroundStyle(Color.ratioVitaTextSecondary)
                 .multilineTextAlignment(.center)
             }
+
+            Button {
+                viewModel.showScannerUI()
+            } label: {
+                #if os(macOS)
+                Label("Import receipt", systemImage: "square.and.arrow.down.on.square")
+                #else
+                Label("Scan or import", systemImage: "camera.fill")
+                #endif
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(brandAccent)
         }
         .padding(DesignSystem.Spacing.xl)
     }
@@ -725,6 +808,13 @@ struct ReceiptsView: View {
             Image(systemName: "square.and.arrow.up")
         }
         .help("Select multiple receipts to export as PDF or CSV")
+
+        Button {
+            viewModel.showScannerUI()
+        } label: {
+            Label("Import", systemImage: "square.and.arrow.down.on.square")
+        }
+        .help("Import or capture receipts (camera, files, Photos)")
 
         Menu {
             NavigationLink {

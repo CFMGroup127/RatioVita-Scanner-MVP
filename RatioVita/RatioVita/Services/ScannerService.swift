@@ -2,6 +2,10 @@ import CoreGraphics
 import Foundation
 import SwiftUI
 
+#if canImport(AVFoundation)
+import AVFoundation
+#endif
+
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -197,4 +201,7 @@ extension ScannerService {
     func getVideoPreviewLayer() -> Any? { nil }
     func switchCamera() {}
     func focusCamera(at _: CGPoint) {}
+
+    /// Live viewfinder binds its own `AVCaptureVideoPreviewLayer` to this session on the main thread.
+    func avCaptureSessionForPreview() -> AVCaptureSession? { nil }
 }

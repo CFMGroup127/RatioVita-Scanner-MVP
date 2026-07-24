@@ -98,12 +98,19 @@ enum ReceiptPersistence {
         )
         let total = sanitized.total ?? 0
 
+        var resolvedNotes = notes
+        var reviewPending = pendingHumanReview
+        if source == "heuristic-gemini-failed" {
+            reviewPending = true
+            resolvedNotes = appendingManualReviewNote(to: resolvedNotes)
+        }
+
         let receipt = Receipt(
             createdAt: createdAt,
             merchant: merchant,
             total: total,
             currencyCode: currencyResolved,
-            notes: notes,
+            notes: resolvedNotes,
             transactionDate: transactionDate,
             vendorAddress: merged.vendorAddress,
             documentNumber: merged.documentNumber,
@@ -122,7 +129,7 @@ enum ReceiptPersistence {
             invoiceProductionManagerName: merged.productionManagerName,
             invoiceClientProjectTitle: merged.clientProjectTitle,
             invoiceClientCompany: merged.clientProductionCompany,
-            pendingHumanReview: pendingHumanReview,
+            pendingHumanReview: reviewPending,
             scannedViaCamera: scannedViaCamera,
             reviewChecklistDone: false
         )
@@ -336,6 +343,26 @@ enum ReceiptPersistence {
         if DocumentTypeOption.fromStored(receipt.documentType) == .dealMemo {
             _ = DealMemoOnboardingService.processIfDealMemo(receipt: receipt, context: context)
         }
+        if extractionSource == "heuristic-gemini-failed" {
+            receipt.pendingHumanReview = true
+            receipt.notes = appendingManualReviewNote(to: receipt.notes)
+        }
+    }
+
+    static func markGeminiRefinementPersistFailed(receiptID: UUID, context: ModelContext) {
+        let fd = FetchDescriptor<Receipt>(predicate: #Predicate { $0.id == receiptID })
+        guard let receipt = try? context.fetch(fd).first else { return }
+        receipt.extractionSource = "heuristic-gemini-failed"
+        receipt.pendingHumanReview = true
+        receipt.notes = appendingManualReviewNote(to: receipt.notes)
+    }
+
+    private static func appendingManualReviewNote(to existing: String?) -> String {
+        let tag = ReceiptStructuredExtractor.manualReviewRequiredNote
+        let trimmed = existing?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if trimmed.isEmpty { return tag }
+        if trimmed.localizedCaseInsensitiveContains("manual review required") { return trimmed }
+        return "\(trimmed)\n\n\(tag)"
     }
 
     private static func applyTaxCategoryHeuristics(receipt: Receipt, merged: ExtractedData, ocr: String) {

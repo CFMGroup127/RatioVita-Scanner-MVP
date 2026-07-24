@@ -113,9 +113,13 @@ enum ReceiptStructuredExtractor {
                 supplementalOCR: trimmedOCR,
                 registryEntityLegalNames: registryEntityLegalNames
             )
-            return (fallback, "heuristic")
+            return (fallback, "heuristic-gemini-failed")
         }
     }
+
+    /// Appended to receipt notes when Gemini was attempted but parsing failed.
+    static let manualReviewRequiredNote =
+        "Manual review required — Gemini could not parse structured fields from OCR."
 
     private static func applyDocumentPolarity(
         _ merged: ExtractedData,

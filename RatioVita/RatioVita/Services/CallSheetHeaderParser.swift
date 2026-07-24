@@ -32,11 +32,26 @@ enum CallSheetHeaderParser {
     }
 
     private static func extractCrewCallTime(from ocr: String) -> (hour: Int, minute: Int)? {
-        let lower = ocr.lowercased()
-        guard let range = lower.range(of: "crew call") else { return nil }
-        let tail = String(ocr[range.upperBound...])
-        let window = String(tail.prefix(120))
+        let leadPatterns = [
+            #"(?i)\bcrew\s*call\s*:?"#,
+            #"(?i)\bcall\s*time\s*:?"#,
+            #"(?i)\bcrew\s*:"#,
+        ]
+        let fullRange = NSRange(location: 0, length: (ocr as NSString).length)
+        for pattern in leadPatterns {
+            guard let re = try? NSRegularExpression(pattern: pattern, options: []),
+                  let m = re.firstMatch(in: ocr, options: [], range: fullRange) else { continue }
+            let tailStart = m.range.upperBound
+            guard tailStart < fullRange.length else { continue }
+            let tail = (ocr as NSString).substring(from: tailStart)
+            if let parsed = parseTimeNearCrewCallLabel(String(tail.prefix(160))) {
+                return parsed
+            }
+        }
+        return nil
+    }
 
+    private static func parseTimeNearCrewCallLabel(_ window: String) -> (hour: Int, minute: Int)? {
         let winRange = NSRange(location: 0, length: (window as NSString).length)
         if let re = try? NSRegularExpression(pattern: #"(?i)\b(\d{1,2})\s*[:.]\s*(\d{2})\s*(am|pm)?\b"#, options: []),
            let m = re.firstMatch(in: window, options: [], range: winRange)
