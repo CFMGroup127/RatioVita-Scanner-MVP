@@ -95,6 +95,9 @@ struct OpenSwamperTerminalIntent: AppIntent {
 
 struct RatioVitaShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        if SystemIndexingDonationGuard.isSuppressed {
+            return []
+        }
         #if DEBUG
         return []
         #else

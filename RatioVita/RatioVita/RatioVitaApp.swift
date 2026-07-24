@@ -65,6 +65,7 @@ struct RatioVitaApp: App {
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
     init() {
+        _ = SystemIndexingDonationGuard.loadTimeActivation
         SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
         #if DEBUG

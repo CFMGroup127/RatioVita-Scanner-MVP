@@ -13,6 +13,7 @@ import UIKit
 #if os(macOS)
 final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
     private static let firebaseOrdering: Void = {
+        _ = SystemIndexingDonationGuard.loadTimeActivation
         SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }()
@@ -23,6 +24,7 @@ final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_: Notification) {
+        SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }
 }
@@ -30,6 +32,7 @@ final class RatioVitaAppDelegate: NSObject, NSApplicationDelegate {
 #elseif canImport(UIKit)
 final class RatioVitaAppDelegate: NSObject, UIApplicationDelegate {
     private static let firebaseOrdering: Void = {
+        _ = SystemIndexingDonationGuard.loadTimeActivation
         SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
     }()
@@ -43,6 +46,7 @@ final class RatioVitaAppDelegate: NSObject, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        SystemIndexingDonationGuard.applyDevelopmentBypassIfNeeded()
         RatioVitaFirebaseBootstrap.ensureConfigured()
         return true
     }
