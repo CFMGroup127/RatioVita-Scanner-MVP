@@ -156,65 +156,16 @@ class RealScannerService: NSObject, ScannerService {
     }
     
     func scanMultiPageReceipt(maxPages _: Int, ocrEnabled: Bool, compressionEnabled: Bool) async throws -> ScanResult {
-        // For MVP, return single page result
+        // Live multi-page capture uses `CameraCaptureView` draft pages + `ReceiptScanPipeline.mergedScanResult`.
+        // Single shutter API remains one page; library multi-select should call `processImportedImages`.
         try await scanReceipt(ocrEnabled: ocrEnabled, compressionEnabled: compressionEnabled)
     }
     
     func processExistingImage(_ image: UIImage, ocrEnabled: Bool, compressionEnabled: Bool) async throws -> ScanResult {
-        // Process existing image (e.g., from photo library)
-        let processedImage = try await processImage(image, compressionEnabled: compressionEnabled)
-        
-        // Perform OCR if enabled
-        var ocrText: String?
-        var confidence: Double?
-        var detectedRectangles: [DetectedRectangle]?
-        
-        if ocrEnabled {
-            let ocrResult = try performOCR(on: processedImage)
-            ocrText = ocrResult.text
-            confidence = ocrResult.confidence
-            detectedRectangles = ocrResult.detectedRectangles
-        }
-        
-        // Create scanned page
-        let scannedPage = ScannedPage(
-            image: processedImage,
-            originalImage: image,
-            pageNumber: 1,
-            ocrText: ocrText,
-            confidence: confidence,
-            detectedRectangles: detectedRectangles,
-            capturedAt: Date()
-        )
-        
-        // Extract structured data from OCR
-        let extractedData = ocrEnabled && ocrText != nil
-            ? OCRParsing.extractData(from: ocrText!)
-            : ExtractedData()
-        
-        // Create processing metadata
-        let processingSteps = [
-            ImageProcessingStep(name: "Image Import", description: "Imported image from library", duration: 0.2),
-            ImageProcessingStep(name: "Image Processing", description: "Applied enhancement filters", duration: 0.8),
-            ImageProcessingStep(
-                name: "OCR Processing",
-                description: "Extracted text using Vision framework",
-                duration: ocrEnabled ? 1.0 : 0.0
-            ),
-        ]
-        
-        let processingMetadata = ProcessingMetadata(
-            processingTime: 1.5,
+        try await ReceiptScanPipeline.processImported(
+            image: image,
             ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled,
-            compressionQuality: configuration.compressionQuality,
-            imageProcessingSteps: processingSteps
-        )
-        
-        return ScanResult(
-            scannedPages: [scannedPage],
-            extractedData: extractedData,
-            processingMetadata: processingMetadata
+            compressionEnabled: compressionEnabled
         )
     }
     

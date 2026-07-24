@@ -85,6 +85,58 @@ enum ReceiptScanPipeline {
         )
     }
 
+    /// Processes one or more imported/captured still images through enhancement + Vision OCR.
+    static func processImportedImages(
+        images: [RVImage],
+        ocrEnabled: Bool,
+        compressionEnabled: Bool
+    ) async throws -> ScanResult {
+        guard !images.isEmpty else { throw ScannerError.invalidImage }
+        if images.count == 1 {
+            return try await processImported(
+                image: images[0],
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled
+            )
+        }
+
+        var scannedPages: [ScannedPage] = []
+        for (idx, original) in images.enumerated() {
+            let normalized = ReceiptImageRasterOps.prepareForPersistence(original) ?? original
+            let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(
+                image: normalized,
+                ocrEnabled: ocrEnabled
+            )
+            let processed = try await ImageProcessing.processImage(oriented, with: .receiptDefault)
+            guard let cgImage = processed.rv_cgImageForVisionAnalysis ?? processed.rvCGImage else {
+                throw ScannerError.invalidImage
+            }
+            let level: VNRequestTextRecognitionLevel = .accurate
+            let (ocrText, confidence, detectedRectangles) = try VisionReceiptAnalysis.analyzeReceipt(
+                cgImage: cgImage,
+                ocrEnabled: ocrEnabled,
+                textRecognitionLevel: level
+            )
+            scannedPages.append(
+                ScannedPage(
+                    image: processed,
+                    originalImage: oriented,
+                    pageNumber: idx + 1,
+                    ocrText: ocrText,
+                    confidence: confidence,
+                    detectedRectangles: detectedRectangles.isEmpty ? nil : detectedRectangles,
+                    capturedAt: Date()
+                )
+            )
+        }
+
+        return mergedScanResult(
+            fromPages: scannedPages,
+            ocrEnabled: ocrEnabled,
+            compressionEnabled: compressionEnabled
+        )
+    }
+
     /// Multi-page PDF: rasterize each page, run enhancement + Vision OCR, merge text for `OCRParsing`.
     static func processImportedPDF(
         at url: URL,

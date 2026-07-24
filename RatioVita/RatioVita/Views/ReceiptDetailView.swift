@@ -55,6 +55,7 @@ struct ReceiptDetailView: View {
     @State private var regionCropTarget: ReceiptPageRegionCropToken?
     @State private var showReplacePageImporter = false
     @State private var rescanErrorMessage: String?
+    @State private var exportSharePayload: ExportSharePayload?
 
     /// **Side-car** on every **iPad** (`regular` width), portrait or landscape. iPhone: stacked layout with pinned
     /// document strip (see `iphoneDocumentStrip`).
@@ -143,6 +144,16 @@ struct ReceiptDetailView: View {
     private func receiptDetailToolbar(r: Receipt) -> some ToolbarContent {
         #if os(iOS) || os(visionOS)
         ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if r.trashedAt == nil {
+                Menu {
+                    ReceiptExportMenuContent(receipts: [r]) { url in
+                        exportSharePayload = ExportSharePayload(url: url)
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Export receipt")
+            }
             if r.trashedAt == nil, r.images.count > 1 {
                 Button {
                     confirmExplodeAllPages = true
@@ -169,6 +180,17 @@ struct ReceiptDetailView: View {
             }
         }
         #else
+        if r.trashedAt == nil {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ReceiptExportMenuContent(receipts: [r]) { url in
+                        exportSharePayload = ExportSharePayload(url: url)
+                    }
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
         if r.trashedAt == nil, r.images.count > 1 {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -241,6 +263,9 @@ struct ReceiptDetailView: View {
 
     private func receiptDetailPostExpandedSheets(_ content: some View) -> some View {
         content
+            .sheet(item: $exportSharePayload) { payload in
+                ShareExportSheet(url: payload.url)
+            }
             .sheet(isPresented: $showVerifiedEraseSheet) {
                 verifiedPermanentEraseSheet
             }

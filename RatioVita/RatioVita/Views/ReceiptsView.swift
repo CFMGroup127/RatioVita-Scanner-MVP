@@ -768,11 +768,12 @@ struct ReceiptsView: View {
             Divider()
 
             if bulkMode == .export, !selection.isEmpty {
-                Button("Export PDF…") { exportPDFSelected(from: sorted) }
-                Button("Export CSV…") { exportCSVSelected(from: sorted) }
-                Button("Email selection…") {
-                    let picked = sorted.filter { selection.contains($0.id) }
-                    ReceiptSelectionMailer.presentEmailComposer(for: picked)
+                Menu {
+                    ReceiptExportMenuContent(receipts: sorted.filter { selection.contains($0.id) }) { url in
+                        exportShareItem = ExportSharePayload(url: url)
+                    }
+                } label: {
+                    Label("Export…", systemImage: "square.and.arrow.up")
                 }
                 Divider()
             }
@@ -929,11 +930,8 @@ struct ReceiptsView: View {
 
         if bulkMode == .export, !selection.isEmpty {
             Menu {
-                Button("Export PDF…") { exportPDFSelected(from: sorted) }
-                Button("Export CSV…") { exportCSVSelected(from: sorted) }
-                Button("Email selection…") {
-                    let picked = sorted.filter { selection.contains($0.id) }
-                    ReceiptSelectionMailer.presentEmailComposer(for: picked)
+                ReceiptExportMenuContent(receipts: sorted.filter { selection.contains($0.id) }) { url in
+                    exportShareItem = ExportSharePayload(url: url)
                 }
             } label: {
                 Label("Export", systemImage: "square.and.arrow.down.on.square")
@@ -1361,51 +1359,6 @@ struct ReceiptsView: View {
         .searchable(text: $searchText, placement: .automatic, prompt: "Search")
         #endif
     }
-
-    private func exportPDFSelected(from sorted: [Receipt]) {
-        let picked = sorted.filter { selection.contains($0.id) }
-        Task {
-            do {
-                let url = try ReceiptBatchExport.makeCombinedPDF(receipts: picked)
-                await MainActor.run {
-                    exportShareItem = ExportSharePayload(url: url)
-                }
-            } catch {
-                await MainActor.run {
-                    UserMessageCenter.shared.present(
-                        title: "Export failed",
-                        message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-
-    private func exportCSVSelected(from sorted: [Receipt]) {
-        let picked = sorted.filter { selection.contains($0.id) }
-        Task {
-            do {
-                let url = try ReceiptBatchExport.makeCSV(receipts: picked)
-                await MainActor.run {
-                    exportShareItem = ExportSharePayload(url: url)
-                }
-            } catch {
-                await MainActor.run {
-                    UserMessageCenter.shared.present(
-                        title: "Export failed",
-                        message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Share payload
-
-private struct ExportSharePayload: Identifiable {
-    let id = UUID()
-    let url: URL
 }
 
 // MARK: - Icon cell (Finder-style density)
