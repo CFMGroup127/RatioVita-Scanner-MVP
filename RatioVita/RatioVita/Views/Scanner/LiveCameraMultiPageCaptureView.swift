@@ -5,6 +5,7 @@
 //  Live viewfinder + sequential shutter captures → batch handoff to ReceiptScanPipeline.
 //
 
+import Combine
 import SwiftUI
 
 #if os(iOS) || os(visionOS)

@@ -5,6 +5,7 @@
 //  In-memory page stack for live camera sessions (images only until pipeline OCR).
 //
 
+import Combine
 import Foundation
 import SwiftUI
 
