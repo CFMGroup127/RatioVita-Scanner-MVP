@@ -87,7 +87,7 @@
 - **`.gitignore`:** Generated Vault exports.
 
 ### Documentation (in tree)
-- `Docs/BLUEPRINT_TRACEABILITY.md`, `Docs/LEGACY_V1_GAP_NOTES.md`, `Docs/Config.md`, `Docs/ScannerPipelinePlan.md`, `Docs/RESOLVING_7_BLOCKED_TASKS.md`, `Docs/VISION_AND_INSPIRATION.md`, `Docs/INITIAL_V2_BLUEPRINT.md`, `Docs/PHASED_WORK_SCHEDULE.md`, `Docs/BUILD_AND_TOOLS.md`, `Docs/PHASE1_QA_CHECKLIST.md`, repo-root `MONDAY_IGNITION_VERIFICATION.md`, `POST_REHYDRATION_CHECKLIST.md`, `TARGET_INTEGRITY_VERIFICATION.md`.
+- `Docs/BLUEPRINT_TRACEABILITY.md`, `Docs/FORENSIC_AUDIT_2026-07-23.md`, `Docs/LEGACY_V1_GAP_NOTES.md`, `Docs/Config.md`, `Docs/ScannerPipelinePlan.md`, `Docs/RESOLVING_7_BLOCKED_TASKS.md`, `Docs/VISION_AND_INSPIRATION.md`, `Docs/INITIAL_V2_BLUEPRINT.md`, `Docs/PHASED_WORK_SCHEDULE.md`, `Docs/BUILD_AND_TOOLS.md`, `Docs/PHASE1_QA_CHECKLIST.md`, repo-root `MONDAY_IGNITION_VERIFICATION.md`, `POST_REHYDRATION_CHECKLIST.md`, `TARGET_INTEGRITY_VERIFICATION.md`.
 
 ### Optional / external context (not shipped as app logic)
 - **`agents_system/`** and boardroom metaphors (Ethan Hayes, Arthur Jensen, etc.) — process and verification narrative around the same product goals.
