@@ -17,7 +17,6 @@ class RealScannerService: NSObject, ScannerService {
 
     private var captureSession: AVCaptureSession?
     private var photoOutput: AVCapturePhotoOutput?
-    private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
     
     // Camera configuration
     private var cameraPosition: AVCaptureDevice.Position = .back
@@ -133,11 +132,7 @@ class RealScannerService: NSObject, ScannerService {
         try await ensureCameraAuthorizedForCapture()
         isLiveMultiPageSessionActive = true
         let configured = await MainActor.run { () -> Bool in
-            if isCaptureConfigured {
-                reconfigureLiveCaptureSessionIfNeeded()
-            } else {
-                ensureCaptureConfiguredSync()
-            }
+            ensureCaptureConfiguredSync()
             return captureSession != nil && photoOutput != nil
         }
         guard configured else {
@@ -170,11 +165,6 @@ class RealScannerService: NSObject, ScannerService {
     }
 
     private func releaseCaptureHardwareAfterLiveSession() async {
-        await MainActor.run {
-            videoPreviewLayer?.removeFromSuperlayer()
-            videoPreviewLayer = nil
-        }
-
         guard let captureSession else { return }
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -262,12 +252,7 @@ class RealScannerService: NSObject, ScannerService {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
-        // Photo preset keeps still capture + preview compatible (avoids hd1920x1080 format clashes).
-        if session.canSetSessionPreset(.photo) {
-            session.sessionPreset = .photo
-        } else if session.canSetSessionPreset(.high) {
-            session.sessionPreset = .high
-        }
+        // Leave sessionPreset at default — AVFoundation negotiates format at startRunning().
 
         let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
             ?? AVCaptureDevice.default(for: .video)
@@ -305,36 +290,17 @@ class RealScannerService: NSObject, ScannerService {
         }
         session.addOutput(output)
 
-        // Do not set photoOutput.maxPhotoDimensions here — premature assignment triggers
-        // kCMFormatDescriptionError_InvalidParameter (-12710) before the session runs.
-
         captureSession = session
         photoOutput = output
-
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspectFill
-        videoPreviewLayer = layer
         return true
     }
 
-    /// Ensures live re-entry uses the photo preset (no manual dimension locking).
-    private func reconfigureLiveCaptureSessionIfNeeded() {
-        guard isLiveMultiPageSessionActive, let captureSession else { return }
-
-        captureSession.beginConfiguration()
-        if captureSession.canSetSessionPreset(.photo) {
-            captureSession.sessionPreset = .photo
-        }
-        captureSession.commitConfiguration()
-    }
-    
     private func startCaptureSessionIfNeeded() async {
         guard let captureSession else { return }
 
         if captureSession.isRunning {
             await MainActor.run {
                 isSessionRunning = true
-                videoPreviewLayer?.session = captureSession
             }
             return
         }
@@ -351,7 +317,6 @@ class RealScannerService: NSObject, ScannerService {
 
         await MainActor.run {
             isSessionRunning = captureSession.isRunning
-            videoPreviewLayer?.session = captureSession
             if captureSession.isRunning {
                 NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
             }
@@ -437,7 +402,7 @@ class RealScannerService: NSObject, ScannerService {
     
     @MainActor
     func getVideoPreviewLayer() -> AVCaptureVideoPreviewLayer? {
-        videoPreviewLayer
+        nil
     }
 
     @MainActor

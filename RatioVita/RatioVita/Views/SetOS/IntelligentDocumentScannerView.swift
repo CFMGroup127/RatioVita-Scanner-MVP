@@ -33,9 +33,6 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
             self.videoDevice = device
             if self.avSession.canAddInput(input) { self.avSession.addInput(input) }
 
-            self.videoOutput.videoSettings = [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-            ]
             self.videoOutput.alwaysDiscardsLateVideoFrames = true
             if self.avSession.canAddOutput(self.videoOutput) {
                 self.avSession.addOutput(self.videoOutput)

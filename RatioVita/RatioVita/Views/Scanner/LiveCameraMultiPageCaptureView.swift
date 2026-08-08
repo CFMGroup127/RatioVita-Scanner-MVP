@@ -310,7 +310,7 @@ final class LiveCameraPreviewViewController: UIViewController {
         syncPreviewIfNeeded()
     }
 
-    /// Binds the preview whenever the capture session is running (does not wait on `sessionReady`).
+    /// Binds preview directly from the capture session (no dimension or readiness gates).
     func syncPreviewIfNeeded() {
         guard !isBindingPreview else { return }
         isBindingPreview = true
@@ -321,18 +321,7 @@ final class LiveCameraPreviewViewController: UIViewController {
             return
         }
 
-        guard session.isRunning else {
-            if !sessionReady {
-                previewHost.detachPreviewLayer()
-            }
-            return
-        }
-
-        if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
-            previewHost.attachPreviewLayer(previewLayer)
-        } else {
-            previewHost.bindCaptureSession(session)
-        }
+        previewHost.bindCaptureSession(session)
     }
 
     #if DEBUG
@@ -380,20 +369,12 @@ final class CameraPreviewRootView: UIView {
     }
 
     func bindCaptureSession(_ session: AVCaptureSession) {
-        let layer: AVCaptureVideoPreviewLayer
-        if let existing = attachedPreviewLayer {
-            layer = existing
-        } else {
-            let created = AVCaptureVideoPreviewLayer(session: session)
-            created.videoGravity = .resizeAspectFill
-            self.layer.insertSublayer(created, at: 0)
-            attachedPreviewLayer = created
-            layer = created
-        }
+        attachedPreviewLayer?.removeFromSuperlayer()
 
-        if layer.session !== session {
-            layer.session = session
-        }
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        self.layer.insertSublayer(layer, at: 0)
+        attachedPreviewLayer = layer
         finalizePreviewLayerLayout(layer)
     }
 
@@ -711,18 +692,7 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
             return
         }
 
-        guard session.isRunning else {
-            if !sessionReady {
-                previewHost.detachPreviewLayer()
-            }
-            return
-        }
-
-        if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
-            previewHost.attachPreviewLayer(previewLayer)
-        } else {
-            previewHost.bindCaptureSession(session)
-        }
+        previewHost.bindCaptureSession(session)
     }
 }
 
@@ -755,20 +725,12 @@ final class MacCameraPreviewRootView: NSView {
     }
 
     func bindCaptureSession(_ session: AVCaptureSession) {
-        let layer: AVCaptureVideoPreviewLayer
-        if let existing = attachedPreviewLayer {
-            layer = existing
-        } else {
-            let created = AVCaptureVideoPreviewLayer(session: session)
-            created.videoGravity = .resizeAspectFill
-            self.layer?.insertSublayer(created, at: 0)
-            attachedPreviewLayer = created
-            layer = created
-        }
+        attachedPreviewLayer?.removeFromSuperlayer()
 
-        if layer.session !== session {
-            layer.session = session
-        }
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        self.layer?.insertSublayer(layer, at: 0)
+        attachedPreviewLayer = layer
         updatePreviewFrame(for: layer)
     }
 

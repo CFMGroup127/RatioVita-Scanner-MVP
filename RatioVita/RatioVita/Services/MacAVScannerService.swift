@@ -16,7 +16,6 @@ import Vision
 final class MacAVScannerService: NSObject, ScannerService {
     private var captureSession: AVCaptureSession?
     private var photoOutput: AVCapturePhotoOutput?
-    private var videoPreviewLayer: AVCaptureVideoPreviewLayer?
 
     private var availableDevices: [AVCaptureDevice] = []
     private var selectedDeviceIndex = 0
@@ -155,9 +154,6 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     private func releaseCaptureHardwareAfterLiveSession() async {
         await MainActor.run {
-            videoPreviewLayer?.removeFromSuperlayer()
-            videoPreviewLayer = nil
-
             if let captureSession {
                 captureSession.beginConfiguration()
                 for input in captureSession.inputs {
@@ -207,7 +203,7 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     @MainActor
     func getVideoPreviewLayer() -> Any? {
-        videoPreviewLayer
+        nil
     }
 
     @MainActor
@@ -277,7 +273,6 @@ final class MacAVScannerService: NSObject, ScannerService {
         }
 
         captureSession = AVCaptureSession()
-        captureSession?.sessionPreset = .photo
 
         refreshDeviceList()
         guard !availableDevices.isEmpty else {
@@ -305,13 +300,6 @@ final class MacAVScannerService: NSObject, ScannerService {
             photoOutput = nil
         }
 
-        if let session = captureSession {
-            let layer = AVCaptureVideoPreviewLayer(session: session)
-            layer.videoGravity = .resizeAspectFill
-            videoPreviewLayer = layer
-        } else {
-            videoPreviewLayer = nil
-        }
         isCaptureConfigured = true
     }
 
@@ -326,7 +314,6 @@ final class MacAVScannerService: NSObject, ScannerService {
         }
         await MainActor.run {
             isSessionRunning = true
-            videoPreviewLayer?.session = captureSession
         }
     }
 
