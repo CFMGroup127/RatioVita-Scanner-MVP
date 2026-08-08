@@ -34,6 +34,7 @@ struct LiveCameraMultiPageCaptureView: View {
                     scanner: liveScanner,
                     sessionReady: isPreviewSessionReady
                 )
+                .id(isPreviewSessionReady)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
 
@@ -173,6 +174,7 @@ struct LiveCameraMultiPageCaptureView: View {
             try batch.beginSession()
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
+            await Task.yield()
         } catch {
             errorMessage = error.ratioVitaUserDescription
             batch.endSession(deleteFiles: true)
@@ -245,6 +247,7 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
         let controller = LiveCameraPreviewViewController()
         controller.scanner = scanner
         controller.sessionReady = sessionReady
+        controller.syncPreviewIfNeeded()
         return controller
     }
 
@@ -272,6 +275,7 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        syncPreviewIfNeeded()
         #if DEBUG
         logPreviewDiagnostics()
         #endif
@@ -282,19 +286,27 @@ final class LiveCameraPreviewViewController: UIViewController {
         syncPreviewIfNeeded()
     }
 
+    /// Binds the preview whenever the capture session is running (does not wait on `sessionReady`).
     func syncPreviewIfNeeded() {
         guard !isBindingPreview else { return }
         isBindingPreview = true
         defer { isBindingPreview = false }
 
-        guard sessionReady else {
+        guard let session = scanner?.avCaptureSessionForPreview() else {
             previewHost.detachPreviewLayer()
+            return
+        }
+
+        guard session.isRunning else {
+            if !sessionReady {
+                previewHost.detachPreviewLayer()
+            }
             return
         }
 
         if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
             previewHost.attachPreviewLayer(previewLayer)
-        } else if let session = scanner?.avCaptureSessionForPreview() {
+        } else {
             previewHost.bindCaptureSession(session)
         }
     }
@@ -653,6 +665,7 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
 
     override func viewDidLayout() {
         super.viewDidLayout()
+        syncPreviewIfNeeded()
     }
 
     override func viewDidAppear() {
@@ -665,14 +678,21 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
         isBindingPreview = true
         defer { isBindingPreview = false }
 
-        guard sessionReady else {
+        guard let session = scanner?.avCaptureSessionForPreview() else {
             previewHost.detachPreviewLayer()
+            return
+        }
+
+        guard session.isRunning else {
+            if !sessionReady {
+                previewHost.detachPreviewLayer()
+            }
             return
         }
 
         if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
             previewHost.attachPreviewLayer(previewLayer)
-        } else if let session = scanner?.avCaptureSessionForPreview() {
+        } else {
             previewHost.bindCaptureSession(session)
         }
     }

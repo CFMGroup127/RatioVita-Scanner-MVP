@@ -452,14 +452,14 @@ class RealScannerService: NSObject, ScannerService {
     
     // MARK: - Public Methods for UI Integration
     
+    @MainActor
     func getVideoPreviewLayer() -> AVCaptureVideoPreviewLayer? {
-        ensureCaptureConfiguredSync()
-        return videoPreviewLayer
+        videoPreviewLayer
     }
 
+    @MainActor
     func avCaptureSessionForPreview() -> AVCaptureSession? {
-        ensureCaptureConfiguredSync()
-        return captureSession
+        captureSession
     }
     
     func switchCamera() {

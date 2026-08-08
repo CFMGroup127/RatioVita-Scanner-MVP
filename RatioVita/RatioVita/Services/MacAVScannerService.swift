@@ -205,14 +205,14 @@ final class MacAVScannerService: NSObject, ScannerService {
         CameraPermissions.getCameraPermissionStatus()
     }
 
+    @MainActor
     func getVideoPreviewLayer() -> Any? {
-        ensureCaptureConfiguredSync()
-        return videoPreviewLayer
+        videoPreviewLayer
     }
 
+    @MainActor
     func avCaptureSessionForPreview() -> AVCaptureSession? {
-        ensureCaptureConfiguredSync()
-        return captureSession
+        captureSession
     }
 
     func switchCamera() {
