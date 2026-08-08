@@ -310,7 +310,7 @@ final class LiveCameraPreviewViewController: UIViewController {
         syncPreviewIfNeeded()
     }
 
-    /// Binds preview directly from the capture session (no dimension or readiness gates).
+    /// Binds preview once the capture session is running; connection orientation is applied after the stream is active.
     func syncPreviewIfNeeded() {
         guard !isBindingPreview else { return }
         isBindingPreview = true
@@ -320,6 +320,8 @@ final class LiveCameraPreviewViewController: UIViewController {
             previewHost.detachPreviewLayer()
             return
         }
+
+        guard session.isRunning else { return }
 
         previewHost.bindCaptureSession(session)
     }
@@ -369,12 +371,17 @@ final class CameraPreviewRootView: UIView {
     }
 
     func bindCaptureSession(_ session: AVCaptureSession) {
-        attachedPreviewLayer?.removeFromSuperlayer()
-
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspectFill
-        self.layer.insertSublayer(layer, at: 0)
-        attachedPreviewLayer = layer
+        let layer: AVCaptureVideoPreviewLayer
+        if let existing = attachedPreviewLayer, existing.session === session {
+            layer = existing
+        } else {
+            attachedPreviewLayer?.removeFromSuperlayer()
+            let created = AVCaptureVideoPreviewLayer(session: session)
+            created.videoGravity = .resizeAspectFill
+            self.layer.insertSublayer(created, at: 0)
+            attachedPreviewLayer = created
+            layer = created
+        }
         finalizePreviewLayerLayout(layer)
     }
 
@@ -385,7 +392,7 @@ final class CameraPreviewRootView: UIView {
 
     private func finalizePreviewLayerLayout(_ layer: AVCaptureVideoPreviewLayer) {
         updatePreviewFrame(for: layer)
-        CameraPreviewLayerConfigurator.apply(to: layer, in: self)
+        CameraPreviewLayerConfigurator.applyConnectionIfReady(to: layer, in: self)
     }
 
     private func updatePreviewFrame(for layer: AVCaptureVideoPreviewLayer) {
@@ -397,21 +404,29 @@ final class CameraPreviewRootView: UIView {
         super.layoutSubviews()
         if let layer = attachedPreviewLayer {
             updatePreviewFrame(for: layer)
+            CameraPreviewLayerConfigurator.applyConnectionIfReady(to: layer, in: self)
         }
     }
 }
 
 #if os(iOS) || os(visionOS)
 enum CameraPreviewLayerConfigurator {
-    static func apply(to previewLayer: AVCaptureVideoPreviewLayer, in hostView: UIView) {
-        guard let connection = previewLayer.connection else { return }
-        connection.isEnabled = true
+    /// Applies connection orientation only after the hardware stream is running and active.
+    static func applyConnectionIfReady(to previewLayer: AVCaptureVideoPreviewLayer, in hostView: UIView) {
+        guard let session = previewLayer.session, session.isRunning else { return }
+        guard let connection = previewLayer.connection, connection.isActive else { return }
+
+        if !connection.isEnabled {
+            connection.isEnabled = true
+        }
+
         if #available(iOS 17.0, visionOS 1.0, *) {
             let angle = previewRotationAngle(for: hostView)
-            if connection.isVideoRotationAngleSupported(angle) {
+            guard connection.isVideoRotationAngleSupported(angle) else { return }
+            if connection.videoRotationAngle != angle {
                 connection.videoRotationAngle = angle
             }
-        } else if connection.isVideoOrientationSupported {
+        } else if connection.isVideoOrientationSupported, connection.videoOrientation != .portrait {
             connection.videoOrientation = .portrait
         }
     }
@@ -692,6 +707,8 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
             return
         }
 
+        guard session.isRunning else { return }
+
         previewHost.bindCaptureSession(session)
     }
 }
@@ -725,12 +742,17 @@ final class MacCameraPreviewRootView: NSView {
     }
 
     func bindCaptureSession(_ session: AVCaptureSession) {
-        attachedPreviewLayer?.removeFromSuperlayer()
-
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspectFill
-        self.layer?.insertSublayer(layer, at: 0)
-        attachedPreviewLayer = layer
+        let layer: AVCaptureVideoPreviewLayer
+        if let existing = attachedPreviewLayer, existing.session === session {
+            layer = existing
+        } else {
+            attachedPreviewLayer?.removeFromSuperlayer()
+            let created = AVCaptureVideoPreviewLayer(session: session)
+            created.videoGravity = .resizeAspectFill
+            self.layer?.insertSublayer(created, at: 0)
+            attachedPreviewLayer = created
+            layer = created
+        }
         updatePreviewFrame(for: layer)
     }
 

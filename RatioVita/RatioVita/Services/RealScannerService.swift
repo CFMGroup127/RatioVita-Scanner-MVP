@@ -289,6 +289,9 @@ class RealScannerService: NSObject, ScannerService {
         }
         session.addOutput(output)
 
+        // No activeFormat, sessionPreset, stabilization, or maxPhotoDimensions overrides —
+        // hardware format is negotiated when startRunning() is called on sessionQueue.
+
         captureSession = session
         photoOutput = output
         return true
