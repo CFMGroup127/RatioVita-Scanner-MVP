@@ -132,8 +132,15 @@ class RealScannerService: NSObject, ScannerService {
     func prepareLiveCameraSession() async throws {
         try await ensureCameraAuthorizedForCapture()
         isLiveMultiPageSessionActive = true
-        await ensureCaptureConfigured()
-        applyLiveSessionMemoryPresetIfNeeded()
+        await MainActor.run {
+            if isCaptureConfigured {
+                applyLiveSessionMemoryPresetIfNeeded()
+                refreshPhotoOutputDimensionsIfNeeded()
+            } else {
+                ensureCaptureConfiguredSync()
+                applyLiveSessionMemoryPresetIfNeeded()
+            }
+        }
         await startCaptureSessionIfNeeded()
     }
 

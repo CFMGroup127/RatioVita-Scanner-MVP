@@ -30,7 +30,6 @@ struct LiveCameraMultiPageCaptureView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
                 ReceiptLiveCameraPreviewRepresentable(
                     scanner: liveScanner,
                     sessionReady: isPreviewSessionReady
@@ -258,7 +257,8 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
     }
 }
 
-/// Hosts an `AVCaptureVideoPreviewLayer` as the root view layer and binds the running capture session.
+/// Hosts the scanner's `AVCaptureVideoPreviewLayer` in the view hierarchy.
+@MainActor
 final class LiveCameraPreviewViewController: UIViewController {
     var scanner: (any ScannerService)?
     var sessionReady = false
@@ -267,63 +267,150 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     override func loadView() {
         view = previewHost
+        view.backgroundColor = .black
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        previewHost.updatePreviewFrame()
         syncPreviewIfNeeded()
+        #if DEBUG
+        logPreviewDiagnostics()
+        #endif
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        previewHost.updatePreviewFrame()
         syncPreviewIfNeeded()
     }
 
     func syncPreviewIfNeeded() {
         guard sessionReady else {
-            previewHost.bindCaptureSession(nil)
+            previewHost.detachPreviewLayer()
             return
         }
-        guard let session = scanner?.avCaptureSessionForPreview() else { return }
-        previewHost.bindCaptureSession(session)
-        previewHost.updatePreviewFrame()
+
+        if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
+            previewHost.attachPreviewLayer(previewLayer)
+        } else if let session = scanner?.avCaptureSessionForPreview() {
+            previewHost.bindCaptureSession(session)
+        }
+
+        previewHost.setNeedsLayout()
+        previewHost.layoutIfNeeded()
     }
+
+    #if DEBUG
+    private func logPreviewDiagnostics() {
+        let bounds = previewHost.bounds
+        let session = scanner?.avCaptureSessionForPreview()
+        let layer = previewHost.attachedPreviewLayer
+        print(
+            "RatioVita preview: viewBounds=\(bounds) "
+                + "layerFrame=\(String(describing: layer?.frame)) "
+                + "sessionRunning=\(session?.isRunning ?? false) "
+                + "layerInHierarchy=\(layer?.superlayer != nil)"
+        )
+    }
+    #endif
 }
 
+/// Adds the preview layer as a sublayer (more reliable than `layerClass` overrides in SwiftUI hosts).
 final class CameraPreviewRootView: UIView {
-    override class var layerClass: AnyClass {
-        AVCaptureVideoPreviewLayer.self
+    private(set) weak var attachedPreviewLayer: AVCaptureVideoPreviewLayer?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        isOpaque = true
     }
 
-    var previewLayer: AVCaptureVideoPreviewLayer {
-        guard let layer = layer as? AVCaptureVideoPreviewLayer else {
-            fatalError("Expected AVCaptureVideoPreviewLayer as root layer")
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        backgroundColor = .black
+        isOpaque = true
+    }
+
+    func attachPreviewLayer(_ layer: AVCaptureVideoPreviewLayer) {
+        if attachedPreviewLayer === layer, layer.superlayer === self.layer {
+            finalizePreviewLayerLayout(layer)
+            return
         }
-        return layer
+
+        attachedPreviewLayer?.removeFromSuperlayer()
+        attachedPreviewLayer = layer
+        layer.videoGravity = .resizeAspectFill
+        self.layer.insertSublayer(layer, at: 0)
+        finalizePreviewLayerLayout(layer)
     }
 
-    func bindCaptureSession(_ session: AVCaptureSession?) {
-        previewLayer.videoGravity = .resizeAspectFill
-        if previewLayer.session !== session {
-            previewLayer.session = session
+    func bindCaptureSession(_ session: AVCaptureSession) {
+        let layer: AVCaptureVideoPreviewLayer
+        if let existing = attachedPreviewLayer {
+            layer = existing
+        } else {
+            let created = AVCaptureVideoPreviewLayer(session: session)
+            created.videoGravity = .resizeAspectFill
+            self.layer.insertSublayer(created, at: 0)
+            attachedPreviewLayer = created
+            layer = created
         }
-        previewLayer.connection?.isEnabled = session != nil
-        updatePreviewFrame()
+
+        if layer.session !== session {
+            layer.session = session
+        }
+        finalizePreviewLayerLayout(layer)
     }
 
-    /// Keeps the root preview layer sized to the host view (avoids a zero-frame black viewfinder).
-    func updatePreviewFrame() {
+    func detachPreviewLayer() {
+        attachedPreviewLayer?.removeFromSuperlayer()
+        attachedPreviewLayer = nil
+    }
+
+    private func finalizePreviewLayerLayout(_ layer: AVCaptureVideoPreviewLayer) {
+        updatePreviewFrame(for: layer)
+        CameraPreviewLayerConfigurator.apply(to: layer, in: self)
+    }
+
+    private func updatePreviewFrame(for layer: AVCaptureVideoPreviewLayer) {
         guard bounds.width > 0, bounds.height > 0 else { return }
-        previewLayer.frame = bounds
+        layer.frame = bounds
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        updatePreviewFrame()
+        if let layer = attachedPreviewLayer {
+            updatePreviewFrame(for: layer)
+        }
     }
 }
+
+#if os(iOS) || os(visionOS)
+enum CameraPreviewLayerConfigurator {
+    static func apply(to previewLayer: AVCaptureVideoPreviewLayer, in hostView: UIView) {
+        guard let connection = previewLayer.connection else { return }
+        if #available(iOS 17.0, visionOS 1.0, *) {
+            let angle = previewRotationAngle(for: hostView)
+            if connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
+            }
+        } else if connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
+    }
+
+    @available(iOS 17.0, visionOS 1.0, *)
+    private static func previewRotationAngle(for hostView: UIView) -> CGFloat {
+        guard let orientation = hostView.window?.windowScene?.interfaceOrientation else { return 90 }
+        switch orientation {
+            case .portrait: return 90
+            case .portraitUpsideDown: return 270
+            case .landscapeLeft: return 180
+            case .landscapeRight: return 0
+            default: return 90
+        }
+    }
+}
+#endif
 
 #endif
 
@@ -578,17 +665,23 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
 
     func syncPreviewIfNeeded() {
         guard sessionReady else {
-            previewHost.bindCaptureSession(nil)
+            previewHost.detachPreviewLayer()
             return
         }
-        guard let session = scanner?.avCaptureSessionForPreview() else { return }
-        previewHost.bindCaptureSession(session)
-        previewHost.updatePreviewFrame()
+
+        if let previewLayer = scanner?.getVideoPreviewLayer() as? AVCaptureVideoPreviewLayer {
+            previewHost.attachPreviewLayer(previewLayer)
+        } else if let session = scanner?.avCaptureSessionForPreview() {
+            previewHost.bindCaptureSession(session)
+        }
+
+        previewHost.needsLayout = true
+        previewHost.layoutSubtreeIfNeeded()
     }
 }
 
 final class MacCameraPreviewRootView: NSView {
-    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private(set) weak var attachedPreviewLayer: AVCaptureVideoPreviewLayer?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -602,39 +695,52 @@ final class MacCameraPreviewRootView: NSView {
         layer?.backgroundColor = NSColor.black.cgColor
     }
 
-    func bindCaptureSession(_ session: AVCaptureSession?) {
-        if session == nil {
-            previewLayer?.session = nil
-            previewLayer?.removeFromSuperlayer()
-            previewLayer = nil
+    func attachPreviewLayer(_ layer: AVCaptureVideoPreviewLayer) {
+        if attachedPreviewLayer === layer, layer.superlayer === self.layer {
+            updatePreviewFrame(for: layer)
             return
         }
-        guard let session else { return }
+
+        attachedPreviewLayer?.removeFromSuperlayer()
+        attachedPreviewLayer = layer
+        layer.videoGravity = .resizeAspectFill
+        self.layer?.insertSublayer(layer, at: 0)
+        updatePreviewFrame(for: layer)
+    }
+
+    func bindCaptureSession(_ session: AVCaptureSession) {
         let layer: AVCaptureVideoPreviewLayer
-        if let existing = previewLayer {
+        if let existing = attachedPreviewLayer {
             layer = existing
         } else {
             let created = AVCaptureVideoPreviewLayer(session: session)
             created.videoGravity = .resizeAspectFill
-            self.layer?.addSublayer(created)
-            previewLayer = created
+            self.layer?.insertSublayer(created, at: 0)
+            attachedPreviewLayer = created
             layer = created
         }
+
         if layer.session !== session {
             layer.session = session
         }
-        layer.connection?.isEnabled = true
-        updatePreviewFrame()
+        updatePreviewFrame(for: layer)
     }
 
-    func updatePreviewFrame() {
+    func detachPreviewLayer() {
+        attachedPreviewLayer?.removeFromSuperlayer()
+        attachedPreviewLayer = nil
+    }
+
+    private func updatePreviewFrame(for layer: AVCaptureVideoPreviewLayer) {
         guard bounds.width > 0, bounds.height > 0 else { return }
-        previewLayer?.frame = bounds
+        layer.frame = bounds
     }
 
     override func layout() {
         super.layout()
-        updatePreviewFrame()
+        if let layer = attachedPreviewLayer {
+            updatePreviewFrame(for: layer)
+        }
     }
 }
 #endif
