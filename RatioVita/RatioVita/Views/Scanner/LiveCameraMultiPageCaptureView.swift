@@ -26,6 +26,7 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @State private var liveSessionTornDown = false
     @State private var isPreviewSessionReady = false
+    @State private var captureSessionOpened = false
 
     var body: some View {
         NavigationStack {
@@ -34,7 +35,6 @@ struct LiveCameraMultiPageCaptureView: View {
                     scanner: liveScanner,
                     sessionReady: isPreviewSessionReady
                 )
-                .id(isPreviewSessionReady)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
 
@@ -166,16 +166,17 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func openSession() async {
+        guard !captureSessionOpened else { return }
+        captureSessionOpened = true
         isPreparing = true
         errorMessage = nil
-        isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
             try batch.beginSession()
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
-            await Task.yield()
         } catch {
+            captureSessionOpened = false
             errorMessage = error.ratioVitaUserDescription
             batch.endSession(deleteFiles: true)
         }
@@ -253,8 +254,11 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
 
     func updateUIViewController(_ uiViewController: LiveCameraPreviewViewController, context _: Context) {
         uiViewController.scanner = scanner
+        let readyChanged = uiViewController.sessionReady != sessionReady
         uiViewController.sessionReady = sessionReady
-        uiViewController.syncPreviewIfNeeded()
+        if readyChanged || sessionReady {
+            uiViewController.syncPreviewIfNeeded()
+        }
     }
 }
 
@@ -444,6 +448,7 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @State private var liveSessionTornDown = false
     @State private var isPreviewSessionReady = false
+    @State private var captureSessionOpened = false
 
     var body: some View {
         NavigationStack {
@@ -565,14 +570,16 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func openSession() async {
+        guard !captureSessionOpened else { return }
+        captureSessionOpened = true
         isPreparing = true
-        isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
             try batch.beginSession()
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
         } catch {
+            captureSessionOpened = false
             errorMessage = error.ratioVitaUserDescription
             batch.endSession(deleteFiles: true)
         }
