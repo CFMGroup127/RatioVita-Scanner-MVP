@@ -74,7 +74,12 @@ enum ContextualLedgerRouter {
             receipt.pendingHumanReview = true
         }
 
-        applyProductionProjectHintIfNeeded(receipt: receipt, merged: merged, scanContext: scanContext, modelContext: modelContext)
+        applyProductionProjectHintIfNeeded(
+            receipt: receipt,
+            merged: merged,
+            scanContext: scanContext,
+            modelContext: modelContext
+        )
         CrossEntityTriageEngine.refreshTriageState(for: receipt)
     }
 
@@ -220,7 +225,7 @@ enum ContextualLedgerRouter {
 
     private static func applyProductionProjectHintIfNeeded(
         receipt: Receipt,
-        merged: ExtractedData,
+        merged _: ExtractedData,
         scanContext: ScanContext,
         modelContext: ModelContext
     ) {
@@ -274,8 +279,8 @@ enum ProductionVendorHeuristics {
     }
 }
 
-private extension String {
-    var nilIfEmpty: String? {
+extension String {
+    fileprivate var nilIfEmpty: String? {
         let t = trimmingCharacters(in: .whitespacesAndNewlines)
         return t.isEmpty ? nil : t
     }

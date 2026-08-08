@@ -112,7 +112,7 @@ struct GeminiReceiptPayload: Codable, Equatable, Sendable {
         case productionManagerName = "production_manager_name"
         case clientProjectTitle = "client_project_title"
         case clientProductionCompany = "client_production_company"
-        case entityConfidenceScore = "entityConfidenceScore"
+        case entityConfidenceScore
     }
 }
 
@@ -310,7 +310,7 @@ enum GeminiReceiptExtractionService {
     }
 
     private static func buildPrompt(ocr: String, activeLedger: SovereignLedger?) -> String {
-        let ledgerBlock: String = if let activeLedger {
+        let ledgerBlock = if let activeLedger {
             """
             
             **Active ledger context:** \(activeLedger.promptContextLabel)
