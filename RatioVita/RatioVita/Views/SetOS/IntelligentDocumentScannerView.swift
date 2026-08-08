@@ -42,12 +42,6 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
             }
             if self.avSession.canAddOutput(self.photoOutput) {
                 self.avSession.addOutput(self.photoOutput)
-                if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-                    _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-                        photoOutput: self.photoOutput,
-                        videoDevice: device
-                    )
-                }
             }
             if self.avSession.canAddOutput(self.metadataOutput) {
                 self.avSession.addOutput(self.metadataOutput)
@@ -79,14 +73,6 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
 
     func capturePhoto(delegate: AVCapturePhotoCaptureDelegate) {
         sessionQueue.async {
-            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
-               let device = self.videoDevice ?? AVCapturePhotoDimensionsSupport.videoDevice(from: self.avSession)
-            {
-                _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-                    photoOutput: self.photoOutput,
-                    videoDevice: device
-                )
-            }
             let settings = AVCapturePhotoSettings()
             self.photoOutput.capturePhoto(with: settings, delegate: delegate)
         }

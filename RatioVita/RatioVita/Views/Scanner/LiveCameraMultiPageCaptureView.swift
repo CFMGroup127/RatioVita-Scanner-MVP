@@ -269,10 +269,30 @@ final class LiveCameraPreviewViewController: UIViewController {
     var sessionReady = false
 
     private let previewHost = CameraPreviewRootView()
+    private var sessionStartObserver: NSObjectProtocol?
 
     override func loadView() {
         view = previewHost
         view.backgroundColor = .black
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        sessionStartObserver = NotificationCenter.default.addObserver(
+            forName: .ratioVitaCaptureSessionDidStart,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.syncPreviewIfNeeded()
+            }
+        }
+    }
+
+    deinit {
+        if let sessionStartObserver {
+            NotificationCenter.default.removeObserver(sessionStartObserver)
+        }
     }
 
     private var isBindingPreview = false
@@ -404,6 +424,7 @@ final class CameraPreviewRootView: UIView {
 enum CameraPreviewLayerConfigurator {
     static func apply(to previewLayer: AVCaptureVideoPreviewLayer, in hostView: UIView) {
         guard let connection = previewLayer.connection else { return }
+        connection.isEnabled = true
         if #available(iOS 17.0, visionOS 1.0, *) {
             let angle = previewRotationAngle(for: hostView)
             if connection.isVideoRotationAngleSupported(angle) {

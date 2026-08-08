@@ -305,13 +305,8 @@ class RealScannerService: NSObject, ScannerService {
         }
         session.addOutput(output)
 
-        if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-            _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-                photoOutput: output,
-                videoDevice: camera,
-                longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
-            )
-        }
+        // Do not set photoOutput.maxPhotoDimensions here — premature assignment triggers
+        // kCMFormatDescriptionError_InvalidParameter (-12710) before the session runs.
 
         captureSession = session
         photoOutput = output
@@ -322,26 +317,15 @@ class RealScannerService: NSObject, ScannerService {
         return true
     }
 
-    /// Re-syncs photo dimensions when re-entering live capture on an existing session.
+    /// Ensures live re-entry uses the photo preset (no manual dimension locking).
     private func reconfigureLiveCaptureSessionIfNeeded() {
-        guard isLiveMultiPageSessionActive,
-              let captureSession,
-              let photoOutput,
-              let device = AVCapturePhotoDimensionsSupport.videoDevice(from: captureSession) else { return }
+        guard isLiveMultiPageSessionActive, let captureSession else { return }
 
         captureSession.beginConfiguration()
         if captureSession.canSetSessionPreset(.photo) {
             captureSession.sessionPreset = .photo
         }
         captureSession.commitConfiguration()
-
-        if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-            _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-                photoOutput: photoOutput,
-                videoDevice: device,
-                longEdgeCap: 2048
-            )
-        }
     }
     
     private func startCaptureSessionIfNeeded() async {
@@ -368,6 +352,9 @@ class RealScannerService: NSObject, ScannerService {
         await MainActor.run {
             isSessionRunning = captureSession.isRunning
             videoPreviewLayer?.session = captureSession
+            if captureSession.isRunning {
+                NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
+            }
             #if DEBUG
             print(
                 "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
@@ -396,15 +383,11 @@ class RealScannerService: NSObject, ScannerService {
             throw ScannerError.captureFailed
         }
 
-        refreshPhotoOutputDimensionsIfNeeded()
-
         return try await withCheckedThrowingContinuation { continuation in
             let settings = AVCapturePhotoSettings()
             #if os(iOS) || os(visionOS)
             settings.flashMode = .auto
             #endif
-            // Do not set settings.maxPhotoDimensions manually — AVFoundation requires an exact
-            // match from supportedMaxPhotoDimensions; output.maxPhotoDimensions is synced above.
 
             // Retain the delegate until we resume the continuation
             self.currentPhotoDelegate = PhotoCaptureDelegate { image in
@@ -497,22 +480,11 @@ class RealScannerService: NSObject, ScannerService {
             #endif
         }
     }
+}
 
-    private func refreshPhotoOutputDimensionsIfNeeded() {
-        guard #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
-              let photoOutput,
-              let captureSession,
-              let device = AVCapturePhotoDimensionsSupport.videoDevice(from: captureSession) else { return }
-
-        captureSession.beginConfiguration()
-        defer { captureSession.commitConfiguration() }
-
-        _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-            photoOutput: photoOutput,
-            videoDevice: device,
-            longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
-        )
-    }
+extension Notification.Name {
+    /// Posted on the main queue after `AVCaptureSession.startRunning()` succeeds.
+    static let ratioVitaCaptureSessionDidStart = Notification.Name("com.ratiovita.capture.sessionDidStart")
 }
 
 extension RealScannerService: LiveMultiPageCameraScanning {}
