@@ -27,6 +27,7 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var liveSessionTornDown = false
     @State private var isPreviewSessionReady = false
     @State private var captureSessionOpened = false
+    @State private var disappearTeardownTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -67,8 +68,17 @@ struct LiveCameraMultiPageCaptureView: View {
                 .task {
                     await openSession()
                 }
+                .onAppear {
+                    disappearTeardownTask?.cancel()
+                    disappearTeardownTask = nil
+                }
                 .onDisappear {
-                    Task { await tearDownLiveSessionIfNeeded(clearBatch: true) }
+                    disappearTeardownTask?.cancel()
+                    disappearTeardownTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        guard !Task.isCancelled, !liveSessionTornDown else { return }
+                        await tearDownLiveSessionIfNeeded(clearBatch: true)
+                    }
                 }
         }
     }
@@ -157,6 +167,8 @@ struct LiveCameraMultiPageCaptureView: View {
     private func tearDownLiveSessionIfNeeded(clearBatch: Bool) async {
         guard !liveSessionTornDown else { return }
         liveSessionTornDown = true
+        disappearTeardownTask?.cancel()
+        disappearTeardownTask = nil
         isPreviewSessionReady = false
         if clearBatch {
             batch.endSession(deleteFiles: true)
@@ -177,6 +189,7 @@ struct LiveCameraMultiPageCaptureView: View {
             isPreviewSessionReady = true
         } catch {
             captureSessionOpened = false
+            isPreviewSessionReady = false
             errorMessage = error.ratioVitaUserDescription
             batch.endSession(deleteFiles: true)
         }
@@ -270,6 +283,7 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     private let previewHost = CameraPreviewRootView()
     private var sessionStartObserver: NSObjectProtocol?
+    private var sessionConfigureObserver: NSObjectProtocol?
 
     override func loadView() {
         view = previewHost
@@ -278,20 +292,31 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        sessionStartObserver = NotificationCenter.default.addObserver(
-            forName: .ratioVitaCaptureSessionDidStart,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
+        let rebindingHandler: (Notification) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.syncPreviewIfNeeded()
             }
         }
+        sessionStartObserver = NotificationCenter.default.addObserver(
+            forName: .ratioVitaCaptureSessionDidStart,
+            object: nil,
+            queue: .main,
+            using: rebindingHandler
+        )
+        sessionConfigureObserver = NotificationCenter.default.addObserver(
+            forName: .ratioVitaCaptureSessionDidConfigure,
+            object: nil,
+            queue: .main,
+            using: rebindingHandler
+        )
     }
 
     deinit {
         if let sessionStartObserver {
             NotificationCenter.default.removeObserver(sessionStartObserver)
+        }
+        if let sessionConfigureObserver {
+            NotificationCenter.default.removeObserver(sessionConfigureObserver)
         }
     }
 
@@ -331,11 +356,13 @@ final class LiveCameraPreviewViewController: UIViewController {
         let bounds = previewHost.bounds
         let session = scanner?.avCaptureSessionForPreview()
         let layer = previewHost.attachedPreviewLayer
+        let boundSession = layer?.session
         print(
             "RatioVita preview: sessionReady=\(sessionReady) viewBounds=\(bounds) "
                 + "layerFrame=\(String(describing: layer?.frame)) "
                 + "hasSession=\(session != nil) "
                 + "sessionRunning=\(session?.isRunning ?? false) "
+                + "layerSessionMatches=\(boundSession === session) "
                 + "layerInHierarchy=\(layer?.superlayer != nil)"
         )
     }
@@ -373,10 +400,16 @@ final class CameraPreviewRootView: UIView {
 
     func bindCaptureSession(_ session: AVCaptureSession) {
         let layer: AVCaptureVideoPreviewLayer
-        if let existing = attachedPreviewLayer, existing.session === session {
+        if let existing = attachedPreviewLayer {
             layer = existing
+            if existing.session !== session {
+                existing.session = session
+            }
+            if existing.superlayer !== self.layer {
+                existing.removeFromSuperlayer()
+                self.layer.insertSublayer(existing, at: 0)
+            }
         } else {
-            attachedPreviewLayer?.removeFromSuperlayer()
             let created = AVCaptureVideoPreviewLayer(session: session)
             created.videoGravity = .resizeAspectFill
             self.layer.insertSublayer(created, at: 0)
@@ -744,10 +777,16 @@ final class MacCameraPreviewRootView: NSView {
 
     func bindCaptureSession(_ session: AVCaptureSession) {
         let layer: AVCaptureVideoPreviewLayer
-        if let existing = attachedPreviewLayer, existing.session === session {
+        if let existing = attachedPreviewLayer {
             layer = existing
+            if existing.session !== session {
+                existing.session = session
+            }
+            if existing.superlayer !== self.layer {
+                existing.removeFromSuperlayer()
+                self.layer?.insertSublayer(existing, at: 0)
+            }
         } else {
-            attachedPreviewLayer?.removeFromSuperlayer()
             let created = AVCaptureVideoPreviewLayer(session: session)
             created.videoGravity = .resizeAspectFill
             self.layer?.insertSublayer(created, at: 0)

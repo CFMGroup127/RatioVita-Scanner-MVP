@@ -135,6 +135,19 @@ class RealScannerService: NSObject, ScannerService {
 
     func prepareLiveCameraSession() async throws {
         try await ensureCameraAuthorizedForCapture()
+
+        if isLiveMultiPageSessionActive,
+           let captureSession,
+           !captureSession.inputs.isEmpty,
+           captureSession.isRunning
+        {
+            #if DEBUG
+            print("RatioVita capture: live session already running — skipping re-configure")
+            #endif
+            notifyCaptureSessionDidStart(captureSession)
+            return
+        }
+
         isLiveMultiPageSessionActive = true
         ensureCaptureConfiguredSync()
         guard captureSession != nil, photoOutput != nil else {
@@ -247,6 +260,18 @@ class RealScannerService: NSObject, ScannerService {
     /// Builds inputs/outputs atomically; returns false when hardware cannot be configured.
     @discardableResult
     private func setupCaptureSession() -> Bool {
+        if let existing = captureSession,
+           !existing.inputs.isEmpty,
+           !existing.outputs.isEmpty,
+           photoOutput != nil
+        {
+            #if DEBUG
+            print("RatioVita capture: reusing existing session instance")
+            #endif
+            notifyCaptureSessionDidConfigure(existing)
+            return true
+        }
+
         let session = AVCaptureSession()
         session.beginConfiguration()
         defer { session.commitConfiguration() }
@@ -300,7 +325,22 @@ class RealScannerService: NSObject, ScannerService {
                 + "outputs=\(session.outputs.count) device=\(camera.localizedName)"
         )
         #endif
+        notifyCaptureSessionDidConfigure(session)
         return true
+    }
+
+    private func notifyCaptureSessionDidConfigure(_ captureSession: AVCaptureSession) {
+        NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidConfigure, object: captureSession)
+    }
+
+    private func notifyCaptureSessionDidStart(_ captureSession: AVCaptureSession) {
+        NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
+        #if DEBUG
+        print(
+            "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
+                + "inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count)"
+        )
+        #endif
     }
 
     private func startCaptureSessionIfNeeded() async {
@@ -326,16 +366,6 @@ class RealScannerService: NSObject, ScannerService {
         if captureSession.isRunning {
             notifyCaptureSessionDidStart(captureSession)
         }
-    }
-
-    private func notifyCaptureSessionDidStart(_ captureSession: AVCaptureSession) {
-        NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
-        #if DEBUG
-        print(
-            "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
-                + "inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count)"
-        )
-        #endif
     }
 
     private func stopCaptureSession() async {
@@ -458,6 +488,8 @@ class RealScannerService: NSObject, ScannerService {
 }
 
 extension Notification.Name {
+    /// Posted on the main queue after a new `AVCaptureSession` instance is configured.
+    static let ratioVitaCaptureSessionDidConfigure = Notification.Name("com.ratiovita.capture.sessionDidConfigure")
     /// Posted on the main queue after `AVCaptureSession.startRunning()` succeeds.
     static let ratioVitaCaptureSessionDidStart = Notification.Name("com.ratiovita.capture.sessionDidStart")
 }
