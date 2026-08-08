@@ -191,6 +191,11 @@ protocol ScannerService {
     
     /// Focuses the camera at a given point in view coordinates if supported
     func focusCamera(at point: CGPoint)
+
+    #if canImport(AVFoundation)
+    /// Session for live viewfinder binding on the main actor (nil when preview is unavailable).
+    @MainActor func avCaptureSessionForPreview() -> AVCaptureSession?
+    #endif
 }
 
 /// Default no-op implementations so conformers don’t need to implement optional hooks
@@ -201,7 +206,4 @@ extension ScannerService {
     @MainActor func getVideoPreviewLayer() -> Any? { nil }
     func switchCamera() {}
     func focusCamera(at _: CGPoint) {}
-
-    /// Live viewfinder binds its own `AVCaptureVideoPreviewLayer` to this session on the main thread.
-    @MainActor func avCaptureSessionForPreview() -> AVCaptureSession? { nil }
 }

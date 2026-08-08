@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(AVFoundation)
+import AVFoundation
+#endif
+
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -69,6 +73,10 @@ final class PreviewScannerService: ScannerService {
     func getVideoPreviewLayer() -> Any? { nil }
     func switchCamera() {}
     func focusCamera(at _: CGPoint) {}
+
+    #if canImport(AVFoundation)
+    @MainActor func avCaptureSessionForPreview() -> AVCaptureSession? { nil }
+    #endif
 
     // MARK: - Live multi-page (previews / simulator)
 

@@ -253,9 +253,9 @@ class RealScannerService: NSObject, ScannerService {
 
         // Leave sessionPreset at default — AVFoundation negotiates format at startRunning().
 
-        let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
-            ?? AVCaptureDevice.default(for: .video)
-        guard let camera else {
+        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
+            ?? AVCaptureDevice.default(for: .video) else
+        {
             #if DEBUG
             print("RatioVita capture: no camera device")
             #endif
@@ -294,6 +294,12 @@ class RealScannerService: NSObject, ScannerService {
 
         captureSession = session
         photoOutput = output
+        #if DEBUG
+        print(
+            "RatioVita capture: configured session inputs=\(session.inputs.count) "
+                + "outputs=\(session.outputs.count) device=\(camera.localizedName)"
+        )
+        #endif
         return true
     }
 

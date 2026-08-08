@@ -241,7 +241,7 @@ private struct ReceiptBatchThumbnailView: View {
 }
 
 private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresentable {
-    let scanner: any ScannerService
+    let scanner: any LiveMultiPageCameraScanning
     var sessionReady: Bool
 
     func makeUIViewController(context _: Context) -> LiveCameraPreviewViewController {
@@ -265,7 +265,7 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
 /// Hosts the scanner's `AVCaptureVideoPreviewLayer` in the view hierarchy.
 @MainActor
 final class LiveCameraPreviewViewController: UIViewController {
-    var scanner: (any ScannerService)?
+    var scanner: (any LiveMultiPageCameraScanning)?
     var sessionReady = false
 
     private let previewHost = CameraPreviewRootView()
@@ -334,6 +334,7 @@ final class LiveCameraPreviewViewController: UIViewController {
         print(
             "RatioVita preview: sessionReady=\(sessionReady) viewBounds=\(bounds) "
                 + "layerFrame=\(String(describing: layer?.frame)) "
+                + "hasSession=\(session != nil) "
                 + "sessionRunning=\(session?.isRunning ?? false) "
                 + "layerInHierarchy=\(layer?.superlayer != nil)"
         )
