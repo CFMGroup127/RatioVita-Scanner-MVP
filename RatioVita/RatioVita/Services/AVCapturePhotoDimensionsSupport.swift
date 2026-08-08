@@ -12,9 +12,11 @@ enum AVCapturePhotoDimensionsSupport {
         longEdgeCap: Int32? = nil
     ) -> CMVideoDimensions? {
         let supported = videoDevice.activeFormat.supportedMaxPhotoDimensions
+            .filter { $0.width > 0 && $0.height > 0 }
         guard !supported.isEmpty else { return nil }
 
         let chosen = selectSupportedDimension(from: supported, longEdgeCap: longEdgeCap)
+        guard chosen.width > 0, chosen.height > 0 else { return nil }
         photoOutput.maxPhotoDimensions = chosen
         return chosen
     }

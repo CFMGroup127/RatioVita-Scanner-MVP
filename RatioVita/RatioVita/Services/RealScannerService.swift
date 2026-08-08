@@ -132,16 +132,24 @@ class RealScannerService: NSObject, ScannerService {
     func prepareLiveCameraSession() async throws {
         try await ensureCameraAuthorizedForCapture()
         isLiveMultiPageSessionActive = true
-        await MainActor.run {
+        let configured = await MainActor.run { () -> Bool in
             if isCaptureConfigured {
-                applyLiveSessionMemoryPresetIfNeeded()
-                refreshPhotoOutputDimensionsIfNeeded()
+                reconfigureLiveCaptureSessionIfNeeded()
             } else {
                 ensureCaptureConfiguredSync()
-                applyLiveSessionMemoryPresetIfNeeded()
             }
+            return captureSession != nil && photoOutput != nil
+        }
+        guard configured else {
+            throw ScannerError.captureFailed
         }
         await startCaptureSessionIfNeeded()
+        guard captureSession?.isRunning == true else {
+            #if DEBUG
+            print("RatioVita capture: session failed to start (isRunning=false)")
+            #endif
+            throw ScannerError.captureFailed
+        }
     }
 
     func captureLiveCameraPhoto() async throws -> UIImage {
@@ -238,8 +246,7 @@ class RealScannerService: NSObject, ScannerService {
 
     private func ensureCaptureConfiguredSync() {
         guard !isCaptureConfigured else { return }
-        setupCaptureSession()
-        isCaptureConfigured = true
+        isCaptureConfigured = setupCaptureSession()
     }
 
     private func ensureCaptureConfigured() async {
@@ -247,75 +254,126 @@ class RealScannerService: NSObject, ScannerService {
             ensureCaptureConfiguredSync()
         }
     }
-    
-    private func setupCaptureSession() {
-        captureSession = AVCaptureSession()
-        if isLiveMultiPageSessionActive, captureSession?.canSetSessionPreset(.hd1920x1080) == true {
-            captureSession?.sessionPreset = .hd1920x1080
-        } else {
-            captureSession?.sessionPreset = .photo
+
+    /// Builds inputs/outputs atomically; returns false when hardware cannot be configured.
+    @discardableResult
+    private func setupCaptureSession() -> Bool {
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+
+        // Photo preset keeps still capture + preview compatible (avoids hd1920x1080 format clashes).
+        if session.canSetSessionPreset(.photo) {
+            session.sessionPreset = .photo
+        } else if session.canSetSessionPreset(.high) {
+            session.sessionPreset = .high
         }
-        
-        // Configure camera input (fallback for visionOS / single-lens devices)
+
         let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: cameraPosition)
             ?? AVCaptureDevice.default(for: .video)
         guard let camera else {
             #if DEBUG
-            print("Failed to get camera device")
+            print("RatioVita capture: no camera device")
             #endif
-            return
+            return false
         }
-        
+
+        let cameraInput: AVCaptureDeviceInput
         do {
-            let cameraInput = try AVCaptureDeviceInput(device: camera)
-            if captureSession?.canAddInput(cameraInput) == true {
-                captureSession?.addInput(cameraInput)
-            }
+            cameraInput = try AVCaptureDeviceInput(device: camera)
         } catch {
             #if DEBUG
-            print("Failed to create camera input: \(error)")
+            print("RatioVita capture: failed to create camera input: \(error)")
             #endif
-            return
+            return false
         }
-        
-        // Configure photo output
+
+        guard session.canAddInput(cameraInput) else {
+            #if DEBUG
+            print("RatioVita capture: cannot add camera input")
+            #endif
+            return false
+        }
+        session.addInput(cameraInput)
+
         let output = AVCapturePhotoOutput()
-        if captureSession?.canAddOutput(output) == true {
-            captureSession?.addOutput(output)
-            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-                _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
-                    photoOutput: output,
-                    videoDevice: camera,
-                    longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
-                )
-            }
-            photoOutput = output
-        } else {
-            photoOutput = nil
+        guard session.canAddOutput(output) else {
+            #if DEBUG
+            print("RatioVita capture: cannot add photo output")
+            #endif
+            return false
         }
-        
-        // Configure video preview layer
-        if let session = captureSession {
-            let layer = AVCaptureVideoPreviewLayer(session: session)
-            layer.videoGravity = .resizeAspectFill
-            videoPreviewLayer = layer
-        } else {
-            videoPreviewLayer = nil
+        session.addOutput(output)
+
+        if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
+            _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
+                photoOutput: output,
+                videoDevice: camera,
+                longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
+            )
+        }
+
+        captureSession = session
+        photoOutput = output
+
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        videoPreviewLayer = layer
+        return true
+    }
+
+    /// Re-syncs photo dimensions when re-entering live capture on an existing session.
+    private func reconfigureLiveCaptureSessionIfNeeded() {
+        guard isLiveMultiPageSessionActive,
+              let captureSession,
+              let photoOutput,
+              let device = AVCapturePhotoDimensionsSupport.videoDevice(from: captureSession) else { return }
+
+        captureSession.beginConfiguration()
+        if captureSession.canSetSessionPreset(.photo) {
+            captureSession.sessionPreset = .photo
+        }
+        captureSession.commitConfiguration()
+
+        if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
+            _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
+                photoOutput: photoOutput,
+                videoDevice: device,
+                longEdgeCap: 2048
+            )
         }
     }
     
     private func startCaptureSessionIfNeeded() async {
-        guard let captureSession, !isSessionRunning else { return }
+        guard let captureSession else { return }
+
+        if captureSession.isRunning {
+            await MainActor.run {
+                isSessionRunning = true
+                videoPreviewLayer?.session = captureSession
+            }
+            return
+        }
+
         let handle = IOSCaptureSessionHandle(captureSession)
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
-                handle.startRunning()
+                if !handle.session.isRunning {
+                    handle.startRunning()
+                }
                 continuation.resume()
             }
         }
+
         await MainActor.run {
-            isSessionRunning = true
+            isSessionRunning = captureSession.isRunning
             videoPreviewLayer?.session = captureSession
+            #if DEBUG
+            print(
+                "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
+                    + "inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count)"
+            )
+            #endif
         }
     }
 
@@ -407,7 +465,9 @@ class RealScannerService: NSObject, ScannerService {
     func switchCamera() {
         cameraPosition = cameraPosition == .back ? .front : .back
         isCaptureConfigured = false
-        setupCaptureSession()
+        isSessionRunning = false
+        _ = setupCaptureSession()
+        isCaptureConfigured = captureSession != nil
     }
     
     func focusCamera(at point: CGPoint) {
@@ -438,23 +498,15 @@ class RealScannerService: NSObject, ScannerService {
         }
     }
 
-    private func applyLiveSessionMemoryPresetIfNeeded() {
-        guard isLiveMultiPageSessionActive, let captureSession else { return }
-        captureSession.beginConfiguration()
-        if captureSession.canSetSessionPreset(.hd1920x1080) {
-            captureSession.sessionPreset = .hd1920x1080
-        } else if captureSession.canSetSessionPreset(.high) {
-            captureSession.sessionPreset = .high
-        }
-        captureSession.commitConfiguration()
-        refreshPhotoOutputDimensionsIfNeeded()
-    }
-
     private func refreshPhotoOutputDimensionsIfNeeded() {
         guard #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
               let photoOutput,
               let captureSession,
               let device = AVCapturePhotoDimensionsSupport.videoDevice(from: captureSession) else { return }
+
+        captureSession.beginConfiguration()
+        defer { captureSession.commitConfiguration() }
+
         _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
             photoOutput: photoOutput,
             videoDevice: device,

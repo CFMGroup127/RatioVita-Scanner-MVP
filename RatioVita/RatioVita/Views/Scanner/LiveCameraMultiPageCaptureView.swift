@@ -305,7 +305,7 @@ final class LiveCameraPreviewViewController: UIViewController {
         let session = scanner?.avCaptureSessionForPreview()
         let layer = previewHost.attachedPreviewLayer
         print(
-            "RatioVita preview: viewBounds=\(bounds) "
+            "RatioVita preview: sessionReady=\(sessionReady) viewBounds=\(bounds) "
                 + "layerFrame=\(String(describing: layer?.frame)) "
                 + "sessionRunning=\(session?.isRunning ?? false) "
                 + "layerInHierarchy=\(layer?.superlayer != nil)"
