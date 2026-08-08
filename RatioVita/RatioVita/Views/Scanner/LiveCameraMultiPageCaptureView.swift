@@ -283,7 +283,7 @@ final class LiveCameraPreviewViewController: UIViewController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 self?.syncPreviewIfNeeded()
             }
         }

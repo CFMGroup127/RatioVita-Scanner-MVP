@@ -59,10 +59,8 @@ final class IntelligentVisionEngine: @unchecked Sendable {
     }
 
     nonisolated func process(sampleBuffer: CMSampleBuffer, orientation: CGImagePropertyOrientation) {
-        // `sync` uses a non-escaping, non-Sendable closure, so the buffer is never sent across
-        // an isolation boundary; work is still serialized on the vision queue (Swift 6 safe).
-        visionQueue.sync {
-            analyze(sampleBuffer: sampleBuffer, orientation: orientation)
+        visionQueue.async {
+            self.analyze(sampleBuffer: sampleBuffer, orientation: orientation)
         }
     }
 

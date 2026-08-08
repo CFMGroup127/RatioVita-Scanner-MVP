@@ -198,10 +198,10 @@ extension ScannerService {
     func requestCameraPermission() async -> Bool { false }
     func isCameraAvailable() -> Bool { false }
     func getCameraPermissionStatus() -> CameraPermissionStatus { .unavailable }
-    func getVideoPreviewLayer() -> Any? { nil }
+    @MainActor func getVideoPreviewLayer() -> Any? { nil }
     func switchCamera() {}
     func focusCamera(at _: CGPoint) {}
 
     /// Live viewfinder binds its own `AVCaptureVideoPreviewLayer` to this session on the main thread.
-    func avCaptureSessionForPreview() -> AVCaptureSession? { nil }
+    @MainActor func avCaptureSessionForPreview() -> AVCaptureSession? { nil }
 }

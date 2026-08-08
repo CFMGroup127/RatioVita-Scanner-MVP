@@ -12,11 +12,16 @@ import UIKit
 import Vision
 
 /// Production scanner service using AVFoundation and Vision frameworks
+@MainActor
 class RealScannerService: NSObject, ScannerService {
     // MARK: - Properties
 
     private var captureSession: AVCaptureSession?
     private var photoOutput: AVCapturePhotoOutput?
+    private nonisolated let sessionQueue = DispatchQueue(
+        label: "com.ratiovita.capture.session",
+        qos: .userInitiated
+    )
     
     // Camera configuration
     private var cameraPosition: AVCaptureDevice.Position = .back
@@ -131,11 +136,8 @@ class RealScannerService: NSObject, ScannerService {
     func prepareLiveCameraSession() async throws {
         try await ensureCameraAuthorizedForCapture()
         isLiveMultiPageSessionActive = true
-        let configured = await MainActor.run { () -> Bool in
-            ensureCaptureConfiguredSync()
-            return captureSession != nil && photoOutput != nil
-        }
-        guard configured else {
+        ensureCaptureConfiguredSync()
+        guard captureSession != nil, photoOutput != nil else {
             throw ScannerError.captureFailed
         }
         await startCaptureSessionIfNeeded()
@@ -166,26 +168,25 @@ class RealScannerService: NSObject, ScannerService {
 
     private func releaseCaptureHardwareAfterLiveSession() async {
         guard let captureSession else { return }
+        let session = captureSession
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                captureSession.beginConfiguration()
-                for input in captureSession.inputs {
-                    captureSession.removeInput(input)
+            sessionQueue.async {
+                session.beginConfiguration()
+                for input in session.inputs {
+                    session.removeInput(input)
                 }
-                for output in captureSession.outputs {
-                    captureSession.removeOutput(output)
+                for output in session.outputs {
+                    session.removeOutput(output)
                 }
-                captureSession.commitConfiguration()
+                session.commitConfiguration()
                 continuation.resume()
             }
         }
 
-        await MainActor.run {
-            photoOutput = nil
-            self.captureSession = nil
-            isCaptureConfigured = false
-        }
+        photoOutput = nil
+        self.captureSession = nil
+        isCaptureConfigured = false
     }
 
     private func ensureCameraAuthorizedForCapture() async throws {
@@ -240,9 +241,7 @@ class RealScannerService: NSObject, ScannerService {
     }
 
     private func ensureCaptureConfigured() async {
-        await MainActor.run {
-            ensureCaptureConfiguredSync()
-        }
+        ensureCaptureConfiguredSync()
     }
 
     /// Builds inputs/outputs atomically; returns false when hardware cannot be configured.
@@ -299,48 +298,48 @@ class RealScannerService: NSObject, ScannerService {
         guard let captureSession else { return }
 
         if captureSession.isRunning {
-            await MainActor.run {
-                isSessionRunning = true
-            }
+            isSessionRunning = true
+            notifyCaptureSessionDidStart(captureSession)
             return
         }
 
-        let handle = IOSCaptureSessionHandle(captureSession)
+        let session = captureSession
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                if !handle.session.isRunning {
-                    handle.startRunning()
+            sessionQueue.async {
+                if !session.isRunning {
+                    session.startRunning()
                 }
                 continuation.resume()
             }
         }
 
-        await MainActor.run {
-            isSessionRunning = captureSession.isRunning
-            if captureSession.isRunning {
-                NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
-            }
-            #if DEBUG
-            print(
-                "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
-                    + "inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count)"
-            )
-            #endif
+        isSessionRunning = captureSession.isRunning
+        if captureSession.isRunning {
+            notifyCaptureSessionDidStart(captureSession)
         }
+    }
+
+    private func notifyCaptureSessionDidStart(_ captureSession: AVCaptureSession) {
+        NotificationCenter.default.post(name: .ratioVitaCaptureSessionDidStart, object: captureSession)
+        #if DEBUG
+        print(
+            "RatioVita capture: started session isRunning=\(captureSession.isRunning) "
+                + "inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count)"
+        )
+        #endif
     }
 
     private func stopCaptureSession() async {
         guard let captureSession, isSessionRunning else { return }
 
+        let session = captureSession
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                captureSession.stopRunning()
+            sessionQueue.async {
+                session.stopRunning()
                 continuation.resume()
             }
         }
-        await MainActor.run {
-            isSessionRunning = false
-        }
+        isSessionRunning = false
     }
     
     private func captureImage() async throws -> UIImage {
@@ -356,10 +355,14 @@ class RealScannerService: NSObject, ScannerService {
 
             // Retain the delegate until we resume the continuation
             self.currentPhotoDelegate = PhotoCaptureDelegate { image in
-                self.currentPhotoDelegate = nil
+                Task { @MainActor in
+                    self.currentPhotoDelegate = nil
+                }
                 continuation.resume(returning: image)
             } onError: { error in
-                self.currentPhotoDelegate = nil
+                Task { @MainActor in
+                    self.currentPhotoDelegate = nil
+                }
                 continuation.resume(throwing: error)
             }
             
@@ -399,13 +402,11 @@ class RealScannerService: NSObject, ScannerService {
     }
     
     // MARK: - Public Methods for UI Integration
-    
-    @MainActor
+
     func getVideoPreviewLayer() -> AVCaptureVideoPreviewLayer? {
         nil
     }
 
-    @MainActor
     func avCaptureSessionForPreview() -> AVCaptureSession? {
         captureSession
     }
@@ -453,19 +454,6 @@ extension Notification.Name {
 }
 
 extension RealScannerService: LiveMultiPageCameraScanning {}
-
-/// Holds `AVCaptureSession` for background `startRunning()` without crossing Swift 6 Sendable boundaries.
-private final class IOSCaptureSessionHandle: @unchecked Sendable {
-    let session: AVCaptureSession
-
-    init(_ session: AVCaptureSession) {
-        self.session = session
-    }
-
-    func startRunning() {
-        session.startRunning()
-    }
-}
 
 // MARK: - Photo Capture Delegate
 
