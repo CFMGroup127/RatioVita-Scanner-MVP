@@ -14,6 +14,11 @@ final class Receipt {
     var merchant: String
     var total: Decimal
     var currencyCode: String
+    /// When the bank debited a different currency than the vendor invoice (wire / FX).
+    var usesSettlementOverride: Bool = false
+    var settlementCurrencyCode: String?
+    var settlementAmount: Decimal?
+    var settlementWireFee: Decimal?
     var notes: String?
 
     /// Parsed transaction date from the document when available (distinct from `createdAt` ingest time).
@@ -183,7 +188,11 @@ final class Receipt {
         createdAt: Date = .now,
         merchant: String,
         total: Decimal,
-        currencyCode: String = ReceiptCurrency.defaultForLocale.code,
+        currencyCode: String = AppCurrencySettings.defaultCurrencyCode,
+        usesSettlementOverride: Bool = false,
+        settlementCurrencyCode: String? = nil,
+        settlementAmount: Decimal? = nil,
+        settlementWireFee: Decimal? = nil,
         notes: String? = nil,
         transactionDate: Date? = nil,
         vendorAddress: String? = nil,
@@ -254,6 +263,10 @@ final class Receipt {
         self.merchant = merchant
         self.total = total
         self.currencyCode = currencyCode
+        self.usesSettlementOverride = usesSettlementOverride
+        self.settlementCurrencyCode = settlementCurrencyCode
+        self.settlementAmount = settlementAmount
+        self.settlementWireFee = settlementWireFee
         self.notes = notes
         self.transactionDate = transactionDate
         self.vendorAddress = vendorAddress

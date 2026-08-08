@@ -16,8 +16,27 @@ enum ReceiptCurrency: String, CaseIterable, Identifiable, Codable, Hashable {
 
     var code: String { rawValue }
 
-    /// Toronto / Ontario default when OCR does not state a currency.
-    static let defaultForLocale: ReceiptCurrency = .CAD
+    /// App default when OCR does not state a currency.
+    static var defaultForLocale: ReceiptCurrency {
+        AppCurrencySettings.defaultCurrency
+    }
+
+    /// Device locale fallback when no app preference is stored yet.
+    static var localeFallback: ReceiptCurrency { .CAD }
+
+    var displayLabel: String {
+        switch self {
+            case .CAD: "CAD ($) — Canadian Dollar"
+            case .USD: "USD ($) — US Dollar"
+            case .GBP: "GBP (£) — British Pound"
+            case .EUR: "EUR (€) — Euro"
+            case .AUD: "AUD ($) — Australian Dollar"
+            case .CHF: "CHF — Swiss Franc"
+            case .MXN: "MXN ($) — Mexican Peso"
+            case .INR: "INR (₹) — Indian Rupee"
+            case .JPY: "JPY (¥) — Japanese Yen"
+        }
+    }
 
     static func resolved(from code: String?) -> ReceiptCurrency {
         guard let c = code?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(), !c.isEmpty else {

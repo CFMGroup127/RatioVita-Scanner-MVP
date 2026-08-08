@@ -215,13 +215,6 @@ struct ReceiptDetailView: View {
     private func receiptDetailToolbar(r: Receipt) -> some ToolbarContent {
         #if os(iOS) || os(visionOS)
         ToolbarItemGroup(placement: .navigationBarTrailing) {
-            NavigationLink {
-                SettingsView()
-            } label: {
-                Image(systemName: "gearshape")
-            }
-            .accessibilityLabel("Settings")
-
             if r.trashedAt == nil {
                 Menu {
                     ReceiptExportMenuContent(receipts: [r]) { url in
@@ -763,16 +756,10 @@ struct ReceiptDetailView: View {
             default:
                 VStack(alignment: .leading, spacing: 8) {
                     Text(
-                        "On-device heuristic extraction from OCR. Add a Gemini API key in Settings for structured JSON parsing. Invoice ↔ payment linking is planned for a later release."
+                        "On-device heuristic extraction from OCR. Add a Gemini API key under More → Settings for structured JSON parsing."
                     )
                     .font(DesignSystem.Typography.caption)
                     .foregroundStyle(Color.ratioVitaTextSecondary)
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
-                        Label("Open Settings — Gemini API key", systemImage: "gearshape")
-                    }
-                    .font(DesignSystem.Typography.caption.weight(.semibold))
                 }
         }
     }
@@ -1484,6 +1471,11 @@ enum EditReceiptChrome: Equatable {
 }
 
 struct EditReceiptView: View {
+    private enum Layout {
+        static let sectionSpacing: CGFloat = 23
+        static let innerSpacing: CGFloat = 12
+    }
+
     @Environment(\.modelContext) private var modelContext
     let receipt: Receipt
     var chrome: EditReceiptChrome = .modalSheet
@@ -1523,6 +1515,10 @@ struct EditReceiptView: View {
     @State private var chequeReparseMessage: String?
     @State private var chequeReparseIsError = false
     @State private var showExpandSplit = false
+    @State private var usesSettlementOverride: Bool
+    @State private var settlementCurrency: ReceiptCurrency
+    @State private var settlementAmountText: String
+    @State private var settlementWireFeeText: String
 
     private var showsLedgerRoutingSection: Bool {
         receipt.needsSplit
@@ -1580,6 +1576,18 @@ struct EditReceiptView: View {
         _hasTransactionDate = State(initialValue: receipt.transactionDate != nil)
         _transactionDate = State(initialValue: receipt.transactionDate ?? Date())
         _vaultPathPrefixField = State(initialValue: receipt.vaultPathPrefix ?? "")
+        _usesSettlementOverride = State(initialValue: receipt.usesSettlementOverride)
+        _settlementCurrency = State(
+            initialValue: ReceiptCurrency.resolved(
+                from: receipt.settlementCurrencyCode ?? AppCurrencySettings.defaultCurrencyCode
+            )
+        )
+        _settlementAmountText = State(
+            initialValue: receipt.settlementAmount.map { Self.decimalString($0) } ?? ""
+        )
+        _settlementWireFeeText = State(
+            initialValue: receipt.settlementWireFee.map { Self.decimalString($0) } ?? ""
+        )
     }
 
     var body: some View {
@@ -1602,9 +1610,7 @@ struct EditReceiptView: View {
                     #endif
                         .toolbar { sideCarToolbar }
                 case .inlineScrollStack:
-                    formWithBusinessUse
-                        .scrollDisabled(true)
-                        .fixedSize(horizontal: false, vertical: true)
+                    inlineScrollEditBody
             }
         }
         .ratioVitaTheme()
@@ -1656,13 +1662,187 @@ struct EditReceiptView: View {
             .joined(separator: "\n\n")
     }
 
+    /// Card-based editor for iPhone — avoids nested `Form` inside parent `ScrollView` (which collapses to zero height).
+    private var inlineScrollEditBody: some View {
+        VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
+            inlineEditCard(title: "Key fields") {
+                VStack(alignment: .leading, spacing: 12) {
+                    labeledInlineField("Merchant / vendor") {
+                        TextField("Merchant name", text: $merchant)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: merchant) { _, newValue in
+                                applyCRMSuggestionIfNeeded(forMerchant: newValue)
+                            }
+                    }
+                    Toggle("Transaction date on receipt", isOn: $hasTransactionDate)
+                    if hasTransactionDate {
+                        DatePicker("Date", selection: $transactionDate, displayedComponents: [.date])
+                    }
+                    labeledInlineField("Document type") {
+                        Picker("Document type", selection: $documentType) {
+                            ForEach(DocumentTypeOption.allCases) { option in
+                                Text(option.rawValue).tag(option)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    labeledInlineField("Invoice / receipt total") {
+                        HStack(spacing: 10) {
+                            TextField("Amount", text: $total)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                                .textFieldStyle(.roundedBorder)
+                            Picker("Currency", selection: $currency) {
+                                ForEach(ReceiptCurrency.allCases) { code in
+                                    Text(code.code).tag(code)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                    }
+                    Text(currency.displayLabel)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundStyle(Color.ratioVitaTextSecondary)
+                    labeledInlineField("Notes") {
+                        TextField("Notes", text: $notes, axis: .vertical)
+                            .lineLimit(2...5)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+            }
+
+            if documentType.showsBusinessUsePercentControls {
+                inlineEditCard(title: "Business use %") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("For mixed personal/business spend (vehicles, equipment).")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundStyle(Color.ratioVitaTextSecondary)
+                        ReceiptBusinessUsePercentControls(receipt: receipt, disabled: false)
+                    }
+                }
+            }
+
+            inlineEditCard(title: "Bank settlement / FX") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Paid via wire in a different currency", isOn: $usesSettlementOverride)
+                    Text(
+                        "Use when your bank debited CAD (or home currency) for a USD/EUR invoice. Logs wire fees for reconciliation."
+                    )
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(Color.ratioVitaTextSecondary)
+                    if usesSettlementOverride {
+                        labeledInlineField("Settlement currency") {
+                            Picker("Settlement currency", selection: $settlementCurrency) {
+                                ForEach(ReceiptCurrency.allCases) { code in
+                                    Text(code.displayLabel).tag(code)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        labeledInlineField("Actual bank debit") {
+                            TextField("Amount debited from bank", text: $settlementAmountText)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        labeledInlineField("Wire / FX fee (optional)") {
+                            TextField("Bank fee", text: $settlementWireFeeText)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        if let variance = computedSettlementVarianceSummary {
+                            Text(variance)
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundStyle(Color.ratioVitaTextSecondary)
+                        }
+                    }
+                }
+            }
+
+            inlineEditCard(title: "Structured fields") {
+                VStack(alignment: .leading, spacing: 12) {
+                    labeledInlineField("Vendor address") {
+                        TextField("Address", text: $vendorAddress, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    labeledInlineField("Receipt / invoice #") {
+                        TextField("Document number", text: $documentNumber)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    labeledInlineField("Subtotal") {
+                        TextField("Subtotal", text: $subtotal)
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    labeledInlineField("Tax") {
+                        TextField("Tax", text: $tax)
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+            }
+
+            Button {
+                persistEditsAndFollowUp()
+            } label: {
+                Text("Save changes")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var computedSettlementVarianceSummary: String? {
+        guard usesSettlementOverride,
+              let settlement = parseDecimal(from: settlementAmountText) else { return nil }
+        let fee = parseDecimal(from: settlementWireFeeText) ?? 0
+        let invoiceText = total
+        return "Invoice: \(invoiceText) \(currency.code) · Bank debit: \(settlement.formatted(.number.precision(.fractionLength(2)))) \(settlementCurrency.code)"
+            + (fee > 0 ? " · Fees: \(fee.formatted(.number.precision(.fractionLength(2))))" : "")
+            + " · Log both amounts when reconciling to your bank statement."
+    }
+
+    private func inlineEditCard(title: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+            Text(title)
+                .font(DesignSystem.Typography.headline)
+                .foregroundStyle(Color.ratioVitaAdaptiveText)
+            content()
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                .fill(Color.ratioVitaAdaptiveSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    private func labeledInlineField(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(Color.ratioVitaTextSecondary)
+            content()
+        }
+    }
+
     private var editForm: some View {
         Form {
-            if chrome == .inlineScrollStack {
-                inlinePrimaryEditSection
-            } else {
-                standardReceiptDetailsSection
-            }
+            standardReceiptDetailsSection
 
             if showsLedgerRoutingSection {
                 Section {
@@ -1829,12 +2009,7 @@ struct EditReceiptView: View {
             }
 
             if chrome == .inlineScrollStack {
-                Section {
-                    Button("Save changes") {
-                        persistEditsAndFollowUp()
-                    }
-                    .fontWeight(.semibold)
-                }
+                EmptyView()
             }
         }
     }
@@ -1848,7 +2023,7 @@ struct EditReceiptView: View {
                 }
             Picker("Currency", selection: $currency) {
                 ForEach(ReceiptCurrency.allCases) { code in
-                    Text(code.code).tag(code)
+                    Text(code.displayLabel).tag(code)
                 }
             }
             TextField("Total", text: $total)
@@ -1857,46 +2032,6 @@ struct EditReceiptView: View {
             #endif
             TextField("Notes", text: $notes, axis: .vertical)
                 .lineLimit(3...6)
-        }
-    }
-
-    private var inlinePrimaryEditSection: some View {
-        Section {
-            TextField("Merchant", text: $merchant)
-                .textSelection(.enabled)
-                .onChange(of: merchant) { _, newValue in
-                    applyCRMSuggestionIfNeeded(forMerchant: newValue)
-                }
-            Toggle("Transaction date on receipt", isOn: $hasTransactionDate)
-            if hasTransactionDate {
-                DatePicker("Date", selection: $transactionDate, displayedComponents: [.date])
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                TextField("Total amount", text: $total)
-                #if os(iOS)
-                    .keyboardType(.decimalPad)
-                #endif
-                Picker("Currency", selection: $currency) {
-                    ForEach(ReceiptCurrency.allCases) { code in
-                        Text(code.code).tag(code)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(minWidth: 72)
-            }
-            TextField("Notes", text: $notes, axis: .vertical)
-                .lineLimit(3...6)
-
-            if GeminiAPIKeyResolver.resolveAPIKeyTrimmed().isEmpty {
-                NavigationLink {
-                    SettingsView()
-                } label: {
-                    Label("Add Gemini API key in Settings", systemImage: "gearshape")
-                }
-            }
-        } header: {
-            Text("Key fields")
         }
     }
 
@@ -1981,6 +2116,12 @@ struct EditReceiptView: View {
         hasTransactionDate = receipt.transactionDate != nil
         transactionDate = receipt.transactionDate ?? Date()
         vaultPathPrefixField = receipt.vaultPathPrefix ?? ""
+        usesSettlementOverride = receipt.usesSettlementOverride
+        settlementCurrency = ReceiptCurrency.resolved(
+            from: receipt.settlementCurrencyCode ?? AppCurrencySettings.defaultCurrencyCode
+        )
+        settlementAmountText = receipt.settlementAmount.map { Self.decimalString($0) } ?? ""
+        settlementWireFeeText = receipt.settlementWireFee.map { Self.decimalString($0) } ?? ""
     }
 
     @ToolbarContentBuilder
@@ -2092,6 +2233,17 @@ struct EditReceiptView: View {
 
         let vp = vaultPathPrefixField.trimmingCharacters(in: .whitespacesAndNewlines)
         receipt.vaultPathPrefix = vp.isEmpty ? nil : vp.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        receipt.usesSettlementOverride = usesSettlementOverride
+        if usesSettlementOverride {
+            receipt.settlementCurrencyCode = settlementCurrency.code
+            receipt.settlementAmount = parseDecimal(from: settlementAmountText)
+            receipt.settlementWireFee = parseDecimal(from: settlementWireFeeText)
+        } else {
+            receipt.settlementCurrencyCode = nil
+            receipt.settlementAmount = nil
+            receipt.settlementWireFee = nil
+        }
 
         ReceiptCabinetRouting.applyImplicitCabinetForDocumentType(receipt: receipt)
 

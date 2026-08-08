@@ -154,7 +154,7 @@ struct ReceiptReviewView: View {
                     .background(Color.ratioVitaAdaptiveBackground)
                 }
             }
-            .navigationTitle(finderNavTitle(sorted: sorted))
+            .navigationTitle("Review")
             .navigationDestination(for: UUID.self) { id in
                 ReceiptDetailByIDView(receiptID: id)
             }
@@ -178,9 +178,6 @@ struct ReceiptReviewView: View {
             #endif
 
             #if os(iOS)
-            ToolbarItemGroup(placement: .navigationBarLeading) {
-                navBackForwardButtons
-            }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 HStack(alignment: .center, spacing: 12) {
                     if navReceiptPath.isEmpty {
@@ -332,14 +329,8 @@ struct ReceiptReviewView: View {
         #endif
     }
 
-    private func finderNavTitle(sorted: [Receipt]) -> String {
-        guard let last = navReceiptPath.last else { return "Review" }
-        if let r = sorted.first(where: { $0.id == last })
-            ?? pendingReceipts.first(where: { $0.id == last })
-        {
-            return r.merchant
-        }
-        return "Review"
+    private func finderNavTitle(sorted _: [Receipt]) -> String {
+        "Review"
     }
 
     private func goBackNavigation() {

@@ -20,6 +20,8 @@ struct SettingsView: View {
     @AppStorage("geminiExtractionEnabled") private var geminiExtractionEnabled = true
     @AppStorage("geminiAPIKey") private var geminiAPIKey = ""
     @AppStorage("geminiModelId") private var geminiModelId = GeminiAPIKeyResolver.defaultGeminiModelId
+    @AppStorage(AppCurrencySettings.userDefaultsKey) private var defaultCurrencyCode = AppCurrencySettings
+        .defaultCurrencyCode
     @AppStorage("financeAgentsPeriodicEnabled") private var financeAgentsPeriodicEnabled = true
     @ObservedObject private var themeManager = ThemeManager.shared
 
@@ -75,6 +77,21 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Picker("Default currency", selection: $defaultCurrencyCode) {
+                        ForEach(ReceiptCurrency.allCases) { code in
+                            Text(code.displayLabel).tag(code.code)
+                        }
+                    }
+                } header: {
+                    Text("Currency")
+                } footer: {
+                    Text(
+                        "New receipts and imports use this currency when OCR cannot determine one. Override per receipt in Edit receipt without changing other documents."
+                    )
+                    .font(DesignSystem.Typography.caption2)
+                }
+
                 // Scanner Settings Section
                 Section {
                     VStack(spacing: DesignSystem.Spacing.md) {

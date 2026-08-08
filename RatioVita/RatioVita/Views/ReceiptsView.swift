@@ -32,6 +32,7 @@ struct ReceiptsView: View {
     @AppStorage("libraryIconThumbnailSize") private var libraryIconThumbnailSize: Double = 64
     @AppStorage("receiptLibraryTaxUseFilterRaw") private var taxUseFilterRaw: String = ReceiptLibraryTaxUseFilter.all
         .rawValue
+    @AppStorage("receiptLibraryCurrencyFilterRaw") private var currencyFilterRaw: String = ""
     @AppStorage("receiptLibraryArcticExplorerEnabled") private var arcticExplorerEnabled = true
     @AppStorage("libraryScanVaultPathPrefix") private var libraryScanVaultPathPrefix: String = ""
     @AppStorage("receiptWorkbenchMultiPageOnly") private var multiPageOnly = false
@@ -253,7 +254,7 @@ struct ReceiptsView: View {
             searchText: searchText,
             multiPageOnly: multiPageOnly
         )
-        let scoped = filtered.filter { passesTaxUseFilter($0) }
+        let scoped = filtered.filter { passesTaxUseFilter($0) && passesCurrencyFilter($0) }
         let sorted = FinderReceiptSortEngine.sorted(scoped, by: librarySort)
 
         NavigationStack(path: $navReceiptPath) {
@@ -305,6 +306,9 @@ struct ReceiptsView: View {
 
             #if os(iOS)
             ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if navReceiptPath.isEmpty {
+                    currencyFilterMenu
+                }
                 HStack(alignment: .center, spacing: 12) {
                     toolbarControls(
                         sorted: sorted,
@@ -460,14 +464,8 @@ struct ReceiptsView: View {
         )
     }
 
-    /// Detail push uses the merchant title; library root uses **Receipts** or an empty title when the cabinet
-    /// principal toolbar row shows the icon + name.
+    /// Library list title — keep stable so the system back button reads "< Receipts".
     private var navigationChromeTitle: String {
-        if let last = navReceiptPath.last,
-           let r = receipts.first(where: { $0.id == last })
-        {
-            return r.merchant
-        }
         if cabinetFilter != nil {
             return ""
         }
@@ -698,6 +696,15 @@ struct ReceiptsView: View {
         .padding(DesignSystem.Spacing.xl)
     }
 
+    private func passesCurrencyFilter(_ receipt: Receipt) -> Bool {
+        let filter = currencyFilterRaw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !filter.isEmpty else { return true }
+        if filter == "__FOREIGN__" {
+            return receipt.currencyCode.uppercased() != AppCurrencySettings.defaultCurrencyCode
+        }
+        return receipt.currencyCode.uppercased() == filter
+    }
+
     private func passesTaxUseFilter(_ receipt: Receipt) -> Bool {
         let mode = ReceiptLibraryTaxUseFilter(rawValue: taxUseFilterRaw) ?? .all
         switch mode {
@@ -711,6 +718,30 @@ struct ReceiptsView: View {
                     || ((receipt.businessUsePercent ?? 0) > 0)
                 return !hasBusinessContext
         }
+    }
+
+    private var currencyFilterLabel: String {
+        let filter = currencyFilterRaw.uppercased()
+        if filter.isEmpty { return "Currency" }
+        if filter == "__FOREIGN__" { return "Foreign" }
+        return filter
+    }
+
+    private var currencyFilterMenu: some View {
+        Menu {
+            Button("All currencies") { currencyFilterRaw = "" }
+            Button("Default (\(AppCurrencySettings.defaultCurrencyCode))") {
+                currencyFilterRaw = AppCurrencySettings.defaultCurrencyCode
+            }
+            Button("Foreign (non-default)") { currencyFilterRaw = "__FOREIGN__" }
+            Divider()
+            ForEach(ReceiptCurrency.allCases) { code in
+                Button(code.displayLabel) { currencyFilterRaw = code.code }
+            }
+        } label: {
+            Label(currencyFilterLabel, systemImage: "dollarsign.circle")
+        }
+        .accessibilityLabel("Filter by currency")
     }
 
     @ViewBuilder
