@@ -8,7 +8,7 @@
 //
 
 import AppKit
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 import Vision
 
@@ -317,9 +317,10 @@ final class MacAVScannerService: NSObject, ScannerService {
 
     private func startCaptureSessionIfNeeded() async {
         guard let captureSession, !isSessionRunning else { return }
+        let handle = MacCaptureSessionHandle(captureSession)
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
-                captureSession.startRunning()
+                handle.startRunning()
                 continuation.resume()
             }
         }
@@ -388,6 +389,19 @@ final class MacAVScannerService: NSObject, ScannerService {
 
 extension MacAVScannerService: LiveMultiPageCameraScanning {}
 
+/// Holds `AVCaptureSession` for background `startRunning()` without crossing Swift 6 Sendable boundaries.
+private final class MacCaptureSessionHandle: @unchecked Sendable {
+    let session: AVCaptureSession
+
+    init(_ session: AVCaptureSession) {
+        self.session = session
+    }
+
+    func startRunning() {
+        session.startRunning()
+    }
+}
+
 // MARK: - Photo Capture Delegate
 
 private final class MacPhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
@@ -413,7 +427,8 @@ private final class MacPhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDele
                 return
             }
 
-            onSuccess(image)
+            let normalized = LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(image)
+            onSuccess(normalized)
         }
     }
 }

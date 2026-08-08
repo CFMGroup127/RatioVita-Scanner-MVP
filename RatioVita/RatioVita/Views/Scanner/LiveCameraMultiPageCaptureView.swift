@@ -2,7 +2,7 @@
 //  LiveCameraMultiPageCaptureView.swift
 //  RatioVita
 //
-//  Live viewfinder + sequential shutter captures → batch handoff to ReceiptScanPipeline.
+//  Live viewfinder + sequential shutter captures → disk-backed batch → ReceiptScanPipeline on Finish Scan.
 //
 
 import Combine
@@ -16,16 +16,15 @@ struct LiveCameraMultiPageCaptureView: View {
     @Environment(\.dismiss) private var dismiss
 
     let liveScanner: any LiveMultiPageCameraScanning
-    let onProcessBatch: @MainActor (_ images: [UIImage]) async -> Void
+    let onProcessBatch: @MainActor (_ pageURLs: [URL]) async -> Void
 
-    @StateObject private var buffer = MultiPageScanBuffer()
+    @ObservedObject private var batch = ReceiptBatchManager.shared
     @State private var isPreparing = true
     @State private var isCapturing = false
     @State private var isProcessing = false
     @State private var errorMessage: String?
 
     @State private var liveSessionTornDown = false
-
     @State private var isPreviewSessionReady = false
 
     var body: some View {
@@ -68,14 +67,15 @@ struct LiveCameraMultiPageCaptureView: View {
                     await openSession()
                 }
                 .onDisappear {
-                    Task { await tearDownLiveSessionIfNeeded(clearBuffer: true) }
+                    Task { await tearDownLiveSessionIfNeeded(clearBatch: true) }
                 }
         }
     }
 
     private var thumbnailStrip: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            Text(buffer.count == 0 ? "No pages yet" : "\(buffer.count) page\(buffer.count == 1 ? "" : "s") captured")
+            Text(batch
+                .pageCount == 0 ? "No pages yet" : "\(batch.pageCount) page\(batch.pageCount == 1 ? "" : "s") captured")
                 .font(DesignSystem.Typography.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.92))
 
@@ -87,13 +87,10 @@ struct LiveCameraMultiPageCaptureView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    ForEach(Array(buffer.pages.enumerated()), id: \.element.id) { index, page in
+                    ForEach(Array(batch.pages.enumerated()), id: \.element.id) { index, page in
                         ZStack(alignment: .topTrailing) {
-                            Image(uiImage: page.thumbnail)
-                                .resizable()
-                                .scaledToFill()
+                            ReceiptBatchThumbnailView(thumbnailURL: page.thumbnailURL)
                                 .frame(width: 56, height: 72)
-                                .clipped()
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -106,7 +103,7 @@ struct LiveCameraMultiPageCaptureView: View {
                                 .foregroundStyle(.white)
                                 .padding(4)
                             Button {
-                                buffer.remove(id: page.id)
+                                batch.removePage(at: index)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .symbolRenderingMode(.palette)
@@ -120,7 +117,7 @@ struct LiveCameraMultiPageCaptureView: View {
                 .padding(.vertical, 4)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: buffer.isEmpty ? 0 : 88)
+            .frame(height: batch.isEmpty ? 0 : 88)
             .clipped()
         }
     }
@@ -145,23 +142,23 @@ struct LiveCameraMultiPageCaptureView: View {
             Button {
                 Task { await finishBatch() }
             } label: {
-                Text(buffer.count > 0 ? "Done (\(buffer.count))" : "Done")
+                Text(batch.pageCount > 0 ? "Finish Scan (\(batch.pageCount))" : "Finish Scan")
                     .font(DesignSystem.Typography.bodyEmphasized)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .tint(Color.ratioVitaPrimary)
-            .disabled(buffer.isEmpty || isProcessing || isCapturing)
+            .disabled(batch.isEmpty || isProcessing || isCapturing)
         }
     }
 
     @MainActor
-    private func tearDownLiveSessionIfNeeded(clearBuffer: Bool) async {
+    private func tearDownLiveSessionIfNeeded(clearBatch: Bool) async {
         guard !liveSessionTornDown else { return }
         liveSessionTornDown = true
         isPreviewSessionReady = false
-        if clearBuffer {
-            buffer.clear()
+        if clearBatch {
+            batch.endSession(deleteFiles: true)
         }
         await liveScanner.tearDownLiveCameraSession()
     }
@@ -173,16 +170,18 @@ struct LiveCameraMultiPageCaptureView: View {
         isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
+            try batch.beginSession()
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
         } catch {
             errorMessage = error.ratioVitaUserDescription
+            batch.endSession(deleteFiles: true)
         }
     }
 
     @MainActor
     private func closeSession() async {
-        await tearDownLiveSessionIfNeeded(clearBuffer: true)
+        await tearDownLiveSessionIfNeeded(clearBatch: true)
         dismiss()
     }
 
@@ -193,9 +192,7 @@ struct LiveCameraMultiPageCaptureView: View {
         defer { isCapturing = false }
         do {
             let image = try await liveScanner.captureLiveCameraPhoto()
-            autoreleasepool {
-                buffer.append(image)
-            }
+            try batch.appendCapturedImage(image)
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -203,15 +200,40 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func finishBatch() async {
-        guard !buffer.isEmpty else { return }
+        guard !batch.isEmpty else { return }
         isProcessing = true
         errorMessage = nil
         defer { isProcessing = false }
-        let batch = buffer.images
-        await tearDownLiveSessionIfNeeded(clearBuffer: false)
-        await onProcessBatch(batch)
-        buffer.clear()
+        let urls = batch.pageURLs
+        await tearDownLiveSessionIfNeeded(clearBatch: false)
+        await onProcessBatch(urls)
+        batch.endSession(deleteFiles: true)
         dismiss()
+    }
+}
+
+/// Loads a small on-disk thumb for the live capture strip (never holds full pages in view state).
+private struct ReceiptBatchThumbnailView: View {
+    let thumbnailURL: URL
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.white.opacity(0.12)
+            }
+        }
+        .task(id: thumbnailURL) {
+            image = await Task.detached(priority: .utility) {
+                guard let data = try? Data(contentsOf: thumbnailURL, options: [.mappedIfSafe]),
+                      let decoded = UIImage(data: data) else { return nil as UIImage? }
+                return decoded
+            }.value
+        }
     }
 }
 
@@ -295,16 +317,15 @@ struct LiveCameraMultiPageCaptureView: View {
     @Environment(\.dismiss) private var dismiss
 
     let liveScanner: any LiveMultiPageCameraScanning
-    let onProcessBatch: @MainActor (_ images: [NSImage]) async -> Void
+    let onProcessBatch: @MainActor (_ pageURLs: [URL]) async -> Void
 
-    @StateObject private var buffer = MultiPageScanBuffer()
+    @ObservedObject private var batch = ReceiptBatchManager.shared
     @State private var isPreparing = true
     @State private var isCapturing = false
     @State private var isProcessing = false
     @State private var errorMessage: String?
 
     @State private var liveSessionTornDown = false
-
     @State private var isPreviewSessionReady = false
 
     var body: some View {
@@ -355,7 +376,7 @@ struct LiveCameraMultiPageCaptureView: View {
             }
             .task { await openSession() }
             .onDisappear {
-                Task { await tearDownLiveSessionIfNeeded(clearBuffer: true) }
+                Task { await tearDownLiveSessionIfNeeded(clearBatch: true) }
             }
         }
         .frame(
@@ -370,7 +391,7 @@ struct LiveCameraMultiPageCaptureView: View {
 
     private var macThumbnailStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(buffer.count == 0 ? "No pages yet" : "\(buffer.count) page(s) captured")
+            Text(batch.pageCount == 0 ? "No pages yet" : "\(batch.pageCount) page(s) captured")
                 .font(DesignSystem.Typography.caption.weight(.semibold))
             if let errorMessage {
                 Text(errorMessage)
@@ -379,17 +400,15 @@ struct LiveCameraMultiPageCaptureView: View {
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    ForEach(Array(buffer.pages.enumerated()), id: \.element.id) { index, page in
+                    ForEach(Array(batch.pages.enumerated()), id: \.element.id) { index, page in
                         ZStack(alignment: .topTrailing) {
-                            Image(nsImage: page.thumbnail)
-                                .resizable()
-                                .scaledToFill()
+                            ReceiptBatchThumbnailViewMac(thumbnailURL: page.thumbnailURL)
                                 .frame(width: 56, height: 72)
                                 .clipped()
                             Text("\(index + 1)")
                                 .font(.caption2)
                                 .padding(2)
-                            Button("×") { buffer.remove(id: page.id) }
+                            Button("×") { batch.removePage(at: index) }
                                 .buttonStyle(.plain)
                         }
                         .frame(width: 64, height: 80)
@@ -397,7 +416,7 @@ struct LiveCameraMultiPageCaptureView: View {
                 }
             }
             .frame(maxWidth: SafeLayoutBounds.maxWorkspaceContentWidth)
-            .frame(height: buffer.isEmpty ? 0 : 80)
+            .frame(height: batch.isEmpty ? 0 : 80)
             .clipped()
         }
     }
@@ -408,21 +427,21 @@ struct LiveCameraMultiPageCaptureView: View {
                 Task { await snapPhoto() }
             }
             .disabled(isPreparing || isCapturing || isProcessing)
-            Button(buffer.count > 0 ? "Done (\(buffer.count))" : "Done") {
+            Button(batch.pageCount > 0 ? "Finish Scan (\(batch.pageCount))" : "Finish Scan") {
                 Task { await finishBatch() }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(buffer.isEmpty || isProcessing)
+            .disabled(batch.isEmpty || isProcessing)
         }
     }
 
     @MainActor
-    private func tearDownLiveSessionIfNeeded(clearBuffer: Bool) async {
+    private func tearDownLiveSessionIfNeeded(clearBatch: Bool) async {
         guard !liveSessionTornDown else { return }
         liveSessionTornDown = true
         isPreviewSessionReady = false
-        if clearBuffer {
-            buffer.clear()
+        if clearBatch {
+            batch.endSession(deleteFiles: true)
         }
         await liveScanner.tearDownLiveCameraSession()
     }
@@ -433,16 +452,18 @@ struct LiveCameraMultiPageCaptureView: View {
         isPreviewSessionReady = false
         defer { isPreparing = false }
         do {
+            try batch.beginSession()
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
         } catch {
             errorMessage = error.ratioVitaUserDescription
+            batch.endSession(deleteFiles: true)
         }
     }
 
     @MainActor
     private func closeSession() async {
-        await tearDownLiveSessionIfNeeded(clearBuffer: true)
+        await tearDownLiveSessionIfNeeded(clearBatch: true)
         dismiss()
     }
 
@@ -452,9 +473,7 @@ struct LiveCameraMultiPageCaptureView: View {
         defer { isCapturing = false }
         do {
             let image = try await liveScanner.captureLiveCameraPhoto()
-            autoreleasepool {
-                buffer.append(image)
-            }
+            try batch.appendCapturedImage(image)
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -462,14 +481,38 @@ struct LiveCameraMultiPageCaptureView: View {
 
     @MainActor
     private func finishBatch() async {
-        guard !buffer.isEmpty else { return }
+        guard !batch.isEmpty else { return }
         isProcessing = true
         defer { isProcessing = false }
-        let batch = buffer.images
-        await tearDownLiveSessionIfNeeded(clearBuffer: false)
-        await onProcessBatch(batch)
-        buffer.clear()
+        let urls = batch.pageURLs
+        await tearDownLiveSessionIfNeeded(clearBatch: false)
+        await onProcessBatch(urls)
+        batch.endSession(deleteFiles: true)
         dismiss()
+    }
+}
+
+private struct ReceiptBatchThumbnailViewMac: View {
+    let thumbnailURL: URL
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.secondary.opacity(0.2)
+            }
+        }
+        .task(id: thumbnailURL) {
+            image = await Task.detached(priority: .utility) {
+                guard let data = try? Data(contentsOf: thumbnailURL, options: [.mappedIfSafe]),
+                      let decoded = NSImage(data: data) else { return nil as NSImage? }
+                return decoded
+            }.value
+        }
     }
 }
 

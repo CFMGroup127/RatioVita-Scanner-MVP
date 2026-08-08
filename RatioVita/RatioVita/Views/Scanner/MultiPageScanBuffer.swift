@@ -2,7 +2,7 @@
 //  MultiPageScanBuffer.swift
 //  RatioVita
 //
-//  In-memory page stack for live camera sessions (images only until pipeline OCR).
+//  Deprecated: use ReceiptBatchManager (disk-backed temp JPEGs) for live camera sessions.
 //
 
 import Combine
@@ -13,11 +13,10 @@ import SwiftUI
 import UIKit
 #endif
 
+@available(*, deprecated, message: "Use ReceiptBatchManager for memory-safe live capture.")
 struct MultiPageScanBufferPage: Identifiable, Equatable {
     let id = UUID()
-    /// Downsampled page for batch OCR (not full sensor resolution).
     let image: RVImage
-    /// Small raster for the live session thumbnail strip.
     let thumbnail: RVImage
     let capturedAt: Date
 
@@ -26,12 +25,12 @@ struct MultiPageScanBufferPage: Identifiable, Equatable {
     }
 }
 
+@available(*, deprecated, message: "Use ReceiptBatchManager for memory-safe live capture.")
 @MainActor
 final class MultiPageScanBuffer: ObservableObject {
     @Published private(set) var pages: [MultiPageScanBufferPage] = []
 
     var count: Int { pages.count }
-
     var isEmpty: Bool { pages.isEmpty }
 
     func append(_ image: RVImage) {
@@ -46,10 +45,6 @@ final class MultiPageScanBuffer: ObservableObject {
 
     func remove(id: UUID) {
         pages.removeAll { $0.id == id }
-    }
-
-    func move(fromOffsets: IndexSet, toOffset: Int) {
-        pages.move(fromOffsets: fromOffsets, toOffset: toOffset)
     }
 
     func clear() {

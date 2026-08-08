@@ -299,10 +299,10 @@ class RealScannerService: NSObject, ScannerService {
     
     private func startCaptureSessionIfNeeded() async {
         guard let captureSession, !isSessionRunning else { return }
-
+        let handle = IOSCaptureSessionHandle(captureSession)
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
-                captureSession.startRunning()
+                handle.startRunning()
                 continuation.resume()
             }
         }
@@ -456,6 +456,19 @@ class RealScannerService: NSObject, ScannerService {
 }
 
 extension RealScannerService: LiveMultiPageCameraScanning {}
+
+/// Holds `AVCaptureSession` for background `startRunning()` without crossing Swift 6 Sendable boundaries.
+private final class IOSCaptureSessionHandle: @unchecked Sendable {
+    let session: AVCaptureSession
+
+    init(_ session: AVCaptureSession) {
+        self.session = session
+    }
+
+    func startRunning() {
+        session.startRunning()
+    }
+}
 
 // MARK: - Photo Capture Delegate
 

@@ -301,8 +301,8 @@ struct CameraCaptureView: View {
                 }
                 .fullScreenCover(isPresented: $showLiveCameraSession) {
                     if let live = scanner.liveMultiPageCamera {
-                        LiveCameraMultiPageCaptureView(liveScanner: live) { images in
-                            await ingestLiveCameraBatch(images)
+                        LiveCameraMultiPageCaptureView(liveScanner: live) { pageURLs in
+                            await ingestLiveCameraBatch(pageURLs)
                         }
                     }
                 }
@@ -598,14 +598,14 @@ struct CameraCaptureView: View {
     }
 
     @MainActor
-    private func ingestLiveCameraBatch(_ images: [UIImage]) async {
-        guard !images.isEmpty else { return }
+    private func ingestLiveCameraBatch(_ pageURLs: [URL]) async {
+        guard !pageURLs.isEmpty else { return }
         errorMessage = nil
         isBusy = true
         defer { isBusy = false }
         do {
-            let scan = try await ReceiptScanPipeline.processImportedImages(
-                images: images,
+            let scan = try await ReceiptScanPipeline.processImportedImageURLs(
+                urls: pageURLs,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled
             )
@@ -1123,8 +1123,8 @@ struct CameraCaptureView: View {
             }
             .sheet(isPresented: $showLiveCameraSession) {
                 if let live = scanner.liveMultiPageCamera {
-                    LiveCameraMultiPageCaptureView(liveScanner: live) { images in
-                        await ingestLiveCameraBatch(images)
+                    LiveCameraMultiPageCaptureView(liveScanner: live) { pageURLs in
+                        await ingestLiveCameraBatch(pageURLs)
                     }
                     .frame(
                         width: SafeLayoutBounds.clampedLayoutDimension(
@@ -1557,14 +1557,14 @@ struct CameraCaptureView: View {
     }
 
     @MainActor
-    private func ingestLiveCameraBatch(_ images: [NSImage]) async {
-        guard !images.isEmpty else { return }
+    private func ingestLiveCameraBatch(_ pageURLs: [URL]) async {
+        guard !pageURLs.isEmpty else { return }
         errorMessage = nil
         isBusy = true
         defer { isBusy = false }
         do {
-            let scan = try await ReceiptScanPipeline.processImportedImages(
-                images: images,
+            let scan = try await ReceiptScanPipeline.processImportedImageURLs(
+                urls: pageURLs,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled
             )

@@ -103,38 +103,111 @@ enum ReceiptScanPipeline {
 
         var scannedPages: [ScannedPage] = []
         for (idx, original) in images.enumerated() {
-            let normalized = ReceiptImageRasterOps.prepareForPersistence(original) ?? original
-            let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(
-                image: normalized,
+            let page = try await processImportedPageRaster(
+                original,
+                pageNumber: idx + 1,
                 ocrEnabled: ocrEnabled
             )
-            let processed = try await ImageProcessing.processImage(oriented, with: .receiptDefault)
-            guard let cgImage = processed.rv_cgImageForVisionAnalysis ?? processed.rvCGImage else {
-                throw ScannerError.invalidImage
-            }
-            let level: VNRequestTextRecognitionLevel = .accurate
-            let (ocrText, confidence, detectedRectangles) = try VisionReceiptAnalysis.analyzeReceipt(
-                cgImage: cgImage,
-                ocrEnabled: ocrEnabled,
-                textRecognitionLevel: level
-            )
-            scannedPages.append(
-                ScannedPage(
-                    image: processed,
-                    originalImage: oriented,
-                    pageNumber: idx + 1,
-                    ocrText: ocrText,
-                    confidence: confidence,
-                    detectedRectangles: detectedRectangles.isEmpty ? nil : detectedRectangles,
-                    capturedAt: Date()
-                )
-            )
+            scannedPages.append(page)
         }
 
         return mergedScanResult(
             fromPages: scannedPages,
             ocrEnabled: ocrEnabled,
             compressionEnabled: compressionEnabled
+        )
+    }
+
+    /// Live camera **Finish Scan**: load each temp JPEG one at a time so multi-page batches stay off the heap.
+    static func processImportedImageURLs(
+        urls: [URL],
+        ocrEnabled: Bool,
+        compressionEnabled: Bool
+    ) async throws -> ScanResult {
+        guard !urls.isEmpty else { throw ScannerError.invalidImage }
+        if urls.count == 1 {
+            let image = try loadRaster(from: urls[0])
+            return try await processImported(
+                image: image,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled
+            )
+        }
+
+        var scannedPages: [ScannedPage] = []
+        for (idx, url) in urls.enumerated() {
+            let page = try await processPageFromDiskURL(url, pageNumber: idx + 1, ocrEnabled: ocrEnabled)
+            scannedPages.append(page)
+        }
+
+        return mergedScanResult(
+            fromPages: scannedPages,
+            ocrEnabled: ocrEnabled,
+            compressionEnabled: compressionEnabled
+        )
+    }
+
+    private static func processPageFromDiskURL(
+        _ url: URL,
+        pageNumber: Int,
+        ocrEnabled: Bool
+    ) async throws -> ScannedPage {
+        let raster = try autoreleasepool {
+            try loadRaster(from: url)
+        }
+        return try await processImportedPageRaster(
+            raster,
+            pageNumber: pageNumber,
+            ocrEnabled: ocrEnabled
+        )
+    }
+
+    private static func loadRaster(from url: URL) throws -> RVImage {
+        let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+        guard !data.isEmpty else { throw ScannerError.invalidImage }
+        #if canImport(UIKit)
+        guard let image = RVImage.rv_decodedNormalizingEXIFOrientation(from: data) else {
+            throw ScannerError.invalidImage
+        }
+        return image
+        #elseif canImport(AppKit)
+        guard let image = RVImage.rv_decodedNormalizingEXIFOrientation(from: data) ?? NSImage(data: data) else {
+            throw ScannerError.invalidImage
+        }
+        return image
+        #else
+        throw ScannerError.invalidImage
+        #endif
+    }
+
+    private static func processImportedPageRaster(
+        _ original: RVImage,
+        pageNumber: Int,
+        ocrEnabled: Bool
+    ) async throws -> ScannedPage {
+        let normalized = ReceiptImageRasterOps.prepareForPersistence(original) ?? original
+        let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(
+            image: normalized,
+            ocrEnabled: ocrEnabled
+        )
+        let processed = try await ImageProcessing.processImage(oriented, with: .receiptDefault)
+        guard let cgImage = processed.rv_cgImageForVisionAnalysis ?? processed.rvCGImage else {
+            throw ScannerError.invalidImage
+        }
+        let level: VNRequestTextRecognitionLevel = .accurate
+        let (ocrText, confidence, detectedRectangles) = try VisionReceiptAnalysis.analyzeReceipt(
+            cgImage: cgImage,
+            ocrEnabled: ocrEnabled,
+            textRecognitionLevel: level
+        )
+        return ScannedPage(
+            image: processed,
+            originalImage: oriented,
+            pageNumber: pageNumber,
+            ocrText: ocrText,
+            confidence: confidence,
+            detectedRectangles: detectedRectangles.isEmpty ? nil : detectedRectangles,
+            capturedAt: Date()
         )
     }
 
