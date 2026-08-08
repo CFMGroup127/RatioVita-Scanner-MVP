@@ -140,49 +140,11 @@ struct ContentView: View {
                         .optionalTabBadge(reviewQueue.totalCount)
                         .tag(3)
 
-                    ReconciliationReviewView()
+                    PhoneMoreHubView()
                         .tabItem {
-                            Label("Reconcile", systemImage: "arrow.triangle.merge")
+                            Label("More", systemImage: "ellipsis.circle.fill")
                         }
-                        .optionalTabBadge(unmatchedBankTransactions.count)
                         .tag(4)
-
-                    BankImportView()
-                        .tabItem {
-                            Label("Bank import", systemImage: "building.columns.fill")
-                        }
-                        .tag(5)
-
-                    ReceiptTrashView()
-                        .tabItem {
-                            Label("Trash", systemImage: "trash")
-                        }
-                        .optionalTabBadge(trashedReceipts.count)
-                        .tag(6)
-
-                    NavigationStack {
-                        LaborSentinelHubView()
-                    }
-                    .tabItem {
-                        Label("Labor", systemImage: "shield.lefthalf.filled")
-                    }
-                    .tag(7)
-
-                    NavigationStack {
-                        TimeSheetsHubView()
-                    }
-                    .tabItem {
-                        Label("Time Sheets", systemImage: "calendar.day.timeline.left")
-                    }
-                    .tag(8)
-
-                    NavigationStack {
-                        MediaCoreHubView()
-                    }
-                    .tabItem {
-                        Label("Media Core", systemImage: "waveform.circle")
-                    }
-                    .tag(9)
                 }
                 .onChange(of: libraryNavigationCoordinator.focusReceiptsLibrarySignal) { _, _ in
                     if libraryNavigationCoordinator.consumeFocusReceiptsLibraryIfNeeded() {
@@ -240,7 +202,7 @@ struct ContentView: View {
                 phoneLibraryTabSelection = 1
                 libraryNavigationCoordinator.focusArcticVaultExplorerFromHome()
             case .laborSentinel:
-                phoneLibraryTabSelection = 7
+                phoneLibraryTabSelection = 4
             case .productions:
                 activeShellModal = .productionRegistry
             case .finances:

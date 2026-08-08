@@ -118,6 +118,44 @@ final class ReceiptsViewModel: ObservableObject {
         ensureProductionScannerIfNeeded()
         showScanner = true
     }
+
+    /// Processes a finished live multi-page camera session directly from the receipts library.
+    func handleLiveCameraBatch(pageURLs: [URL], vaultPathPrefix: String?) async {
+        guard !pageURLs.isEmpty else { return }
+        guard !ingestSaveInFlight else {
+            UserMessageCenter.shared.present(
+                title: "Still saving",
+                message: "Please wait for the current import to finish."
+            )
+            return
+        }
+        ingestSaveInFlight = true
+        defer { ingestSaveInFlight = false }
+
+        isScanning = true
+        defer { isScanning = false }
+
+        do {
+            let ledger = SovereignContextManager.shared.activeLedger
+            let scan = try await ReceiptScanPipeline.processImportedImageURLs(
+                urls: pageURLs,
+                ocrEnabled: ocrEnabled,
+                compressionEnabled: compressionEnabled,
+                captureLedgerContext: ledger
+            )
+            let opts = ReceiptIngestOptions(
+                pendingHumanReview: true,
+                scannedViaCamera: true,
+                vaultPathPrefix: vaultPathPrefix
+            )
+            try await persistScanResult(scan, options: opts)
+        } catch {
+            UserMessageCenter.shared.present(
+                title: "Couldn't save scan",
+                message: error.ratioVitaUserDescription
+            )
+        }
+    }
     
     func importManuscriptFile(at url: URL, vaultPathPrefix: String? = nil) async {
         guard let context = requireContext() else { return }

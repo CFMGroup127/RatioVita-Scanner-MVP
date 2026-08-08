@@ -54,6 +54,7 @@ struct ReceiptsView: View {
     @State private var exportShareItem: ExportSharePayload?
     @State private var navReceiptPath: [UUID] = []
     @State private var forwardReceiptPath: [UUID] = []
+    @State private var showLiveCameraCapture = false
     init(cabinetFilter: DocumentCabinet? = nil) {
         self.cabinetFilter = cabinetFilter
         if let cabinet = cabinetFilter {
@@ -100,12 +101,12 @@ struct ReceiptsView: View {
         true
     }
 
-    /// Main library at root — show bottom add affordance when empty (iOS).
+    /// Main library at root — persistent capture FAB on iPhone (iOS).
     private var showsIOSAddReceiptFAB: Bool {
         #if os(iOS)
         guard cabinetFilter == nil else { return false }
         guard navReceiptPath.isEmpty else { return false }
-        return receipts.isEmpty
+        return true
         #else
         false
         #endif
@@ -300,24 +301,6 @@ struct ReceiptsView: View {
             ToolbarItem(placement: .primaryAction) {
                 iosAddReceiptToolbarControl
             }
-
-            ToolbarItemGroup(placement: .navigationBarLeading) {
-                Button {
-                    goBackNavigation()
-                } label: {
-                    Image(systemName: "chevron.backward")
-                }
-                .disabled(navReceiptPath.isEmpty)
-                .accessibilityLabel("Back")
-
-                Button {
-                    goForwardNavigation()
-                } label: {
-                    Image(systemName: "chevron.forward")
-                }
-                .disabled(forwardReceiptPath.isEmpty)
-                .accessibilityLabel("Forward")
-            }
             #endif
 
             #if os(iOS)
@@ -403,6 +386,20 @@ struct ReceiptsView: View {
                 }
             }
         }
+        #if os(iOS) || os(visionOS)
+        .fullScreenCover(isPresented: $showLiveCameraCapture) {
+            if let live = viewModel.scannerForUI.liveMultiPageCamera {
+                LiveCameraMultiPageCaptureView(liveScanner: live) { pageURLs in
+                    let prefix = libraryScanVaultPathPrefix
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    await viewModel.handleLiveCameraBatch(
+                        pageURLs: pageURLs,
+                        vaultPathPrefix: prefix.isEmpty ? nil : prefix
+                    )
+                }
+            }
+        }
+        #endif
         .sheet(isPresented: $viewModel.showScanner) {
             #if os(iOS) || os(visionOS)
             CameraCaptureView(
@@ -520,10 +517,22 @@ struct ReceiptsView: View {
 
     /// Prominent camera / capture entry — hoisted to the **leading** bar on compact iPhone so it is never crowded
     /// out by segmented controls in the trailing group.
+    private func presentCaptureEntry() {
+        viewModel.bootstrapScannerIfNeeded()
+        viewModel.ensureProductionScannerIfNeeded()
+        #if os(iOS) || os(visionOS)
+        if viewModel.scannerForUI.liveMultiPageCamera != nil {
+            showLiveCameraCapture = true
+            return
+        }
+        #endif
+        viewModel.showScannerUI()
+    }
+
     @ViewBuilder
     private func scanCaptureToolbarButton() -> some View {
         Button {
-            viewModel.showScannerUI()
+            presentCaptureEntry()
         } label: {
             if viewModel.isScanning {
                 ProgressView()
@@ -546,9 +555,9 @@ struct ReceiptsView: View {
     private var iosAddReceiptToolbarControl: some View {
         Menu {
             Button {
-                viewModel.showScannerUI()
+                presentCaptureEntry()
             } label: {
-                Label("Camera & live scan", systemImage: "camera.viewfinder")
+                Label("Live camera (multi-page)", systemImage: "camera.viewfinder")
             }
             Button {
                 viewModel.showScannerUI()
@@ -568,7 +577,7 @@ struct ReceiptsView: View {
 
     private var iosAddReceiptFloatingButton: some View {
         Button {
-            viewModel.showScannerUI()
+            presentCaptureEntry()
         } label: {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))

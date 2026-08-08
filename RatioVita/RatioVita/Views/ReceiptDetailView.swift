@@ -215,6 +215,13 @@ struct ReceiptDetailView: View {
     private func receiptDetailToolbar(r: Receipt) -> some ToolbarContent {
         #if os(iOS) || os(visionOS)
         ToolbarItemGroup(placement: .navigationBarTrailing) {
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .accessibilityLabel("Settings")
+
             if r.trashedAt == nil {
                 Menu {
                     ReceiptExportMenuContent(receipts: [r]) { url in
@@ -492,11 +499,17 @@ struct ReceiptDetailView: View {
     }
 
     @ViewBuilder
-    private func forensicSourceInner(r: Receipt, showsDocumentImages: Bool) -> some View {
+    private func forensicSourceInner(
+        r: Receipt,
+        showsDocumentImages: Bool,
+        compactInlineMode: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-            summaryStrip
+            if !compactInlineMode {
+                summaryStrip
+            }
             productionProjectCard
-            if !useSplitEditChrome {
+            if !useSplitEditChrome, !compactInlineMode {
                 businessUseCard
             }
 
@@ -511,8 +524,14 @@ struct ReceiptDetailView: View {
             if !combinedOCRText.isEmpty {
                 let ocrParsed = OCRParsing.extractData(from: combinedOCRText)
                 let display = r.displayExtractedData(fallbackFromOCR: ocrParsed)
-                structuredOCRSummarySection(display, extractionSource: r.extractionSource)
-                ocrSection(combinedOCRText)
+                structuredOCRSummarySection(
+                    display,
+                    extractionSource: r.extractionSource,
+                    collapsedByDefault: compactInlineMode
+                )
+                if !compactInlineMode {
+                    ocrSection(combinedOCRText)
+                }
             }
         }
     }
@@ -554,10 +573,7 @@ struct ReceiptDetailView: View {
     @ViewBuilder
     private func iphoneForensicScrollContent(r: Receipt) -> some View {
         VStack(alignment: .leading, spacing: Layout.sectionSpacing) {
-            forensicSourceInner(r: r, showsDocumentImages: false)
-            Divider()
-                .padding(.vertical, DesignSystem.Spacing.xs)
-            Text("Receipt fields")
+            Text("Edit receipt")
                 .font(DesignSystem.Typography.headline)
                 .foregroundStyle(brandAccent)
             EditReceiptView(
@@ -566,6 +582,11 @@ struct ReceiptDetailView: View {
                 onPersistHandlerReady: { persistInlineReceiptEdits = $0 }
             )
             .id(receipt.persistentModelID)
+
+            Divider()
+                .padding(.vertical, DesignSystem.Spacing.xs)
+
+            forensicSourceInner(r: r, showsDocumentImages: false, compactInlineMode: true)
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
         .padding(.bottom, DesignSystem.Spacing.lg)
@@ -628,84 +649,131 @@ struct ReceiptDetailView: View {
     }
 
     @ViewBuilder
-    private func structuredOCRSummarySection(_ data: ExtractedData, extractionSource: String) -> some View {
+    private func structuredOCRSummarySection(
+        _ data: ExtractedData,
+        extractionSource: String,
+        collapsedByDefault: Bool = false
+    ) -> some View {
         let hasLineItems = !(data.lineItems ?? []).isEmpty
         let hasAny = data.merchant != nil || data.vendorAddress != nil || data.documentNumber != nil
             || data.date != nil || data.total != nil || data.subtotal != nil || data.taxAmount != nil
             || data.paymentMethodSummary != nil || data.documentKind != nil || hasLineItems
         if hasAny {
-            VStack(alignment: .leading, spacing: Layout.innerSpacing) {
-                Text("Key fields")
-                    .font(DesignSystem.Typography.headline)
-                    .foregroundStyle(brandAccent)
-                Text(extractionSourceBlurb(extractionSource))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundStyle(Color.ratioVitaTextSecondary)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    if let m = data.merchant {
-                        labeledOCRRow("Merchant / company", m)
-                    }
-                    if let a = data.vendorAddress {
-                        labeledOCRRow("Address", a)
-                    }
-                    if let d = data.documentNumber {
-                        labeledOCRRow("Receipt / invoice #", d)
-                    }
-                    if let k = data.documentKind {
-                        labeledOCRRow("Document kind", k)
-                    }
-                    if let d = data.date {
-                        labeledOCRRow("Date (on receipt)", d.formatted(date: .abbreviated, time: .omitted))
-                    }
-                    if let s = data.subtotal {
-                        labeledOCRRow("Subtotal", s.formatted(.number.precision(.fractionLength(2))))
-                    }
-                    if let t = data.taxAmount {
-                        labeledOCRRow("Tax", t.formatted(.number.precision(.fractionLength(2))))
-                    }
-                    if let t = data.total {
-                        let code = data.currency ?? receipt.currencyCode
-                        labeledOCRRow("Total", t.formatted(.currency(code: code)))
-                    }
-                    if let p = data.paymentMethodSummary {
-                        labeledOCRRow("Payment", p)
-                    }
-                    if hasLineItems {
-                        lineItemsSummary(data.lineItems ?? [])
+            if collapsedByDefault {
+                DisclosureGroup {
+                    ocrKeyFieldsBody(data: data, hasLineItems: hasLineItems)
+                } label: {
+                    VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+                        Text("OCR preview (read-only)")
+                            .font(DesignSystem.Typography.headline)
+                            .foregroundStyle(brandAccent)
+                        extractionSourceFooter(extractionSource)
                     }
                 }
-                .padding(DesignSystem.Spacing.md)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(DesignSystem.Spacing.lg)
                 .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm, style: .continuous)
-                        .fill(Color.ratioVitaAdaptiveSurface)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                        .fill(Color.ratioVitaAdaptiveBackground.opacity(0.5))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm, style: .continuous)
-                        .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.45), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                        .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.35), lineWidth: 1)
+                )
+            } else {
+                VStack(alignment: .leading, spacing: Layout.innerSpacing) {
+                    Text("Key fields")
+                        .font(DesignSystem.Typography.headline)
+                        .foregroundStyle(brandAccent)
+                    extractionSourceFooter(extractionSource)
+                    ocrKeyFieldsBody(data: data, hasLineItems: hasLineItems)
+                }
+                .padding(DesignSystem.Spacing.lg)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                        .fill(Color.ratioVitaAdaptiveBackground.opacity(0.5))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
+                        .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.35), lineWidth: 1)
                 )
             }
-            .padding(DesignSystem.Spacing.lg)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
-                    .fill(Color.ratioVitaAdaptiveBackground.opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md, style: .continuous)
-                    .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.35), lineWidth: 1)
-            )
         }
     }
 
-    private func extractionSourceBlurb(_ source: String) -> String {
+    @ViewBuilder
+    private func ocrKeyFieldsBody(data: ExtractedData, hasLineItems: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let m = data.merchant {
+                labeledOCRRow("Merchant / company", m)
+            }
+            if let a = data.vendorAddress {
+                labeledOCRRow("Address", a)
+            }
+            if let d = data.documentNumber {
+                labeledOCRRow("Receipt / invoice #", d)
+            }
+            if let k = data.documentKind {
+                labeledOCRRow("Document kind", k)
+            }
+            if let d = data.date {
+                labeledOCRRow("Date (on receipt)", d.formatted(date: .abbreviated, time: .omitted))
+            }
+            if let s = data.subtotal {
+                labeledOCRRow("Subtotal", s.formatted(.number.precision(.fractionLength(2))))
+            }
+            if let t = data.taxAmount {
+                labeledOCRRow("Tax", t.formatted(.number.precision(.fractionLength(2))))
+            }
+            if let t = data.total {
+                let code = data.currency ?? receipt.currencyCode
+                labeledOCRRow("Total", t.formatted(.currency(code: code)))
+            }
+            if let p = data.paymentMethodSummary {
+                labeledOCRRow("Payment", p)
+            }
+            if hasLineItems {
+                lineItemsSummary(data.lineItems ?? [])
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm, style: .continuous)
+                .fill(Color.ratioVitaAdaptiveSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm, style: .continuous)
+                .stroke(Color.ratioVitaAdaptiveBorder.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func extractionSourceFooter(_ source: String) -> some View {
         switch source {
             case "gemini":
-                "Gemini JSON extraction from raw OCR (with on-device fallback). Invoice ↔ payment linking is planned for a later release."
+                Text(
+                    "Gemini JSON extraction from raw OCR (with on-device fallback). Invoice ↔ payment linking is planned for a later release."
+                )
+                .font(DesignSystem.Typography.caption)
+                .foregroundStyle(Color.ratioVitaTextSecondary)
             case "manual":
-                "Fields edited manually. Invoice ↔ payment linking is planned for a later release."
+                Text("Fields edited manually. Invoice ↔ payment linking is planned for a later release.")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(Color.ratioVitaTextSecondary)
             default:
-                "On-device heuristic extraction from OCR. Add a Gemini API key in Settings for structured JSON parsing. Invoice ↔ payment linking is planned for a later release."
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(
+                        "On-device heuristic extraction from OCR. Add a Gemini API key in Settings for structured JSON parsing. Invoice ↔ payment linking is planned for a later release."
+                    )
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundStyle(Color.ratioVitaTextSecondary)
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Open Settings — Gemini API key", systemImage: "gearshape")
+                    }
+                    .font(DesignSystem.Typography.caption.weight(.semibold))
+                }
         }
     }
 
@@ -1535,6 +1603,8 @@ struct EditReceiptView: View {
                         .toolbar { sideCarToolbar }
                 case .inlineScrollStack:
                     formWithBusinessUse
+                        .scrollDisabled(true)
+                        .fixedSize(horizontal: false, vertical: true)
             }
         }
         .ratioVitaTheme()
@@ -1588,23 +1658,10 @@ struct EditReceiptView: View {
 
     private var editForm: some View {
         Form {
-            Section("Receipt Details") {
-                TextField("Merchant", text: $merchant)
-                    .textSelection(.enabled)
-                    .onChange(of: merchant) { _, newValue in
-                        applyCRMSuggestionIfNeeded(forMerchant: newValue)
-                    }
-                Picker("Currency", selection: $currency) {
-                    ForEach(ReceiptCurrency.allCases) { code in
-                        Text(code.code).tag(code)
-                    }
-                }
-                TextField("Total", text: $total)
-                #if os(iOS)
-                    .keyboardType(.decimalPad)
-                #endif
-                TextField("Notes", text: $notes, axis: .vertical)
-                    .lineLimit(3...6)
+            if chrome == .inlineScrollStack {
+                inlinePrimaryEditSection
+            } else {
+                standardReceiptDetailsSection
             }
 
             if showsLedgerRoutingSection {
@@ -1680,8 +1737,15 @@ struct EditReceiptView: View {
             }
 
             if documentType.showsBusinessUsePercentControls {
-                Section("Business use %") {
+                Section {
                     ReceiptBusinessUsePercentControls(receipt: receipt, disabled: false)
+                } header: {
+                    Text("Business use %")
+                } footer: {
+                    if chrome == .inlineScrollStack {
+                        Text("For mixed personal/business spend (vehicles, equipment).")
+                            .font(DesignSystem.Typography.caption2)
+                    }
                 }
             }
 
@@ -1736,9 +1800,11 @@ struct EditReceiptView: View {
                 #if os(iOS)
                     .keyboardType(.decimalPad)
                 #endif
-                Toggle("Transaction date on receipt", isOn: $hasTransactionDate)
-                if hasTransactionDate {
-                    DatePicker("Date", selection: $transactionDate, displayedComponents: [.date])
+                if chrome != .inlineScrollStack {
+                    Toggle("Transaction date on receipt", isOn: $hasTransactionDate)
+                    if hasTransactionDate {
+                        DatePicker("Date", selection: $transactionDate, displayedComponents: [.date])
+                    }
                 }
             }
 
@@ -1770,6 +1836,67 @@ struct EditReceiptView: View {
                     .fontWeight(.semibold)
                 }
             }
+        }
+    }
+
+    private var standardReceiptDetailsSection: some View {
+        Section("Receipt Details") {
+            TextField("Merchant", text: $merchant)
+                .textSelection(.enabled)
+                .onChange(of: merchant) { _, newValue in
+                    applyCRMSuggestionIfNeeded(forMerchant: newValue)
+                }
+            Picker("Currency", selection: $currency) {
+                ForEach(ReceiptCurrency.allCases) { code in
+                    Text(code.code).tag(code)
+                }
+            }
+            TextField("Total", text: $total)
+            #if os(iOS)
+                .keyboardType(.decimalPad)
+            #endif
+            TextField("Notes", text: $notes, axis: .vertical)
+                .lineLimit(3...6)
+        }
+    }
+
+    private var inlinePrimaryEditSection: some View {
+        Section {
+            TextField("Merchant", text: $merchant)
+                .textSelection(.enabled)
+                .onChange(of: merchant) { _, newValue in
+                    applyCRMSuggestionIfNeeded(forMerchant: newValue)
+                }
+            Toggle("Transaction date on receipt", isOn: $hasTransactionDate)
+            if hasTransactionDate {
+                DatePicker("Date", selection: $transactionDate, displayedComponents: [.date])
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                TextField("Total amount", text: $total)
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
+                Picker("Currency", selection: $currency) {
+                    ForEach(ReceiptCurrency.allCases) { code in
+                        Text(code.code).tag(code)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(minWidth: 72)
+            }
+            TextField("Notes", text: $notes, axis: .vertical)
+                .lineLimit(3...6)
+
+            if GeminiAPIKeyResolver.resolveAPIKeyTrimmed().isEmpty {
+                NavigationLink {
+                    SettingsView()
+                } label: {
+                    Label("Add Gemini API key in Settings", systemImage: "gearshape")
+                }
+            }
+        } header: {
+            Text("Key fields")
         }
     }
 
