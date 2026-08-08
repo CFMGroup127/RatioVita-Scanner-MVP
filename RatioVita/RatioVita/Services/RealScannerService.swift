@@ -275,12 +275,12 @@ class RealScannerService: NSObject, ScannerService {
         let output = AVCapturePhotoOutput()
         if captureSession?.canAddOutput(output) == true {
             captureSession?.addOutput(output)
-            // Seed valid still dimensions so AVFoundation does not emit err=-12710
-            // (kCMFormatDescriptionError_InvalidParameter) probing a {0,0} format.
-            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
-               let maxDimensions = camera.activeFormat.supportedMaxPhotoDimensions.last
-            {
-                output.maxPhotoDimensions = maxDimensions
+            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
+                _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
+                    photoOutput: output,
+                    videoDevice: camera,
+                    longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
+                )
             }
             photoOutput = output
         } else {
@@ -330,16 +330,17 @@ class RealScannerService: NSObject, ScannerService {
         guard let photoOutput else {
             throw ScannerError.captureFailed
         }
-        
+
+        refreshPhotoOutputDimensionsIfNeeded()
+
         return try await withCheckedThrowingContinuation { continuation in
             let settings = AVCapturePhotoSettings()
             #if os(iOS) || os(visionOS)
             settings.flashMode = .auto
             #endif
-            if #available(iOS 16.0, macOS 13.0, visionOS 1.0, *) {
-                settings.maxPhotoDimensions = Self.cappedPhotoDimensions(for: photoOutput)
-            }
-            
+            // Do not set settings.maxPhotoDimensions manually — AVFoundation requires an exact
+            // match from supportedMaxPhotoDimensions; output.maxPhotoDimensions is synced above.
+
             // Retain the delegate until we resume the continuation
             self.currentPhotoDelegate = PhotoCaptureDelegate { image in
                 self.currentPhotoDelegate = nil
@@ -439,18 +440,18 @@ class RealScannerService: NSObject, ScannerService {
             captureSession.sessionPreset = .high
         }
         captureSession.commitConfiguration()
+        refreshPhotoOutputDimensionsIfNeeded()
     }
 
-    @available(iOS 16.0, macOS 13.0, visionOS 1.0, *)
-    private static func cappedPhotoDimensions(for output: AVCapturePhotoOutput) -> CMVideoDimensions {
-        let maxDim = output.maxPhotoDimensions
-        let long = max(maxDim.width, maxDim.height)
-        let cap: Int32 = 2048
-        guard long > cap, long > 0 else { return maxDim }
-        let scale = Float(cap) / Float(long)
-        return CMVideoDimensions(
-            width: max(1, Int32((Float(maxDim.width) * scale).rounded(.down))),
-            height: max(1, Int32((Float(maxDim.height) * scale).rounded(.down)))
+    private func refreshPhotoOutputDimensionsIfNeeded() {
+        guard #available(iOS 16.0, macOS 13.0, visionOS 1.0, *),
+              let photoOutput,
+              let captureSession,
+              let device = AVCapturePhotoDimensionsSupport.videoDevice(from: captureSession) else { return }
+        _ = AVCapturePhotoDimensionsSupport.syncPhotoOutputDimensions(
+            photoOutput: photoOutput,
+            videoDevice: device,
+            longEdgeCap: isLiveMultiPageSessionActive ? 2048 : nil
         )
     }
 }
