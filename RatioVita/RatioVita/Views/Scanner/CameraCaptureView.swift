@@ -604,10 +604,12 @@ struct CameraCaptureView: View {
         isBusy = true
         defer { isBusy = false }
         do {
+            let ledger = SovereignContextManager.shared.activeLedger
             let scan = try await ReceiptScanPipeline.processImportedImageURLs(
                 urls: pageURLs,
                 ocrEnabled: ocrEnabled,
-                compressionEnabled: compressionEnabled
+                compressionEnabled: compressionEnabled,
+                captureLedgerContext: ledger
             )
             usedCameraThisSession = true
             draftPages.append(contentsOf: scan.scannedPages)
@@ -918,10 +920,12 @@ struct CameraCaptureView: View {
             isSubmittingReview = false
         }
         await Task.yield()
+        let ledger = SovereignContextManager.shared.activeLedger
         let merged = ReceiptScanPipeline.mergedScanResult(
             fromPages: draftPages,
             ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled
+            compressionEnabled: compressionEnabled,
+            captureLedgerContext: ledger
         )
         await onSubmit(merged, reviewQueueImportOptions(camera: usedCameraThisSession))
         await Task.yield()
@@ -1563,10 +1567,12 @@ struct CameraCaptureView: View {
         isBusy = true
         defer { isBusy = false }
         do {
+            let ledger = SovereignContextManager.shared.activeLedger
             let scan = try await ReceiptScanPipeline.processImportedImageURLs(
                 urls: pageURLs,
                 ocrEnabled: ocrEnabled,
-                compressionEnabled: compressionEnabled
+                compressionEnabled: compressionEnabled,
+                captureLedgerContext: ledger
             )
             usedCameraThisSession = true
             draftPages.append(contentsOf: scan.scannedPages)
@@ -1588,10 +1594,12 @@ struct CameraCaptureView: View {
             isSubmittingReview = false
         }
         await Task.yield()
+        let ledger = SovereignContextManager.shared.activeLedger
         let merged = ReceiptScanPipeline.mergedScanResult(
             fromPages: draftPages,
             ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled
+            compressionEnabled: compressionEnabled,
+            captureLedgerContext: ledger
         )
         await onSubmit(merged, reviewQueueImportOptions(camera: usedCameraThisSession))
         await Task.yield()

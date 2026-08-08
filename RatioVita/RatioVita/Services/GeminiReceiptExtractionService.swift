@@ -45,6 +45,8 @@ struct GeminiReceiptPayload: Codable, Equatable, Sendable {
         var unitPrice: Double?
         var totalPrice: Double?
         var serialNumber: String?
+        /// `personal` | `venture` | `production` when inferable from line text.
+        var suggestedCategory: String?
     }
 
     struct WorkDay: Codable, Equatable, Sendable {
@@ -87,6 +89,8 @@ struct GeminiReceiptPayload: Codable, Equatable, Sendable {
     var internalInvoiceNumber: String?
     /// Client SAP / ref. document token on payout stub.
     var clientAccountingToken: String?
+    /// 0…1 confidence for ledger routing suggestion.
+    var entityConfidenceScore: Double?
 
     enum CodingKeys: String, CodingKey {
         case merchant
@@ -108,6 +112,7 @@ struct GeminiReceiptPayload: Codable, Equatable, Sendable {
         case productionManagerName = "production_manager_name"
         case clientProjectTitle = "client_project_title"
         case clientProductionCompany = "client_production_company"
+        case entityConfidenceScore = "entityConfidenceScore"
     }
 }
 
@@ -196,6 +201,7 @@ enum GeminiReceiptExtractionService {
         combinedOCRText: String,
         apiKey: String,
         modelId: String,
+        activeLedger: SovereignLedger? = nil,
         onRetryScheduled: (@Sendable (Int) -> Void)? = nil
     ) async throws -> GeminiReceiptPayload {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -221,7 +227,8 @@ enum GeminiReceiptExtractionService {
                 return try await extractReceiptPayloadSingleRequest(
                     combinedOCRText: combinedOCRText,
                     trimmedKey: trimmedKey,
-                    model: model
+                    model: model,
+                    activeLedger: activeLedger
                 )
             } catch let err as GeminiReceiptExtractionError {
                 lastError = err
@@ -245,7 +252,8 @@ enum GeminiReceiptExtractionService {
     private static func extractReceiptPayloadSingleRequest(
         combinedOCRText: String,
         trimmedKey: String,
-        model: String
+        model: String,
+        activeLedger: SovereignLedger?
     ) async throws -> GeminiReceiptPayload {
         var components = URLComponents()
         components.scheme = "https"
@@ -257,7 +265,7 @@ enum GeminiReceiptExtractionService {
             throw GeminiReceiptExtractionError.invalidResponse
         }
 
-        let prompt = Self.buildPrompt(ocr: combinedOCRText)
+        let prompt = Self.buildPrompt(ocr: combinedOCRText, activeLedger: activeLedger)
         let body = GeminiGenerateContentRequest(
             contents: [
                 .init(role: "user", parts: [.init(text: prompt)]),
@@ -301,9 +309,27 @@ enum GeminiReceiptExtractionService {
         return t
     }
 
-    private static func buildPrompt(ocr: String) -> String {
-        """
+    private static func buildPrompt(ocr: String, activeLedger: SovereignLedger?) -> String {
+        let ledgerBlock: String = if let activeLedger {
+            """
+            
+            **Active ledger context:** \(activeLedger.promptContextLabel)
+            - Categorize this receipt against the **current ledger: \(activeLedger.displayName)**.
+            - For each lineItem, set **suggestedCategory** to `personal`, `venture`, or `production` when inferable.
+            - If the vendor looks like a **production supplier** (craft services, Sysco, GFS, set supplies) but the current ledger is **Personal**, still extract fields but set **entityConfidenceScore** ≥ 0.7 and use `production` on relevant line items.
+            - Return **entityConfidenceScore** (0…1) for how well the document matches the active ledger.
+            """
+        } else {
+            """
+            
+            - For each lineItem include **suggestedCategory**: `personal`, `venture`, or `production` when inferable.
+            - Return **entityConfidenceScore** (0…1) when you can judge ledger fit.
+            """
+        }
+
+        return """
         You parse retail receipts, invoices, payment slips, lottery tickets, **fuel / gas station receipts**, **time sheets**, and **pay stubs** from noisy OCR.
+        \(ledgerBlock)
 
         Return ONLY valid JSON (no markdown) with exactly this shape and key names:
         {
@@ -327,13 +353,15 @@ enum GeminiReceiptExtractionService {
           "currency": "CAD" | "USD" | "GBP" | "EUR" or null,
           "paymentMethod": string or null,
           "documentKind": "receipt" | "invoice" | "payment_slip" | "lottery" | "fuel" | "time_sheet" | "pay_stub" | "deal_memo" | "canadian_t4" | "canadian_t4a" | "canadian_roe" | "bank_statement" | "other" or null,
+          "entityConfidenceScore": number or null,
           "lineItems": [
             {
               "description": string,
               "quantity": number or null,
               "unitPrice": number or null,
               "totalPrice": number or null,
-              "serialNumber": string or null
+              "serialNumber": string or null,
+              "suggestedCategory": "personal" | "venture" | "production" or null
             }
           ] or null,
           "work_days": [

@@ -88,6 +88,11 @@ final class SovereignContextManager: ObservableObject {
         activeHub == .production ? activeProductionID : nil
     }
 
+    /// Financial ledger bucket matching the active hub (Personal / Venture / Production).
+    var activeLedger: SovereignLedger {
+        SovereignLedger(hub: activeHub)
+    }
+
     /// Maps sovereign hub to agent mantle lane (Production vs Venture).
     var activeAgentMantle: AgentMantle {
         switch activeHub {

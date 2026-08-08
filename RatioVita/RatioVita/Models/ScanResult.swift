@@ -20,16 +20,20 @@ struct ScanResult {
     let extractedData: ExtractedData
     let processingMetadata: ProcessingMetadata
     let createdAt: Date
-    
+    /// Hub / ledger active when the batch was captured (frozen for routing at save).
+    let captureLedgerContextRaw: String?
+
     init(
         scannedPages: [ScannedPage],
         extractedData: ExtractedData,
-        processingMetadata: ProcessingMetadata
+        processingMetadata: ProcessingMetadata,
+        captureLedgerContextRaw: String? = nil
     ) {
         id = UUID()
         self.scannedPages = scannedPages
         self.extractedData = extractedData
         self.processingMetadata = processingMetadata
+        self.captureLedgerContextRaw = captureLedgerContextRaw
         createdAt = Date()
     }
     
@@ -73,6 +77,8 @@ struct LineItem {
     let totalPrice: Decimal?
     let serialNumber: String?
     let confidence: Double?
+    /// Suggested ledger bucket from Gemini (`personal` | `venture` | `production`).
+    let suggestedLedgerRaw: String?
 
     init(
         description: String,
@@ -80,7 +86,8 @@ struct LineItem {
         unitPrice: Decimal? = nil,
         totalPrice: Decimal? = nil,
         serialNumber: String? = nil,
-        confidence: Double? = nil
+        confidence: Double? = nil,
+        suggestedLedgerRaw: String? = nil
     ) {
         self.description = description
         self.quantity = quantity
@@ -88,6 +95,7 @@ struct LineItem {
         self.totalPrice = totalPrice
         self.serialNumber = serialNumber
         self.confidence = confidence
+        self.suggestedLedgerRaw = suggestedLedgerRaw
     }
 }
 

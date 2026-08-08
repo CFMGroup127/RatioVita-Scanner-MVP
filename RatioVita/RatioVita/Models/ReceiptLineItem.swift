@@ -26,6 +26,8 @@ final class ReceiptLineItem {
     var allocatedProductionProject: ProductionProject?
     /// When true, line is personal / non-business (remainder waterfall default).
     var allocationIsPersonal: Bool
+    /// Gemini / heuristic ledger suggestion (`SovereignLedger.rawValue`).
+    var suggestedLedgerRaw: String?
 
     var receipt: Receipt?
 
@@ -44,6 +46,7 @@ final class ReceiptLineItem {
         allocatedBusinessEntity: BusinessEntity? = nil,
         allocatedProductionProject: ProductionProject? = nil,
         allocationIsPersonal: Bool = false,
+        suggestedLedgerRaw: String? = nil,
         receipt: Receipt? = nil
     ) {
         self.id = id
@@ -60,6 +63,7 @@ final class ReceiptLineItem {
         self.allocatedBusinessEntity = allocatedBusinessEntity
         self.allocatedProductionProject = allocatedProductionProject
         self.allocationIsPersonal = allocationIsPersonal
+        self.suggestedLedgerRaw = suggestedLedgerRaw
         self.receipt = receipt
     }
 }

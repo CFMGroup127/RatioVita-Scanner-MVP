@@ -23,7 +23,8 @@ enum ReceiptScanPipeline {
     static func processImported(
         image: RVImage,
         ocrEnabled: Bool,
-        compressionEnabled: Bool
+        compressionEnabled: Bool,
+        captureLedgerContext: SovereignLedger? = nil
     ) async throws -> ScanResult {
         let normalized = ReceiptImageRasterOps.prepareForPersistence(image) ?? image
         let oriented = VisionReceiptOrientation.autoCorrectReceiptOrientation(image: normalized, ocrEnabled: ocrEnabled)
@@ -81,7 +82,8 @@ enum ReceiptScanPipeline {
         return ScanResult(
             scannedPages: [scannedPage],
             extractedData: extractedData,
-            processingMetadata: processingMetadata
+            processingMetadata: processingMetadata,
+            captureLedgerContextRaw: captureLedgerContext?.rawValue
         )
     }
 
@@ -90,14 +92,16 @@ enum ReceiptScanPipeline {
     static func processImportedImages(
         images: [RVImage],
         ocrEnabled: Bool,
-        compressionEnabled: Bool
+        compressionEnabled: Bool,
+        captureLedgerContext: SovereignLedger? = nil
     ) async throws -> ScanResult {
         guard !images.isEmpty else { throw ScannerError.invalidImage }
         if images.count == 1 {
             return try await processImported(
                 image: images[0],
                 ocrEnabled: ocrEnabled,
-                compressionEnabled: compressionEnabled
+                compressionEnabled: compressionEnabled,
+                captureLedgerContext: captureLedgerContext
             )
         }
 
@@ -114,7 +118,8 @@ enum ReceiptScanPipeline {
         return mergedScanResult(
             fromPages: scannedPages,
             ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled
+            compressionEnabled: compressionEnabled,
+            captureLedgerContext: captureLedgerContext
         )
     }
 
@@ -122,7 +127,8 @@ enum ReceiptScanPipeline {
     static func processImportedImageURLs(
         urls: [URL],
         ocrEnabled: Bool,
-        compressionEnabled: Bool
+        compressionEnabled: Bool,
+        captureLedgerContext: SovereignLedger? = nil
     ) async throws -> ScanResult {
         guard !urls.isEmpty else { throw ScannerError.invalidImage }
         if urls.count == 1 {
@@ -130,7 +136,8 @@ enum ReceiptScanPipeline {
             return try await processImported(
                 image: image,
                 ocrEnabled: ocrEnabled,
-                compressionEnabled: compressionEnabled
+                compressionEnabled: compressionEnabled,
+                captureLedgerContext: captureLedgerContext
             )
         }
 
@@ -143,7 +150,8 @@ enum ReceiptScanPipeline {
         return mergedScanResult(
             fromPages: scannedPages,
             ocrEnabled: ocrEnabled,
-            compressionEnabled: compressionEnabled
+            compressionEnabled: compressionEnabled,
+            captureLedgerContext: captureLedgerContext
         )
     }
 
@@ -295,7 +303,8 @@ enum ReceiptScanPipeline {
     static func mergedScanResult(
         fromPages pages: [ScannedPage],
         ocrEnabled: Bool,
-        compressionEnabled: Bool
+        compressionEnabled: Bool,
+        captureLedgerContext: SovereignLedger? = nil
     ) -> ScanResult {
         let renumbered = pages.enumerated().map { idx, page in
             ScannedPage(
@@ -339,7 +348,8 @@ enum ReceiptScanPipeline {
         return ScanResult(
             scannedPages: renumbered,
             extractedData: extractedData,
-            processingMetadata: processingMetadata
+            processingMetadata: processingMetadata,
+            captureLedgerContextRaw: captureLedgerContext?.rawValue
         )
     }
 

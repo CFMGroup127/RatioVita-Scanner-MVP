@@ -29,7 +29,8 @@ enum ReceiptStructuredExtractor {
     static func extractMerged(
         combinedOCRText: String,
         heuristic: ExtractedData,
-        registryEntityLegalNames: [String] = []
+        registryEntityLegalNames: [String] = [],
+        activeLedger: SovereignLedger? = nil
     ) async -> (merged: ExtractedData, source: String) {
         let (apiKey, enabled, modelId) = await MainActor.run {
             (
@@ -73,7 +74,8 @@ enum ReceiptStructuredExtractor {
             let payload = try await GeminiReceiptExtractionService.extractReceiptPayload(
                 combinedOCRText: combinedOCRText,
                 apiKey: apiKey,
-                modelId: modelId
+                modelId: modelId,
+                activeLedger: activeLedger
             )
             let fromLLM = Self.mapPayloadToExtractedData(payload)
             let merged = fromLLM.fillingGaps(with: heuristic)
@@ -174,7 +176,11 @@ enum ReceiptStructuredExtractor {
             totalConfidence: merged.totalConfidence,
             dateConfidence: merged.dateConfidence,
             documentKind: kind,
-            workTimeEntries: merged.workTimeEntries
+            workTimeEntries: merged.workTimeEntries,
+            chequeNumber: merged.chequeNumber,
+            internalInvoiceNumber: merged.internalInvoiceNumber,
+            clientAccountingToken: merged.clientAccountingToken,
+            entityConfidenceScore: merged.entityConfidenceScore
         )
     }
 
@@ -189,7 +195,8 @@ enum ReceiptStructuredExtractor {
                     unitPrice: decimal(from: line.unitPrice),
                     totalPrice: decimal(from: line.totalPrice),
                     serialNumber: line.serialNumber,
-                    confidence: nil
+                    confidence: nil,
+                    suggestedLedgerRaw: SovereignLedger.fromSuggestedCategory(line.suggestedCategory)?.rawValue
                 )
             }
         }()
@@ -230,7 +237,8 @@ enum ReceiptStructuredExtractor {
             workTimeEntries: workTimeEntries,
             chequeNumber: nonEmptyTrimmed(p.chequeNumber),
             internalInvoiceNumber: nonEmptyTrimmed(p.internalInvoiceNumber),
-            clientAccountingToken: nonEmptyTrimmed(p.clientAccountingToken)
+            clientAccountingToken: nonEmptyTrimmed(p.clientAccountingToken),
+            entityConfidenceScore: p.entityConfidenceScore
         )
     }
 

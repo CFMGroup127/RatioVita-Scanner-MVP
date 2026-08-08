@@ -303,9 +303,17 @@ struct ReceiptItemAllocationView: View {
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.green.opacity(0.2)))
         } else {
-            Text("Unallocated")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            if let suggested = SovereignLedger.fromStored(line.suggestedLedgerRaw) {
+                Text("Suggested: \(suggested.displayName)")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.orange.opacity(0.2)))
+            } else {
+                Text("Unallocated")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 

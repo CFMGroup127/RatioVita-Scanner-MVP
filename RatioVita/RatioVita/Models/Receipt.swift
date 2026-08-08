@@ -91,6 +91,19 @@ final class Receipt {
     /// Set when every line item (or whole receipt) has been routed to a hub.
     var crossEntityTriagedAt: Date?
 
+    /// Ledger bucket this receipt was filed into (`SovereignLedger.rawValue`).
+    var ledgerTypeRaw: String?
+    /// Hub active when the receipt was captured / imported.
+    var captureLedgerContextRaw: String?
+    /// Model- or heuristic-suggested ledger when it differs from capture context.
+    var suggestedLedgerRaw: String?
+    /// Confidence for auto-routing (0…1).
+    var entityConfidenceScore: Double?
+    /// Display tag (PUID, PO, venture id fragment).
+    var entityTag: String?
+    /// Line items span multiple ledgers — user must split before filing.
+    var needsSplit: Bool = false
+
     @Relationship(deleteRule: .cascade, inverse: \ReceiptImage.receipt) var images: [ReceiptImage]
     @Relationship(deleteRule: .cascade, inverse: \ReceiptLineItem.receipt) var lineItems: [ReceiptLineItem]
     /// When the receipt is removed, keep `WorkSession` rows but clear `receipt` so time-report data is not silently
@@ -228,6 +241,12 @@ final class Receipt {
         sourceSecureInboxID: String? = nil,
         sourceSecureInboxEmail: String? = nil,
         crossEntityTriagedAt: Date? = nil,
+        ledgerTypeRaw: String? = nil,
+        captureLedgerContextRaw: String? = nil,
+        suggestedLedgerRaw: String? = nil,
+        entityConfidenceScore: Double? = nil,
+        entityTag: String? = nil,
+        needsSplit: Bool = false,
         trashedAt: Date? = nil
     ) {
         self.id = id
@@ -292,6 +311,12 @@ final class Receipt {
         self.sourceSecureInboxID = sourceSecureInboxID
         self.sourceSecureInboxEmail = sourceSecureInboxEmail
         self.crossEntityTriagedAt = crossEntityTriagedAt
+        self.ledgerTypeRaw = ledgerTypeRaw
+        self.captureLedgerContextRaw = captureLedgerContextRaw
+        self.suggestedLedgerRaw = suggestedLedgerRaw
+        self.entityConfidenceScore = entityConfidenceScore
+        self.entityTag = entityTag
+        self.needsSplit = needsSplit
         self.trashedAt = trashedAt
     }
 

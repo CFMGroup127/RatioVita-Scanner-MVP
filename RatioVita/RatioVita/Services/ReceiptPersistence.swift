@@ -58,6 +58,7 @@ enum ReceiptPersistence {
     ) async throws {
         let ocr = result.combinedOCRText
         let registryEntityNames = fetchPolarityEntityLegalNames(context: context)
+        let scanContext = resolveScanContext(from: result, context: context)
         let apiKeyPresent = !GeminiAPIKeyResolver.resolveAPIKeyTrimmed().isEmpty
         let geminiOn = GeminiAPIKeyResolver.isGeminiExtractionEnabled()
         let useQuickHeuristicOnly = deferGeminiRefinement && scannedViaCamera && geminiOn && apiKeyPresent
@@ -75,7 +76,8 @@ enum ReceiptPersistence {
             (merged, source) = await ReceiptStructuredExtractor.extractMerged(
                 combinedOCRText: ocr,
                 heuristic: result.extractedData,
-                registryEntityLegalNames: registryEntityNames
+                registryEntityLegalNames: registryEntityNames,
+                activeLedger: scanContext.activeLedger
             )
         }
 
@@ -176,12 +178,21 @@ enum ReceiptPersistence {
                     unitPrice: li.unitPrice,
                     totalPrice: li.totalPrice,
                     serialNumber: li.serialNumber,
+                    suggestedLedgerRaw: li.suggestedLedgerRaw,
                     receipt: receipt
                 )
                 persistedLines.append(row)
             }
         }
         receipt.lineItems = persistedLines
+
+        ContextualLedgerRouter.apply(
+            to: receipt,
+            merged: merged,
+            combinedOCR: ocr,
+            scanContext: scanContext,
+            modelContext: context
+        )
 
         if let p = vaultPathPrefix?.trimmingCharacters(in: .whitespacesAndNewlines), !p.isEmpty {
             receipt.vaultPathPrefix = p.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -314,6 +325,7 @@ enum ReceiptPersistence {
                     unitPrice: li.unitPrice,
                     totalPrice: li.totalPrice,
                     serialNumber: li.serialNumber,
+                    suggestedLedgerRaw: li.suggestedLedgerRaw,
                     receipt: receipt
                 )
                 persistedLines.append(row)
@@ -321,8 +333,17 @@ enum ReceiptPersistence {
         }
         receipt.lineItems = persistedLines
 
-        try attachWorkRecordsFromExtractedData(merged, receipt: receipt, context: context)
         let ocr = receipt.images.compactMap(\.ocrText).joined(separator: "\n\n")
+        let scanContext = resolveScanContext(from: receipt)
+        ContextualLedgerRouter.apply(
+            to: receipt,
+            merged: merged,
+            combinedOCR: ocr,
+            scanContext: scanContext,
+            modelContext: context
+        )
+
+        try attachWorkRecordsFromExtractedData(merged, receipt: receipt, context: context)
         try ShadowRegistryService.applyForensicAssociations(
             receipt: receipt,
             merged: merged,
@@ -363,6 +384,33 @@ enum ReceiptPersistence {
         if trimmed.isEmpty { return tag }
         if trimmed.localizedCaseInsensitiveContains("manual review required") { return trimmed }
         return "\(trimmed)\n\n\(tag)"
+    }
+
+    /// Freezes hub context from scan result when present; otherwise uses the current sovereign hub.
+    private static func resolveScanContext(
+        from result: ScanResult,
+        context: ModelContext
+    ) -> ContextualLedgerRouter.ScanContext {
+        let current = ContextualLedgerRouter.ScanContext.current(modelContext: context)
+        guard let raw = result.captureLedgerContextRaw,
+              let frozen = SovereignLedger.fromStored(raw) else { return current }
+        return ContextualLedgerRouter.ScanContext(
+            activeLedger: frozen,
+            productionPUID: current.productionPUID,
+            ventureEntityID: current.ventureEntityID
+        )
+    }
+
+    /// Re-routes after Gemini refinement using capture context stored on the receipt.
+    private static func resolveScanContext(from receipt: Receipt) -> ContextualLedgerRouter.ScanContext {
+        let frozen = SovereignLedger.fromStored(receipt.captureLedgerContextRaw)
+            ?? SovereignLedger(hub: SovereignContextManager.shared.activeHub)
+        let puid: String? = receipt.productionProject?.sovereignPUID
+        return ContextualLedgerRouter.ScanContext(
+            activeLedger: frozen,
+            productionPUID: puid,
+            ventureEntityID: SovereignContextManager.shared.activeVentureEntityID
+        )
     }
 
     private static func applyTaxCategoryHeuristics(receipt: Receipt, merged: ExtractedData, ocr: String) {

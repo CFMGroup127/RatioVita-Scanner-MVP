@@ -52,6 +52,8 @@ struct ExtractedData {
     let chequeNumber: String?
     let internalInvoiceNumber: String?
     let clientAccountingToken: String?
+    /// Gemini routing confidence (0…1) when returned.
+    let entityConfidenceScore: Double?
 
     init(
         merchant: String? = nil,
@@ -78,7 +80,8 @@ struct ExtractedData {
         workTimeEntries: [ExtractedWorkTime]? = nil,
         chequeNumber: String? = nil,
         internalInvoiceNumber: String? = nil,
-        clientAccountingToken: String? = nil
+        clientAccountingToken: String? = nil,
+        entityConfidenceScore: Double? = nil
     ) {
         self.merchant = merchant
         self.payee = payee
@@ -105,6 +108,7 @@ struct ExtractedData {
         self.chequeNumber = chequeNumber
         self.internalInvoiceNumber = internalInvoiceNumber
         self.clientAccountingToken = clientAccountingToken
+        self.entityConfidenceScore = entityConfidenceScore
     }
 
     /// Prefer non-empty values from this value (e.g. **Gemini**), then fill from `fallback` (e.g. on-device
@@ -153,7 +157,8 @@ struct ExtractedData {
             workTimeEntries: mergedWorkTimes,
             chequeNumber: chequeNumber ?? fallback.chequeNumber,
             internalInvoiceNumber: internalInvoiceNumber ?? fallback.internalInvoiceNumber,
-            clientAccountingToken: clientAccountingToken ?? fallback.clientAccountingToken
+            clientAccountingToken: clientAccountingToken ?? fallback.clientAccountingToken,
+            entityConfidenceScore: entityConfidenceScore ?? fallback.entityConfidenceScore
         )
     }
 
@@ -205,7 +210,8 @@ struct ExtractedData {
             workTimeEntries: workTimeEntries,
             chequeNumber: chequeNumber,
             internalInvoiceNumber: internalInvoiceNumber,
-            clientAccountingToken: clientAccountingToken
+            clientAccountingToken: clientAccountingToken,
+            entityConfidenceScore: entityConfidenceScore
         )
     }
 }

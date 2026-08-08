@@ -1454,6 +1454,22 @@ struct EditReceiptView: View {
     @State private var lastCRMLookupMerchant = ""
     @State private var chequeReparseMessage: String?
     @State private var chequeReparseIsError = false
+    @State private var showExpandSplit = false
+
+    private var showsLedgerRoutingSection: Bool {
+        receipt.needsSplit
+            || receipt.requiresCrossEntityTriage
+            || receipt.entityTag?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            || SovereignLedger.fromStored(receipt.ledgerTypeRaw) != nil
+    }
+
+    private var assignedLedgerLabel: String? {
+        SovereignLedger.fromStored(receipt.ledgerTypeRaw)?.displayName
+    }
+
+    private var captureLedgerLabel: String? {
+        SovereignLedger.fromStored(receipt.captureLedgerContextRaw)?.displayName
+    }
 
     private var showsChequeStubReparse: Bool {
         combinedOCRText.trimmingCharacters(in: .whitespacesAndNewlines).count >= 60
@@ -1525,6 +1541,9 @@ struct EditReceiptView: View {
         .onAppear {
             syncFromReceipt()
             onPersistHandlerReady? { persistEditsAndFollowUp() }
+            if receipt.needsSplit || receipt.requiresCrossEntityTriage {
+                showExpandSplit = true
+            }
         }
         .task(id: receipt.persistentModelID) {
             syncFromReceipt()
@@ -1586,6 +1605,51 @@ struct EditReceiptView: View {
                 #endif
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
+            }
+
+            if showsLedgerRoutingSection {
+                Section {
+                    if let tag = receipt.entityTag?.trimmingCharacters(in: .whitespacesAndNewlines), !tag.isEmpty {
+                        LabeledContent("Entity tag") {
+                            Text(tag)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let assigned = assignedLedgerLabel {
+                        LabeledContent("Filed ledger") {
+                            Text(assigned)
+                        }
+                    }
+                    if let capture = captureLedgerLabel {
+                        LabeledContent("Capture hub") {
+                            Text(capture)
+                        }
+                    }
+                    if receipt.needsSplit {
+                        Label("Split Receipt", systemImage: "scissors")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    }
+                    if receipt.requiresCrossEntityTriage, receipt.crossEntityTriagedAt == nil {
+                        Label("Verify ledger routing", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    if !receipt.lineItems.isEmpty, receipt.needsSplit || receipt.requiresCrossEntityTriage {
+                        DisclosureGroup("Expand Split", isExpanded: $showExpandSplit) {
+                            ReceiptItemAllocationView(receipt: receipt, isLocked: false)
+                                .padding(.vertical, 4)
+                        }
+                    }
+                } header: {
+                    Text("Ledger routing")
+                } footer: {
+                    if receipt.needsSplit {
+                        Text("Line items span multiple ledgers. Assign each row to Personal, Venture, or Production.")
+                            .font(DesignSystem.Typography.caption2)
+                    }
+                }
             }
 
             if showsFullOCRInEditColumn {

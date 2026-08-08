@@ -34,10 +34,21 @@ enum ReceiptGeminiBackgroundRefinement {
             let ctx = ModelContext(container)
             return ReceiptPersistence.fetchPolarityEntityLegalNames(context: ctx)
         }
+        let activeLedger = await MainActor.run { () -> SovereignLedger? in
+            let ctx = ModelContext(container)
+            let fd = FetchDescriptor<Receipt>(predicate: #Predicate { $0.id == receiptID })
+            if let receipt = try? ctx.fetch(fd).first,
+               let frozen = SovereignLedger.fromStored(receipt.captureLedgerContextRaw)
+            {
+                return frozen
+            }
+            return SovereignContextManager.shared.activeLedger
+        }
         let (merged, source) = await ReceiptStructuredExtractor.extractMerged(
             combinedOCRText: combinedOCRText,
             heuristic: heuristic,
-            registryEntityLegalNames: entityNames
+            registryEntityLegalNames: entityNames,
+            activeLedger: activeLedger
         )
 
         await MainActor.run {
