@@ -35,6 +35,7 @@ struct LiveCameraMultiPageCaptureView: View {
                     scanner: liveScanner,
                     sessionReady: isPreviewSessionReady
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
 
                 VStack {
@@ -252,6 +253,8 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
         uiViewController.scanner = scanner
         uiViewController.sessionReady = sessionReady
         uiViewController.syncPreviewIfNeeded()
+        uiViewController.view.setNeedsLayout()
+        uiViewController.view.layoutIfNeeded()
     }
 }
 
@@ -268,6 +271,13 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        previewHost.updatePreviewFrame()
+        syncPreviewIfNeeded()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        previewHost.updatePreviewFrame()
         syncPreviewIfNeeded()
     }
 
@@ -278,6 +288,7 @@ final class LiveCameraPreviewViewController: UIViewController {
         }
         guard let session = scanner?.avCaptureSessionForPreview() else { return }
         previewHost.bindCaptureSession(session)
+        previewHost.updatePreviewFrame()
     }
 }
 
@@ -299,11 +310,18 @@ final class CameraPreviewRootView: UIView {
             previewLayer.session = session
         }
         previewLayer.connection?.isEnabled = session != nil
+        updatePreviewFrame()
+    }
+
+    /// Keeps the root preview layer sized to the host view (avoids a zero-frame black viewfinder).
+    func updatePreviewFrame() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        previewLayer.frame = bounds
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        previewLayer.frame = bounds
+        updatePreviewFrame()
     }
 }
 
@@ -531,6 +549,8 @@ private struct ReceiptLiveCameraPreviewRepresentableMac: NSViewControllerReprese
         controller.scanner = scanner
         controller.sessionReady = sessionReady
         controller.syncPreviewIfNeeded()
+        controller.view.needsLayout = true
+        controller.view.layoutSubtreeIfNeeded()
     }
 }
 
@@ -546,6 +566,13 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
 
     override func viewDidLayout() {
         super.viewDidLayout()
+        previewHost.updatePreviewFrame()
+        syncPreviewIfNeeded()
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        previewHost.updatePreviewFrame()
         syncPreviewIfNeeded()
     }
 
@@ -556,6 +583,7 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
         }
         guard let session = scanner?.avCaptureSessionForPreview() else { return }
         previewHost.bindCaptureSession(session)
+        previewHost.updatePreviewFrame()
     }
 }
 
@@ -596,12 +624,17 @@ final class MacCameraPreviewRootView: NSView {
             layer.session = session
         }
         layer.connection?.isEnabled = true
-        layer.frame = bounds
+        updatePreviewFrame()
+    }
+
+    func updatePreviewFrame() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        previewLayer?.frame = bounds
     }
 
     override func layout() {
         super.layout()
-        previewLayer?.frame = bounds
+        updatePreviewFrame()
     }
 }
 #endif
