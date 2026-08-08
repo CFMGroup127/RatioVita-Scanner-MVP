@@ -15,13 +15,27 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
     let photoOutput = AVCapturePhotoOutput()
     let metadataOutput = AVCaptureMetadataOutput()
     private let sessionQueue = DispatchQueue(label: "com.ratiovita.intelligent.capture")
+    private let frameProcessingQueue = DispatchQueue(
+        label: "com.ratiovita.intelligent.frames",
+        qos: .userInitiated
+    )
     private var videoDevice: AVCaptureDevice?
 
-    func configure(completion: @escaping @Sendable (String?) -> Void) {
+    func configure(
+        includesVideoFrameOutput: Bool,
+        completion: @escaping @Sendable (String?) -> Void
+    ) {
         sessionQueue.async {
             var configError: String?
             self.avSession.beginConfiguration()
             defer { self.avSession.commitConfiguration() }
+
+            for output in self.avSession.outputs {
+                self.avSession.removeOutput(output)
+            }
+            for input in self.avSession.inputs {
+                self.avSession.removeInput(input)
+            }
 
             guard let device = AVCaptureDevice.default(for: .video),
                   let input = try? AVCaptureDeviceInput(device: device) else
@@ -31,12 +45,20 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
                 return
             }
             self.videoDevice = device
-            if self.avSession.canAddInput(input) { self.avSession.addInput(input) }
-
-            self.videoOutput.alwaysDiscardsLateVideoFrames = true
-            if self.avSession.canAddOutput(self.videoOutput) {
-                self.avSession.addOutput(self.videoOutput)
+            if self.avSession.canAddInput(input) {
+                self.avSession.addInput(input)
             }
+
+            if includesVideoFrameOutput {
+                // Never assign videoOutput.videoSettings — custom pixel-format keys trigger
+                // kCMFormatDescriptionError_InvalidParameter (-12710) on many devices.
+                self.videoOutput.setSampleBufferDelegate(nil, queue: nil)
+                self.videoOutput.alwaysDiscardsLateVideoFrames = true
+                if self.avSession.canAddOutput(self.videoOutput) {
+                    self.avSession.addOutput(self.videoOutput)
+                }
+            }
+
             if self.avSession.canAddOutput(self.photoOutput) {
                 self.avSession.addOutput(self.photoOutput)
             }
@@ -50,12 +72,9 @@ private final class IntelligentOpticalCaptureSession: NSObject, @unchecked Senda
         }
     }
 
-    func setVideoDelegate(_ delegate: AVCaptureVideoDataOutputSampleBufferDelegate) {
+    func setVideoDelegate(_ delegate: AVCaptureVideoDataOutputSampleBufferDelegate?) {
         sessionQueue.async {
-            self.videoOutput.setSampleBufferDelegate(
-                delegate,
-                queue: DispatchQueue(label: "com.ratiovita.intelligent.frames")
-            )
+            self.videoOutput.setSampleBufferDelegate(delegate, queue: self.frameProcessingQueue)
         }
     }
 
@@ -134,14 +153,15 @@ final class IntelligentDocumentScannerModel: NSObject, ObservableObject {
                 )
             }
         }
-        capture.configure { [weak self] error in
+        capture.configure(includesVideoFrameOutput: mode == .intelligentDocument) { [weak self] error in
             Task { @MainActor [weak self] in
-                await self?.applyConfigure(error: error)
+                await self?.applyConfigure(error: error, mode: mode)
             }
         }
     }
 
     func stop() {
+        capture.setVideoDelegate(nil)
         capture.stopRunning { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isRunning = false
@@ -155,12 +175,16 @@ final class IntelligentDocumentScannerModel: NSObject, ObservableObject {
         capture.capturePhoto(delegate: self)
     }
 
-    private func applyConfigure(error: String?) async {
+    private func applyConfigure(error: String?, mode: ScanSurfaceMode) async {
         if let error {
             errorMessage = error
             return
         }
-        capture.setVideoDelegate(frameProcessor)
+        if mode == .intelligentDocument {
+            capture.setVideoDelegate(frameProcessor)
+        } else {
+            capture.setVideoDelegate(nil)
+        }
         capture.setMetadataDelegate(self)
         capture.startRunning { [weak self] in
             Task { @MainActor [weak self] in
