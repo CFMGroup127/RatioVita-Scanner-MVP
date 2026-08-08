@@ -40,6 +40,12 @@ struct DetectedDocumentBounds: Identifiable, Sendable {
 
 /// Frame-by-frame rectangle detection + stability scoring (Sprint ZZZ).
 final class IntelligentVisionEngine: @unchecked Sendable {
+    /// `CMSampleBuffer` is not `Sendable`; this box is safe because analysis always runs on `visionQueue`.
+    private struct VisionSamplePayload: @unchecked Sendable {
+        let sampleBuffer: CMSampleBuffer
+        let orientation: CGImagePropertyOrientation
+    }
+
     private let sequenceHandler = VNSequenceRequestHandler()
     private let visionQueue = DispatchQueue(label: "com.ratiovita.intelligent.vision", qos: .userInitiated)
     private var stableFrameCount = 0
@@ -59,8 +65,9 @@ final class IntelligentVisionEngine: @unchecked Sendable {
     }
 
     nonisolated func process(sampleBuffer: CMSampleBuffer, orientation: CGImagePropertyOrientation) {
-        visionQueue.async {
-            self.analyze(sampleBuffer: sampleBuffer, orientation: orientation)
+        let payload = VisionSamplePayload(sampleBuffer: sampleBuffer, orientation: orientation)
+        visionQueue.async { [self] in
+            analyze(sampleBuffer: payload.sampleBuffer, orientation: payload.orientation)
         }
     }
 
