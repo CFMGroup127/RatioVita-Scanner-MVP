@@ -252,8 +252,6 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
         uiViewController.scanner = scanner
         uiViewController.sessionReady = sessionReady
         uiViewController.syncPreviewIfNeeded()
-        uiViewController.view.setNeedsLayout()
-        uiViewController.view.layoutIfNeeded()
     }
 }
 
@@ -270,9 +268,10 @@ final class LiveCameraPreviewViewController: UIViewController {
         view.backgroundColor = .black
     }
 
+    private var isBindingPreview = false
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        syncPreviewIfNeeded()
         #if DEBUG
         logPreviewDiagnostics()
         #endif
@@ -284,6 +283,10 @@ final class LiveCameraPreviewViewController: UIViewController {
     }
 
     func syncPreviewIfNeeded() {
+        guard !isBindingPreview else { return }
+        isBindingPreview = true
+        defer { isBindingPreview = false }
+
         guard sessionReady else {
             previewHost.detachPreviewLayer()
             return
@@ -294,9 +297,6 @@ final class LiveCameraPreviewViewController: UIViewController {
         } else if let session = scanner?.avCaptureSessionForPreview() {
             previewHost.bindCaptureSession(session)
         }
-
-        previewHost.setNeedsLayout()
-        previewHost.layoutIfNeeded()
     }
 
     #if DEBUG
@@ -636,8 +636,6 @@ private struct ReceiptLiveCameraPreviewRepresentableMac: NSViewControllerReprese
         controller.scanner = scanner
         controller.sessionReady = sessionReady
         controller.syncPreviewIfNeeded()
-        controller.view.needsLayout = true
-        controller.view.layoutSubtreeIfNeeded()
     }
 }
 
@@ -651,19 +649,22 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
         view = previewHost
     }
 
+    private var isBindingPreview = false
+
     override func viewDidLayout() {
         super.viewDidLayout()
-        previewHost.updatePreviewFrame()
-        syncPreviewIfNeeded()
     }
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        previewHost.updatePreviewFrame()
         syncPreviewIfNeeded()
     }
 
     func syncPreviewIfNeeded() {
+        guard !isBindingPreview else { return }
+        isBindingPreview = true
+        defer { isBindingPreview = false }
+
         guard sessionReady else {
             previewHost.detachPreviewLayer()
             return
@@ -674,9 +675,6 @@ final class LiveCameraPreviewViewControllerMac: NSViewController {
         } else if let session = scanner?.avCaptureSessionForPreview() {
             previewHost.bindCaptureSession(session)
         }
-
-        previewHost.needsLayout = true
-        previewHost.layoutSubtreeIfNeeded()
     }
 }
 
