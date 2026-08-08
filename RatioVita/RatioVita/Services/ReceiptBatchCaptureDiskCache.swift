@@ -46,11 +46,32 @@ enum ReceiptBatchCaptureDiskCache {
             isDirectory: false
         )
 
-        let pageData = encodeJPEG(normalized, quality: pageJPEGQuality)
+        let pageData: Data
+        #if canImport(UIKit) && canImport(AVFoundation)
+        if let encoded = LiveMultiPageCaptureImagePrep.jpegDataForDisk(from: normalized, quality: pageJPEGQuality) {
+            pageData = encoded
+        } else {
+            pageData = encodeJPEG(normalized, quality: pageJPEGQuality)
+        }
+        #else
+        pageData = encodeJPEG(normalized, quality: pageJPEGQuality)
+        #endif
         guard !pageData.isEmpty else { throw ReceiptBatchCaptureError.emptyJPEGData }
         try pageData.write(to: pageURL, options: .atomic)
 
-        let thumbData = encodeJPEG(thumbRaster, quality: thumbnailJPEGQuality)
+        let thumbData: Data
+        #if canImport(UIKit) && canImport(AVFoundation)
+        if let encoded = LiveMultiPageCaptureImagePrep.jpegDataForDisk(
+            from: thumbRaster,
+            quality: thumbnailJPEGQuality
+        ) {
+            thumbData = encoded
+        } else {
+            thumbData = encodeJPEG(thumbRaster, quality: thumbnailJPEGQuality)
+        }
+        #else
+        thumbData = encodeJPEG(thumbRaster, quality: thumbnailJPEGQuality)
+        #endif
         if !thumbData.isEmpty {
             try thumbData.write(to: thumbURL, options: .atomic)
         } else {

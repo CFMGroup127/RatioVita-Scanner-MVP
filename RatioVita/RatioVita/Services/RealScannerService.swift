@@ -382,18 +382,22 @@ class RealScannerService: NSObject, ScannerService {
     }
     
     private func captureImage() async throws -> UIImage {
-        guard let photoOutput else {
+        guard let photoOutput, let captureSession else {
+            throw ScannerError.captureFailed
+        }
+        guard captureSession.isRunning else {
             throw ScannerError.captureFailed
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let settings = AVCapturePhotoSettings()
-            #if os(iOS) || os(visionOS)
+        let settings = Self.makeLivePhotoSettings(for: photoOutput)
+        #if os(iOS) || os(visionOS)
+        if photoOutput.supportedFlashModes.contains(.auto) {
             settings.flashMode = .auto
-            #endif
+        }
+        #endif
 
-            // Retain the delegate until we resume the continuation
-            self.currentPhotoDelegate = PhotoCaptureDelegate { image in
+        return try await withCheckedThrowingContinuation { continuation in
+            let delegate = PhotoCaptureDelegate { image in
                 Task { @MainActor in
                     self.currentPhotoDelegate = nil
                 }
@@ -404,13 +408,20 @@ class RealScannerService: NSObject, ScannerService {
                 }
                 continuation.resume(throwing: error)
             }
-            
-            if let delegate = self.currentPhotoDelegate {
-                photoOutput.capturePhoto(with: settings, delegate: delegate)
-            } else {
-                continuation.resume(throwing: ScannerError.captureFailed)
+
+            currentPhotoDelegate = delegate
+            let output = photoOutput
+            sessionQueue.async {
+                output.capturePhoto(with: settings, delegate: delegate)
             }
         }
+    }
+
+    private static func makeLivePhotoSettings(for photoOutput: AVCapturePhotoOutput) -> AVCapturePhotoSettings {
+        if photoOutput.availablePhotoCodecTypes.contains(.jpeg) {
+            return AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+        }
+        return AVCapturePhotoSettings()
     }
     
     private func processImage(_ image: UIImage, compressionEnabled _: Bool) async throws -> UIImage {
@@ -509,14 +520,18 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     
     func photoOutput(_: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error {
+            #if DEBUG
+            print("RatioVita capture: photo processing error: \(error)")
+            #endif
             onError(error)
             return
         }
 
         autoreleasepool {
-            guard let imageData = photo.fileDataRepresentation(),
-                  let image = UIImage.rv_decodedNormalizingEXIFOrientation(from: imageData) else
-            {
+            guard let image = LiveMultiPageCaptureImagePrep.rasterFromCapturePhoto(photo) else {
+                #if DEBUG
+                print("RatioVita capture: failed to decode photo raster (no file data or CGImage)")
+                #endif
                 onError(ScannerError.invalidImage)
                 return
             }
