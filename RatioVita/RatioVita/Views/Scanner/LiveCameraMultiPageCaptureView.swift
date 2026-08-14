@@ -28,13 +28,15 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var isPreviewSessionReady = false
     @State private var captureSessionOpened = false
     @State private var disappearTeardownTask: Task<Void, Never>?
+    @State private var liveDocumentBounds: DocumentRectangleBounds?
 
     var body: some View {
         NavigationStack {
             ZStack {
                 ReceiptLiveCameraPreviewRepresentable(
                     scanner: liveScanner,
-                    sessionReady: isPreviewSessionReady
+                    sessionReady: isPreviewSessionReady,
+                    documentBounds: liveDocumentBounds
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
@@ -170,6 +172,8 @@ struct LiveCameraMultiPageCaptureView: View {
         disappearTeardownTask?.cancel()
         disappearTeardownTask = nil
         isPreviewSessionReady = false
+        liveScanner.setLiveDocumentBoundsHandler(nil)
+        liveDocumentBounds = nil
         if clearBatch {
             batch.endSession(deleteFiles: true)
         }
@@ -185,6 +189,9 @@ struct LiveCameraMultiPageCaptureView: View {
         defer { isPreparing = false }
         do {
             try batch.beginSession()
+            liveScanner.setLiveDocumentBoundsHandler { bounds in
+                liveDocumentBounds = bounds
+            }
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
         } catch {
@@ -256,11 +263,13 @@ private struct ReceiptBatchThumbnailView: View {
 private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresentable {
     let scanner: any LiveMultiPageCameraScanning
     var sessionReady: Bool
+    var documentBounds: DocumentRectangleBounds?
 
     func makeUIViewController(context _: Context) -> LiveCameraPreviewViewController {
         let controller = LiveCameraPreviewViewController()
         controller.scanner = scanner
         controller.sessionReady = sessionReady
+        controller.documentBounds = documentBounds
         controller.syncPreviewIfNeeded()
         return controller
     }
@@ -269,9 +278,11 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
         uiViewController.scanner = scanner
         let readyChanged = uiViewController.sessionReady != sessionReady
         uiViewController.sessionReady = sessionReady
+        uiViewController.documentBounds = documentBounds
         if readyChanged || sessionReady {
             uiViewController.syncPreviewIfNeeded()
         }
+        uiViewController.updateDocumentOverlay()
     }
 }
 
@@ -280,6 +291,7 @@ private struct ReceiptLiveCameraPreviewRepresentable: UIViewControllerRepresenta
 final class LiveCameraPreviewViewController: UIViewController {
     var scanner: (any LiveMultiPageCameraScanning)?
     var sessionReady = false
+    var documentBounds: DocumentRectangleBounds?
 
     private let previewHost = CameraPreviewRootView()
     private var sessionStartObserver: NSObjectProtocol?
@@ -349,6 +361,11 @@ final class LiveCameraPreviewViewController: UIViewController {
         guard session.isRunning else { return }
 
         previewHost.bindCaptureSession(session)
+        updateDocumentOverlay()
+    }
+
+    func updateDocumentOverlay() {
+        previewHost.updateDocumentBounds(documentBounds, previewLayer: previewHost.attachedPreviewLayer)
     }
 
     #if DEBUG
@@ -372,17 +389,53 @@ final class LiveCameraPreviewViewController: UIViewController {
 /// Adds the preview layer as a sublayer (more reliable than `layerClass` overrides in SwiftUI hosts).
 final class CameraPreviewRootView: UIView {
     private(set) weak var attachedPreviewLayer: AVCaptureVideoPreviewLayer?
+    private let boundsOverlayLayer = CAShapeLayer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .black
         isOpaque = true
+        boundsOverlayLayer.fillColor = UIColor.systemGreen.withAlphaComponent(0.12).cgColor
+        boundsOverlayLayer.strokeColor = UIColor.systemGreen.cgColor
+        boundsOverlayLayer.lineWidth = 2.5
+        boundsOverlayLayer.lineJoin = .round
+        layer.addSublayer(boundsOverlayLayer)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         backgroundColor = .black
         isOpaque = true
+        boundsOverlayLayer.fillColor = UIColor.systemGreen.withAlphaComponent(0.12).cgColor
+        boundsOverlayLayer.strokeColor = UIColor.systemGreen.cgColor
+        boundsOverlayLayer.lineWidth = 2.5
+        boundsOverlayLayer.lineJoin = .round
+        layer.addSublayer(boundsOverlayLayer)
+    }
+
+    func updateDocumentBounds(_ bounds: DocumentRectangleBounds?, previewLayer: AVCaptureVideoPreviewLayer?) {
+        boundsOverlayLayer.frame = self.bounds
+        guard let bounds, let previewLayer, self.bounds.width > 1 else {
+            boundsOverlayLayer.path = nil
+            boundsOverlayLayer.isHidden = true
+            return
+        }
+        boundsOverlayLayer.isHidden = false
+        let path = UIBezierPath()
+        path.move(to: layerPoint(for: bounds.topLeft, previewLayer: previewLayer))
+        path.addLine(to: layerPoint(for: bounds.topRight, previewLayer: previewLayer))
+        path.addLine(to: layerPoint(for: bounds.bottomRight, previewLayer: previewLayer))
+        path.addLine(to: layerPoint(for: bounds.bottomLeft, previewLayer: previewLayer))
+        path.close()
+        boundsOverlayLayer.path = path.cgPath
+        boundsOverlayLayer.strokeColor = bounds.confidence >= 0.85
+            ? UIColor.systemGreen.cgColor
+            : UIColor.systemYellow.cgColor
+    }
+
+    private func layerPoint(for visionPoint: CGPoint, previewLayer: AVCaptureVideoPreviewLayer) -> CGPoint {
+        let devicePoint = CGPoint(x: visionPoint.x, y: 1.0 - visionPoint.y)
+        return previewLayer.layerPointConverted(fromCaptureDevicePoint: devicePoint)
     }
 
     func attachPreviewLayer(_ layer: AVCaptureVideoPreviewLayer) {
@@ -427,6 +480,7 @@ final class CameraPreviewRootView: UIView {
     private func finalizePreviewLayerLayout(_ layer: AVCaptureVideoPreviewLayer) {
         updatePreviewFrame(for: layer)
         CameraPreviewLayerConfigurator.applyConnectionIfReady(to: layer, in: self)
+        boundsOverlayLayer.frame = bounds
     }
 
     private func updatePreviewFrame(for layer: AVCaptureVideoPreviewLayer) {
@@ -440,6 +494,7 @@ final class CameraPreviewRootView: UIView {
             updatePreviewFrame(for: layer)
             CameraPreviewLayerConfigurator.applyConnectionIfReady(to: layer, in: self)
         }
+        boundsOverlayLayer.frame = bounds
     }
 }
 

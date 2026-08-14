@@ -16,7 +16,7 @@ final class ReceiptImage {
     var createdAt: Date
     
     // Stored as JPEG-encoded data for portability across platforms
-    var imageData: Data
+    @Attribute(.externalStorage) var imageData: Data
     
     // Parent relationship
     @Relationship var receipt: Receipt?

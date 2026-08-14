@@ -17,10 +17,22 @@ protocol LiveMultiPageCameraScanning: ScannerService {
     func prepareLiveCameraSession() async throws
     func captureLiveCameraPhoto() async throws -> RVImage
     func tearDownLiveCameraSession() async
+
+    /// Latest detected document frame (normalized Vision coordinates).
+    @MainActor var liveDocumentBounds: DocumentRectangleBounds? { get }
+
+    /// Receives throttled rectangle updates while the live session is active.
+    @MainActor func setLiveDocumentBoundsHandler(_ handler: (@MainActor (DocumentRectangleBounds?) -> Void)?)
 }
 
 extension ScannerService {
     var liveMultiPageCamera: (any LiveMultiPageCameraScanning)? {
         self as? any LiveMultiPageCameraScanning
     }
+}
+
+extension LiveMultiPageCameraScanning {
+    @MainActor var liveDocumentBounds: DocumentRectangleBounds? { nil }
+
+    @MainActor func setLiveDocumentBoundsHandler(_: (@MainActor (DocumentRectangleBounds?) -> Void)?) {}
 }

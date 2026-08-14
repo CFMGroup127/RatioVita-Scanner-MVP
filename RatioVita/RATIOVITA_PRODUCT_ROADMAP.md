@@ -25,7 +25,7 @@ This document tracks major product capabilities, implementation status, and plan
 | Receipts dashboard FAB (+) | ✅ Shipped | Opens live camera when available |
 | Arctic Vault folder hierarchy | ✅ Shipped | Merchant → year → month drill-down |
 | Review queue filing | ✅ Shipped | Save & Accept flow |
-| Inline receipt editing (iPhone) | ✅ Shipped | Card-based editor (avoids nested Form collapse) |
+| SwiftData image persistence | ✅ Shipped | `ReceiptImage.imageData` uses `@Attribute(.externalStorage)` to avoid `MDB_MAP_FULL` |
 | Stable back navigation from detail | ✅ Shipped | System `< Receipts` / `< Review` chevrons |
 | Settings gear on receipt detail | ✅ Removed | Settings via **More → Settings** only |
 
@@ -57,10 +57,10 @@ This document tracks major product capabilities, implementation status, and plan
 
 | Phase | Feature | Status | Framework |
 |-------|---------|--------|-----------|
-| **1** | Real-time rectangle detection overlay | 📋 Planned | `VNDetectRectanglesRequest` on video frames |
-| **1** | Live green boundary / stability snap | 📋 Planned | Map Vision coords → view overlay |
-| **2** | Perspective correction on capture | 🚧 Partial | `LiveMultiPageCaptureImagePrep` normalization exists |
-| **2** | `CIPerspectiveCorrection` from corners | 📋 Planned | Core Image warp on shutter |
+| **1** | Real-time rectangle detection overlay | ✅ Shipped | `DocumentBoundingBoxDetector` + green overlay in live camera |
+| **1** | Live green boundary / stability snap | 🚧 In progress | Overlay turns green at confidence ≥ 0.85; auto-capture planned |
+| **2** | Perspective correction on capture | ✅ Shipped | `ImagePerspectiveCorrector` + `CIPerspectiveCorrection` on shutter |
+| **2** | `CIPerspectiveCorrection` from corners | ✅ Shipped | Applied in `RealScannerService.captureLiveCameraPhoto()` |
 | **3** | Shadow removal & contrast filters | 📋 Planned | `CIColorControls`, luminance sharpen |
 | **3** | B&W / whiteboard document modes | 📋 Planned | User-selectable filter after capture |
 | **4** | Parallel batch disk staging | ✅ Shipped | `ReceiptBatchCaptureDiskCache`, thumbnail strip |
@@ -86,12 +86,23 @@ Reference apps: Genius Scan, TurboScan, Adobe Scan, Easy Expense, Apus.
 
 ## 5. Invoicing & payment receipts
 
+### Data model architecture (planned)
+
+| Model | Fields / relationships |
+|-------|------------------------|
+| **Invoice** | `invoiceNumber`, `clientName`, `issueDate`, `dueDate`, `status` (Draft/Sent/Paid/Overdue), `currencyCode`, → `InvoiceLineItem[]` |
+| **InvoiceLineItem** | description, quantity, unitPrice, taxRate |
+| **PaymentRecord** | links to Invoice; payment method (Wire/Check/EFT), settlement date, bank fees, settlement currency |
+
+### UI & workflows (planned)
+
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Outgoing invoice builder | 💡 Future | Branded PDF, line items, Net 30 terms |
-| Payment receipt generation | 💡 Future | PDF when invoice marked paid |
-| AR/AP document linking | 📋 Planned | Invoice ↔ payment reference graph |
-| Client payment links | 💡 Future | Share / email from app |
+| Professional invoice builder | 📋 Planned | Dynamic preview + line items |
+| Receipt-to-invoice bundling | 📋 Planned | Approved receipts → invoice line items in one tap |
+| Multi-currency billing | 📋 Planned | Uses `AppCurrencySettings` + per-invoice override |
+| Payment receipt PDF on paid | 📋 Planned | Auto-generate when invoice marked paid |
+| One-tap share / email | 📋 Planned | Native share sheet + mail queue |
 
 ---
 
@@ -131,7 +142,7 @@ Reference apps: Genius Scan, TurboScan, Adobe Scan, Easy Expense, Apus.
 
 | Area | Primary files |
 |------|----------------|
-| Capture | `RealScannerService.swift`, `LiveCameraMultiPageCaptureView.swift` |
+| Capture | `RealScannerService.swift`, `DocumentBoundingBoxDetector.swift`, `ImagePerspectiveCorrector.swift`, `LiveCameraMultiPageCaptureView.swift` |
 | Edit / FX | `ReceiptDetailView.swift` (`EditReceiptView`) |
 | Currency | `AppCurrencySettings.swift`, `ReceiptCurrency.swift`, `SettingsView.swift` |
 | Library filters | `ReceiptsView.swift` |
@@ -141,4 +152,5 @@ Reference apps: Genius Scan, TurboScan, Adobe Scan, Easy Expense, Apus.
 
 ## Changelog (roadmap-level)
 
+- **2026-08-14**: Vision boundary overlay, perspective correction on capture, SwiftData external storage for images, invoicing architecture mapped.
 - **2026-08-08**: Inline edit cards, default currency setting, per-receipt FX settlement fields, currency filter, navigation fixes, roadmap doc created.

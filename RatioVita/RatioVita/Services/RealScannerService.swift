@@ -18,6 +18,10 @@ class RealScannerService: NSObject, ScannerService {
 
     private var captureSession: AVCaptureSession?
     private var photoOutput: AVCapturePhotoOutput?
+    private var videoDataOutput: AVCaptureVideoDataOutput?
+    private let documentFrameProcessor = DocumentVideoFrameProcessor()
+    private var liveDocumentBoundsStorage: DocumentRectangleBounds?
+    private var liveDocumentBoundsHandler: (@MainActor (DocumentRectangleBounds?) -> Void)?
     private nonisolated let sessionQueue = DispatchQueue(
         label: "com.ratiovita.capture.session",
         qos: .userInitiated
@@ -149,6 +153,12 @@ class RealScannerService: NSObject, ScannerService {
         }
 
         isLiveMultiPageSessionActive = true
+        documentFrameProcessor.onBoundsDetected = { [weak self] bounds in
+            Task { @MainActor in
+                self?.updateLiveDocumentBounds(bounds)
+            }
+        }
+        documentFrameProcessor.setProcessingEnabled(true)
         ensureCaptureConfiguredSync()
         guard captureSession != nil, photoOutput != nil else {
             throw ScannerError.captureFailed
@@ -167,16 +177,42 @@ class RealScannerService: NSObject, ScannerService {
             throw ScannerError.captureFailed
         }
         let raw = try await captureImage()
+        let bounds = liveDocumentBoundsStorage
+        let flattened: UIImage
+        if let bounds, let corrected = ImagePerspectiveCorrector.correctPerspective(of: raw, bounds: bounds) {
+            flattened = corrected
+            #if DEBUG
+            print("RatioVita capture: applied perspective correction (confidence=\(bounds.confidence))")
+            #endif
+        } else {
+            flattened = raw
+        }
         return autoreleasepool {
-            LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(raw)
+            LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(flattened)
         }
     }
 
     func tearDownLiveCameraSession() async {
         isLiveMultiPageSessionActive = false
         currentPhotoDelegate = nil
+        documentFrameProcessor.setProcessingEnabled(false)
+        updateLiveDocumentBounds(nil)
         await stopCaptureSession()
         await releaseCaptureHardwareAfterLiveSession()
+    }
+
+    @MainActor var liveDocumentBounds: DocumentRectangleBounds? {
+        liveDocumentBoundsStorage
+    }
+
+    @MainActor func setLiveDocumentBoundsHandler(_ handler: (@MainActor (DocumentRectangleBounds?) -> Void)?) {
+        liveDocumentBoundsHandler = handler
+        handler?(liveDocumentBoundsStorage)
+    }
+
+    private func updateLiveDocumentBounds(_ bounds: DocumentRectangleBounds?) {
+        liveDocumentBoundsStorage = bounds
+        liveDocumentBoundsHandler?(bounds)
     }
 
     private func releaseCaptureHardwareAfterLiveSession() async {
@@ -198,6 +234,7 @@ class RealScannerService: NSObject, ScannerService {
         }
 
         photoOutput = nil
+        videoDataOutput = nil
         self.captureSession = nil
         isCaptureConfigured = false
     }
@@ -313,6 +350,17 @@ class RealScannerService: NSObject, ScannerService {
             return false
         }
         session.addOutput(output)
+
+        let videoOutput = AVCaptureVideoDataOutput()
+        videoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+        ]
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.setSampleBufferDelegate(documentFrameProcessor, queue: sessionQueue)
+        if session.canAddOutput(videoOutput) {
+            session.addOutput(videoOutput)
+            videoDataOutput = videoOutput
+        }
 
         // No activeFormat, sessionPreset, stabilization, or maxPhotoDimensions overrides —
         // hardware format is negotiated when startRunning() is called on sessionQueue.
