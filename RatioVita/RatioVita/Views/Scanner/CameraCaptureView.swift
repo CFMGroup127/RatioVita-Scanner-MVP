@@ -55,11 +55,14 @@ struct CameraCaptureView: View {
     /// isolation boundaries.
     let onSubmit: @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
     let onManuscriptFile: @MainActor (URL) async -> Void
+    var openFileImporterOnAppear: Bool = false
+    var openPhotoPickerOnAppear: Bool = false
 
     @State private var draftPages: [ScannedPage] = []
     @State private var errorMessage: String?
     @State private var isBusy = false
     @State private var showImporter = false
+    @State private var showPhotoPicker = false
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var showReview = false
     @State private var confirmDiscard = false
@@ -109,12 +112,16 @@ struct CameraCaptureView: View {
         scanner: any ScannerService,
         ocrEnabled: Bool,
         compressionEnabled: Bool,
+        openFileImporterOnAppear: Bool = false,
+        openPhotoPickerOnAppear: Bool = false,
         onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void,
         onManuscriptFile: @escaping @MainActor (URL) async -> Void
     ) {
         self.scanner = scanner
         self.ocrEnabled = ocrEnabled
         self.compressionEnabled = compressionEnabled
+        self.openFileImporterOnAppear = openFileImporterOnAppear
+        self.openPhotoPickerOnAppear = openPhotoPickerOnAppear
         self.onSubmit = onSubmit
         self.onManuscriptFile = onManuscriptFile
     }
@@ -208,6 +215,20 @@ struct CameraCaptureView: View {
                     allowsMultipleSelection: true
                 ) { result in
                     Task { await importFromPickerResult(result) }
+                }
+                .photosPicker(
+                    isPresented: $showPhotoPicker,
+                    selection: $photoPickerItems,
+                    matching: .images,
+                    preferredItemEncoding: .automatic
+                )
+                .onAppear {
+                    if openFileImporterOnAppear {
+                        showImporter = true
+                    }
+                    if openPhotoPickerOnAppear {
+                        showPhotoPicker = true
+                    }
                 }
                 .alert("Discard all pages?", isPresented: $confirmDiscard) {
                     Button("Discard", role: .destructive) {
@@ -962,6 +983,8 @@ struct CameraCaptureView: View {
     /// isolation boundaries.
     let onSubmit: @MainActor (ScanResult, ReceiptIngestOptions) async -> Void
     let onManuscriptFile: @MainActor (URL) async -> Void
+    var openFileImporterOnAppear: Bool = false
+    var openPhotoPickerOnAppear: Bool = false
 
     @State private var draftPages: [ScannedPage] = []
     @State private var showImporter = false
@@ -1007,12 +1030,16 @@ struct CameraCaptureView: View {
         scanner: any ScannerService,
         ocrEnabled: Bool,
         compressionEnabled: Bool,
+        openFileImporterOnAppear: Bool = false,
+        openPhotoPickerOnAppear: Bool = false,
         onSubmit: @escaping @MainActor (ScanResult, ReceiptIngestOptions) async -> Void,
         onManuscriptFile: @escaping @MainActor (URL) async -> Void
     ) {
         self.scanner = scanner
         self.ocrEnabled = ocrEnabled
         self.compressionEnabled = compressionEnabled
+        self.openFileImporterOnAppear = openFileImporterOnAppear
+        self.openPhotoPickerOnAppear = openPhotoPickerOnAppear
         self.onSubmit = onSubmit
         self.onManuscriptFile = onManuscriptFile
     }
@@ -1092,6 +1119,11 @@ struct CameraCaptureView: View {
                 allowsMultipleSelection: true
             ) { result in
                 Task { await importFromPickerResult(result) }
+            }
+            .onAppear {
+                if openFileImporterOnAppear {
+                    showImporter = true
+                }
             }
             .alert("Discard all pages?", isPresented: $confirmDiscard) {
                 Button("Discard", role: .destructive) {

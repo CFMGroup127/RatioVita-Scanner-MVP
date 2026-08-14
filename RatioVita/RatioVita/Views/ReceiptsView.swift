@@ -56,6 +56,8 @@ struct ReceiptsView: View {
     @State private var navReceiptPath: [UUID] = []
     @State private var forwardReceiptPath: [UUID] = []
     @State private var showLiveCameraCapture = false
+    @State private var openFileImporterOnAppear = false
+    @State private var openPhotoPickerOnAppear = false
     init(cabinetFilter: DocumentCabinet? = nil) {
         self.cabinetFilter = cabinetFilter
         if let cabinet = cabinetFilter {
@@ -373,6 +375,8 @@ struct ReceiptsView: View {
             if isPresented {
                 viewModel.ensureProductionScannerIfNeeded()
             } else {
+                openFileImporterOnAppear = false
+                openPhotoPickerOnAppear = false
                 syncImportRequestWithScannerIfNeeded()
             }
         }
@@ -410,6 +414,8 @@ struct ReceiptsView: View {
                 scanner: viewModel.scannerForUI,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled,
+                openFileImporterOnAppear: openFileImporterOnAppear,
+                openPhotoPickerOnAppear: openPhotoPickerOnAppear,
                 onSubmit: { scanResult, options in
                     await viewModel.handleScanResult(scanResult, options: options)
                 },
@@ -424,6 +430,8 @@ struct ReceiptsView: View {
                 scanner: viewModel.scannerForUI,
                 ocrEnabled: ocrEnabled,
                 compressionEnabled: compressionEnabled,
+                openFileImporterOnAppear: openFileImporterOnAppear,
+                openPhotoPickerOnAppear: openPhotoPickerOnAppear,
                 onSubmit: { scanResult, options in
                     await viewModel.handleScanResult(scanResult, options: options)
                 },
@@ -513,9 +521,8 @@ struct ReceiptsView: View {
         searchText = ""
     }
 
-    /// Prominent camera / capture entry — hoisted to the **leading** bar on compact iPhone so it is never crowded
-    /// out by segmented controls in the trailing group.
-    private func presentCaptureEntry() {
+    /// Opens live multi-page camera capture when hardware is available; otherwise falls back to the import hub.
+    private func presentLiveCameraCapture() {
         viewModel.bootstrapScannerIfNeeded()
         viewModel.ensureProductionScannerIfNeeded()
         #if os(iOS) || os(visionOS)
@@ -524,13 +531,56 @@ struct ReceiptsView: View {
             return
         }
         #endif
+        presentImportHub(openPhotoPickerOnAppear: false, openFileImporterOnAppear: false)
+    }
+
+    private func presentPhotoLibraryImport() {
+        presentImportHub(openPhotoPickerOnAppear: true, openFileImporterOnAppear: false)
+    }
+
+    private func presentFileImport() {
+        presentImportHub(openPhotoPickerOnAppear: false, openFileImporterOnAppear: true)
+    }
+
+    private func presentImportHub(openPhotoPickerOnAppear: Bool, openFileImporterOnAppear: Bool) {
+        viewModel.bootstrapScannerIfNeeded()
+        viewModel.ensureProductionScannerIfNeeded()
+        self.openPhotoPickerOnAppear = openPhotoPickerOnAppear
+        self.openFileImporterOnAppear = openFileImporterOnAppear
         viewModel.showScannerUI()
+    }
+
+    @ViewBuilder
+    private func iosAddReceiptImportMenuLabel() -> some View {
+        Image(systemName: "plus.circle.fill")
+            .symbolRenderingMode(.hierarchical)
+            .font(.title2)
+            .foregroundStyle(brandAccent)
+    }
+
+    @ViewBuilder
+    private func iosAddReceiptImportMenu() -> some View {
+        Button {
+            presentLiveCameraCapture()
+        } label: {
+            Label("Scan Document (Live Camera)", systemImage: "camera.viewfinder")
+        }
+        Button {
+            presentPhotoLibraryImport()
+        } label: {
+            Label("Choose from Photo Library", systemImage: "photo.on.rectangle.angled")
+        }
+        Button {
+            presentFileImport()
+        } label: {
+            Label("Import File", systemImage: "folder")
+        }
     }
 
     @ViewBuilder
     private func scanCaptureToolbarButton() -> some View {
         Button {
-            presentCaptureEntry()
+            presentLiveCameraCapture()
         } label: {
             if viewModel.isScanning {
                 ProgressView()
@@ -552,30 +602,18 @@ struct ReceiptsView: View {
     /// Always-visible trailing add control (not buried in overflow toolbar).
     private var iosAddReceiptToolbarControl: some View {
         Menu {
-            Button {
-                presentCaptureEntry()
-            } label: {
-                Label("Live camera (multi-page)", systemImage: "camera.viewfinder")
-            }
-            Button {
-                viewModel.showScannerUI()
-            } label: {
-                Label("Photo library & files…", systemImage: "photo.on.rectangle.angled")
-            }
+            iosAddReceiptImportMenu()
         } label: {
-            Image(systemName: "plus.circle.fill")
-                .symbolRenderingMode(.hierarchical)
-                .font(.title2)
-                .foregroundStyle(brandAccent)
+            iosAddReceiptImportMenuLabel()
         }
         .accessibilityLabel("Add receipt")
-        .accessibilityHint("Opens capture, photo library, and file import.")
+        .accessibilityHint("Choose live camera, photo library, or file import.")
         .disabled(viewModel.isScanning)
     }
 
     private var iosAddReceiptFloatingButton: some View {
-        Button {
-            presentCaptureEntry()
+        Menu {
+            iosAddReceiptImportMenu()
         } label: {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))
@@ -586,7 +624,7 @@ struct ReceiptsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add receipt")
-        .accessibilityHint("Capture or import a receipt.")
+        .accessibilityHint("Choose live camera, photo library, or file import.")
         .disabled(viewModel.isScanning)
     }
     #endif
