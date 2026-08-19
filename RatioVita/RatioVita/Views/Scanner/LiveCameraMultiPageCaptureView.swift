@@ -29,6 +29,10 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var captureSessionOpened = false
     @State private var disappearTeardownTask: Task<Void, Never>?
     @State private var liveDocumentBounds: DocumentRectangleBounds?
+    @State private var selectedFilter: DocumentFilterMode = .blackAndWhite
+    @State private var stabilityTracker = DocumentFrameStabilityTracker()
+    @State private var autoCaptureCooldownUntil = Date.distantPast
+    @State private var autoCaptureEnabled = true
 
     var body: some View {
         NavigationStack {
@@ -42,8 +46,17 @@ struct LiveCameraMultiPageCaptureView: View {
                 .ignoresSafeArea()
 
                 VStack {
+                    if autoCaptureEnabled, stabilityTracker.isApproachingStable, !isCapturing {
+                        Text("Hold steady…")
+                            .font(DesignSystem.Typography.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
                     Spacer()
                     thumbnailStrip
+                    filterModePicker
                     controls
                 }
                 .padding(.horizontal, DesignSystem.Spacing.md)
@@ -135,6 +148,19 @@ struct LiveCameraMultiPageCaptureView: View {
         }
     }
 
+    private var filterModePicker: some View {
+        Picker("Filter Mode", selection: $selectedFilter) {
+            ForEach(DocumentFilterMode.allCases) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, DesignSystem.Spacing.xs)
+        .background(.ultraThinMaterial, in: Capsule())
+        .padding(.bottom, DesignSystem.Spacing.sm)
+    }
+
     private var controls: some View {
         HStack(spacing: DesignSystem.Spacing.lg) {
             Button {
@@ -191,6 +217,7 @@ struct LiveCameraMultiPageCaptureView: View {
             try batch.beginSession()
             liveScanner.setLiveDocumentBoundsHandler { bounds in
                 liveDocumentBounds = bounds
+                evaluateAutoCapture(bounds: bounds)
             }
             try await liveScanner.prepareLiveCameraSession()
             isPreviewSessionReady = true
@@ -209,13 +236,32 @@ struct LiveCameraMultiPageCaptureView: View {
     }
 
     @MainActor
+    private func evaluateAutoCapture(bounds: DocumentRectangleBounds?) {
+        guard autoCaptureEnabled,
+              !isPreparing,
+              !isCapturing,
+              !isProcessing,
+              Date() >= autoCaptureCooldownUntil else { return }
+
+        if stabilityTracker.register(bounds) {
+            stabilityTracker.reset()
+            autoCaptureCooldownUntil = Date().addingTimeInterval(1.25)
+            Task { await snapPhoto() }
+        }
+    }
+
+    @MainActor
     private func snapPhoto() async {
         isCapturing = true
         errorMessage = nil
-        defer { isCapturing = false }
+        defer {
+            isCapturing = false
+            stabilityTracker.reset()
+        }
         do {
             let image = try await liveScanner.captureLiveCameraPhoto()
-            try batch.appendCapturedImage(image)
+            let enhanced = DocumentEnhancementFilter.enhanceDocument(image, mode: selectedFilter) ?? image
+            try batch.appendCapturedImage(enhanced)
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
@@ -558,6 +604,7 @@ struct LiveCameraMultiPageCaptureView: View {
     @State private var liveSessionTornDown = false
     @State private var isPreviewSessionReady = false
     @State private var captureSessionOpened = false
+    @State private var selectedFilter: DocumentFilterMode = .blackAndWhite
 
     var body: some View {
         NavigationStack {
@@ -583,6 +630,8 @@ struct LiveCameraMultiPageCaptureView: View {
                     VStack {
                         Spacer(minLength: 0)
                         macThumbnailStrip
+                            .frame(maxWidth: width)
+                        macFilterModePicker
                             .frame(maxWidth: width)
                         macControls
                             .frame(maxWidth: width)
@@ -652,6 +701,16 @@ struct LiveCameraMultiPageCaptureView: View {
         }
     }
 
+    private var macFilterModePicker: some View {
+        Picker("Filter Mode", selection: $selectedFilter) {
+            ForEach(DocumentFilterMode.allCases) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.vertical, DesignSystem.Spacing.xs)
+    }
+
     private var macControls: some View {
         HStack {
             Button("Capture page") {
@@ -706,7 +765,8 @@ struct LiveCameraMultiPageCaptureView: View {
         defer { isCapturing = false }
         do {
             let image = try await liveScanner.captureLiveCameraPhoto()
-            try batch.appendCapturedImage(image)
+            let enhanced = DocumentEnhancementFilter.enhanceDocument(image, mode: selectedFilter) ?? image
+            try batch.appendCapturedImage(enhanced)
         } catch {
             errorMessage = error.ratioVitaUserDescription
         }
