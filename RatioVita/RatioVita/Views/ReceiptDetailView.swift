@@ -1519,6 +1519,7 @@ struct EditReceiptView: View {
     @State private var settlementCurrency: ReceiptCurrency
     @State private var settlementAmountText: String
     @State private var settlementWireFeeText: String
+    @State private var settlementBookRateText: String
 
     private var showsLedgerRoutingSection: Bool {
         receipt.needsSplit
@@ -1587,6 +1588,9 @@ struct EditReceiptView: View {
         )
         _settlementWireFeeText = State(
             initialValue: receipt.settlementWireFee.map { Self.decimalString($0) } ?? ""
+        )
+        _settlementBookRateText = State(
+            initialValue: receipt.settlementBookExchangeRate.map { Self.decimalString($0) } ?? ""
         )
     }
 
@@ -1754,10 +1758,23 @@ struct EditReceiptView: View {
                             #endif
                                 .textFieldStyle(.roundedBorder)
                         }
-                        if let variance = computedSettlementVarianceSummary {
-                            Text(variance)
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundStyle(Color.ratioVitaTextSecondary)
+                        labeledInlineField("Book / budget FX rate (optional)") {
+                            TextField("Home per 1 foreign unit", text: $settlementBookRateText)
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Text("Example: paying USD from CAD — enter your budget rate (e.g. 1.36) to split wire fees from exchange spread.")
+                            .font(DesignSystem.Typography.caption2)
+                            .foregroundStyle(Color.ratioVitaTextSecondary)
+
+                        if let liveSummary = liveFXVarianceSummary {
+                            FXVarianceSummaryCard(
+                                summary: liveSummary.summary,
+                                fxSpread: liveSummary.fxSpread,
+                                showsSpreadHint: liveSummary.showsSpreadHint
+                            )
                         }
                     }
                 }
@@ -1802,14 +1819,36 @@ struct EditReceiptView: View {
         }
     }
 
-    private var computedSettlementVarianceSummary: String? {
+    private struct LiveFXVariancePresentation {
+        let summary: FXVarianceSummary
+        let fxSpread: Decimal
+        let showsSpreadHint: Bool
+    }
+
+    private var liveFXVarianceSummary: LiveFXVariancePresentation? {
         guard usesSettlementOverride,
-              let settlement = parseDecimal(from: settlementAmountText) else { return nil }
-        let fee = parseDecimal(from: settlementWireFeeText) ?? 0
-        let invoiceText = total
-        return "Invoice: \(invoiceText) \(currency.code) · Bank debit: \(settlement.formatted(.number.precision(.fractionLength(2)))) \(settlementCurrency.code)"
-            + (fee > 0 ? " · Fees: \(fee.formatted(.number.precision(.fractionLength(2))))" : "")
-            + " · Log both amounts when reconciling to your bank statement."
+              let foreignTotal = parseDecimal(from: total),
+              foreignTotal > 0,
+              let settlement = parseDecimal(from: settlementAmountText),
+              settlement > 0,
+              let summary = FXVarianceCalculator.summary(
+                  foreignAmount: foreignTotal,
+                  foreignCurrency: currency.code,
+                  actualBankDebit: settlement,
+                  homeCurrency: settlementCurrency.code,
+                  explicitWireFee: parseDecimal(from: settlementWireFeeText) ?? .zero
+              ) else { return nil }
+
+        let bookRate = parseDecimal(from: settlementBookRateText)
+        let fxSpread = summary.calculateNetFXSpread(baselineRate: bookRate)
+        let needsBookRate = currency.code.uppercased() != settlementCurrency.code.uppercased()
+            && (bookRate == nil || bookRate == .zero)
+            && fxSpread == .zero
+        return LiveFXVariancePresentation(
+            summary: summary,
+            fxSpread: fxSpread,
+            showsSpreadHint: needsBookRate
+        )
     }
 
     private func inlineEditCard(title: String, @ViewBuilder content: () -> some View) -> some View {
@@ -2122,6 +2161,7 @@ struct EditReceiptView: View {
         )
         settlementAmountText = receipt.settlementAmount.map { Self.decimalString($0) } ?? ""
         settlementWireFeeText = receipt.settlementWireFee.map { Self.decimalString($0) } ?? ""
+        settlementBookRateText = receipt.settlementBookExchangeRate.map { Self.decimalString($0) } ?? ""
     }
 
     @ToolbarContentBuilder
@@ -2239,10 +2279,35 @@ struct EditReceiptView: View {
             receipt.settlementCurrencyCode = settlementCurrency.code
             receipt.settlementAmount = parseDecimal(from: settlementAmountText)
             receipt.settlementWireFee = parseDecimal(from: settlementWireFeeText)
+            receipt.settlementBookExchangeRate = parseDecimal(from: settlementBookRateText)
+
+            if let foreignTotal = parseDecimal(from: total),
+               let settlement = parseDecimal(from: settlementAmountText),
+               let summary = FXVarianceCalculator.summary(
+                   foreignAmount: foreignTotal,
+                   foreignCurrency: currency.code,
+                   actualBankDebit: settlement,
+                   homeCurrency: settlementCurrency.code,
+                   explicitWireFee: parseDecimal(from: settlementWireFeeText) ?? .zero
+               )
+            {
+                let fxSpread = summary.calculateNetFXSpread(
+                    baselineRate: parseDecimal(from: settlementBookRateText)
+                )
+                FXVarianceLedgerManager.applyComputedFields(to: receipt, summary: summary, fxSpread: fxSpread)
+                FXVarianceLedgerManager.syncReceiptLedgerAdjustments(
+                    receipt: receipt,
+                    summary: summary,
+                    fxSpread: fxSpread,
+                    modelContext: modelContext
+                )
+            }
         } else {
+            FXVarianceLedgerManager.clearReceiptLedgerAdjustments(receipt: receipt, modelContext: modelContext)
             receipt.settlementCurrencyCode = nil
             receipt.settlementAmount = nil
             receipt.settlementWireFee = nil
+            receipt.settlementBookExchangeRate = nil
         }
 
         ReceiptCabinetRouting.applyImplicitCabinetForDocumentType(receipt: receipt)

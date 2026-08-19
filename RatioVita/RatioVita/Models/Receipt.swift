@@ -19,6 +19,12 @@ final class Receipt {
     var settlementCurrencyCode: String?
     var settlementAmount: Decimal?
     var settlementWireFee: Decimal?
+    /// Optional budget / book FX rate (home currency per 1 unit of invoice currency).
+    var settlementBookExchangeRate: Decimal?
+    /// Cached implied rate after save (home per foreign).
+    var settlementImpliedExchangeRate: Decimal?
+    /// Cached FX spread vs book rate (positive = loss).
+    var settlementFxSpreadAmount: Decimal?
     var notes: String?
 
     /// Parsed transaction date from the document when available (distinct from `createdAt` ingest time).
@@ -193,6 +199,9 @@ final class Receipt {
         settlementCurrencyCode: String? = nil,
         settlementAmount: Decimal? = nil,
         settlementWireFee: Decimal? = nil,
+        settlementBookExchangeRate: Decimal? = nil,
+        settlementImpliedExchangeRate: Decimal? = nil,
+        settlementFxSpreadAmount: Decimal? = nil,
         notes: String? = nil,
         transactionDate: Date? = nil,
         vendorAddress: String? = nil,
@@ -267,6 +276,9 @@ final class Receipt {
         self.settlementCurrencyCode = settlementCurrencyCode
         self.settlementAmount = settlementAmount
         self.settlementWireFee = settlementWireFee
+        self.settlementBookExchangeRate = settlementBookExchangeRate
+        self.settlementImpliedExchangeRate = settlementImpliedExchangeRate
+        self.settlementFxSpreadAmount = settlementFxSpreadAmount
         self.notes = notes
         self.transactionDate = transactionDate
         self.vendorAddress = vendorAddress

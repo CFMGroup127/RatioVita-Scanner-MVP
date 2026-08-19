@@ -115,6 +115,7 @@ struct RatioVitaApp: App {
                     LibraryPersistenceMonitor.recordSnapshot(container: sharedModelContainer, reason: "launch")
                     _ = try? NewHorizonsSampleDataGenerator.seedBurlingtonEstateIfNeeded(modelContext: ctx)
                     RatioVitaBackupManager.runScheduledAutoArchiveIfNeeded(modelContext: ctx)
+                    InvoiceStatusManager.updateOverdueStatuses(in: ctx)
                     #if os(iOS)
                     await PhotoLibraryLaunchAutoScan.runIfEnabled(modelContext: ctx)
                     #endif

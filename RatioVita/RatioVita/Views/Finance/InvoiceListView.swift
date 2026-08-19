@@ -32,6 +32,9 @@ struct InvoiceListView: View {
             .navigationDestination(for: UUID.self) { invoiceID in
                 InvoiceDetailByIDView(invoiceID: invoiceID)
             }
+            .onAppear {
+                InvoiceStatusManager.updateOverdueStatuses(in: modelContext)
+            }
         }
     }
 
