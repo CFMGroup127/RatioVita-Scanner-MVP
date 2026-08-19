@@ -44,6 +44,26 @@ enum InvoiceLineItemManager {
     }
 
     @MainActor
+    static func appendLineItems(
+        from receipts: [Receipt],
+        to invoice: Invoice,
+        context: ModelContext
+    ) {
+        for receipt in receipts {
+            let draft = lineItem(from: receipt)
+            appendLineItem(
+                to: invoice,
+                description: draft.itemDescription,
+                quantity: draft.quantity,
+                unitPrice: draft.unitPrice,
+                taxRate: draft.taxRate,
+                sourceReceipt: receipt,
+                context: context
+            )
+        }
+    }
+
+    @MainActor
     static func removeLineItem(_ item: InvoiceLineItem, from invoice: Invoice, context: ModelContext) {
         invoice.lineItems.removeAll { $0.id == item.id }
         invoice.updatedAt = .now

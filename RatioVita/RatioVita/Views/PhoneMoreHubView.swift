@@ -41,6 +41,12 @@ struct PhoneMoreHubView: View {
 
                 Section("Library tools") {
                     NavigationLink {
+                        InvoiceListView()
+                    } label: {
+                        Label("Invoices", systemImage: "doc.text.fill")
+                    }
+
+                    NavigationLink {
                         ReconciliationReviewView()
                     } label: {
                         Label("Reconcile", systemImage: "arrow.triangle.merge")

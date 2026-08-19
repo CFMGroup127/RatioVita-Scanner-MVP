@@ -18,7 +18,7 @@ import AppKit
 import AVFoundation
 import CoreImage
 import ImageIO
-import MobileCoreServices
+import UniformTypeIdentifiers
 #endif
 
 enum LiveMultiPageCaptureImagePrep {
@@ -144,7 +144,7 @@ enum LiveMultiPageCaptureImagePrep {
         let mutable = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(
             mutable,
-            kUTTypeJPEG as CFString,
+            UTType.jpeg.identifier as CFString,
             1,
             nil
         ) else { return nil }

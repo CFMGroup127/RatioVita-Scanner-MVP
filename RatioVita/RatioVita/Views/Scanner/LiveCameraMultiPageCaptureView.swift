@@ -304,22 +304,25 @@ final class LiveCameraPreviewViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        let rebindingHandler: (Notification) -> Void = { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.syncPreviewIfNeeded()
-            }
-        }
         sessionStartObserver = NotificationCenter.default.addObserver(
             forName: .ratioVitaCaptureSessionDidStart,
             object: nil,
             queue: .main,
-            using: rebindingHandler
+            using: { @Sendable _ in
+                Task { @MainActor [weak self] in
+                    self?.syncPreviewIfNeeded()
+                }
+            }
         )
         sessionConfigureObserver = NotificationCenter.default.addObserver(
             forName: .ratioVitaCaptureSessionDidConfigure,
             object: nil,
             queue: .main,
-            using: rebindingHandler
+            using: { @Sendable _ in
+                Task { @MainActor [weak self] in
+                    self?.syncPreviewIfNeeded()
+                }
+            }
         )
     }
 

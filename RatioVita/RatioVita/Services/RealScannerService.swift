@@ -557,7 +557,7 @@ extension RealScannerService: LiveMultiPageCameraScanning {}
 
 // MARK: - Photo Capture Delegate
 
-private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
+private final class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
     private let onSuccess: (UIImage) -> Void
     private let onError: (Error) -> Void
     
@@ -566,12 +566,16 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
         self.onError = onError
     }
     
-    func photoOutput(_: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    nonisolated func photoOutput(
+        _: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photo: AVCapturePhoto,
+        error: Error?
+    ) {
         if let error {
             #if DEBUG
             print("RatioVita capture: photo processing error: \(error)")
             #endif
-            onError(error)
+            Task { @MainActor in self.onError(error) }
             return
         }
 
@@ -580,12 +584,12 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
                 #if DEBUG
                 print("RatioVita capture: failed to decode photo raster (no file data or CGImage)")
                 #endif
-                onError(ScannerError.invalidImage)
+                Task { @MainActor in self.onError(ScannerError.invalidImage) }
                 return
             }
 
             let normalized = LiveMultiPageCaptureImagePrep.normalizedForSessionBuffer(image)
-            onSuccess(normalized)
+            Task { @MainActor in self.onSuccess(normalized) }
         }
     }
 }
