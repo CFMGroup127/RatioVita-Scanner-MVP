@@ -141,6 +141,17 @@ enum HybridAgentRequestStatus: String, Codable, Sendable {
     case failed = "Failed"
 }
 
+/// Minimal production-scoped result written by VitaLogic for RatioVita to consume.
+struct HybridAgentResponse: Codable, Identifiable, Sendable {
+    let id: String
+    let productionId: String
+    let requestKind: HybridAgentRequestKind
+    let expertName: String
+    let status: HybridAgentRequestStatus
+    let responseSummary: String
+    let completedAt: Date
+}
+
 struct FinancialIntelligenceReport: Sendable {
     let strategy: FinancialExpertStrategy
     let findings: [String]

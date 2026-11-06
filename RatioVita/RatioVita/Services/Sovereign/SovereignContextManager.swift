@@ -207,6 +207,9 @@ final class SovereignContextManager: ObservableObject {
         RatioVitaFirebaseBootstrap.ensureConfigured()
         guard RatioVitaFirebaseBootstrap.isConfigured else { return }
         syncLogisticsCoordinator()
+        HybridAgentBrokerService.shared.syncActiveProduction(
+            productionId: activeHub == .production ? activeProductionID?.uuidString ?? "" : ""
+        )
     }
 
     private func syncLogisticsCoordinator() {

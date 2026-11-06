@@ -416,6 +416,66 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Edge requests are crew-submitted; only Tier-1 VitaLogic clients may process them.
+      match /hybrid_agent_requests/{requestId} {
+        allow read: if isTierOne(productionId);
+        allow create: if hasProductionClearance(productionId)
+          && request.resource.data.id == requestId
+          && requestId.matches('^[A-Fa-f0-9-]{36}$')
+          && request.resource.data.productionId == productionId
+          && request.resource.data.origin == 'RatioVitaEdge'
+          && request.resource.data.status == 'QueuedLocal'
+          && request.resource.data.kind in [
+            'FinancialAnalysis', 'CorporateLedgerReview', 'ProductionLogistics',
+            'ResearchBrief', 'GeneralExpert'
+          ]
+          && request.resource.data.payloadSummary is string
+          && request.resource.data.payloadSummary.size() <= 4000
+          && request.resource.data.createdAt is string
+          && request.resource.data.mantleRaw is string
+          && request.resource.data.keys().hasOnly([
+            'id', 'origin', 'kind', 'targetExpertEmail', 'targetExpertName',
+            'productionPUID', 'productionId', 'sovereignHubRaw', 'mantleRaw',
+            'financialStrategyRaw', 'payloadSummary', 'createdAt', 'status',
+            'responseSummary'
+          ])
+          && request.resource.data.keys().hasAll([
+            'id', 'origin', 'kind', 'productionId', 'mantleRaw',
+            'payloadSummary', 'createdAt', 'status'
+          ]);
+        allow update: if isTierOne(productionId)
+          && request.resource.data.status == 'Completed'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+        allow delete: if false;
+      }
+
+      // Crew may read results; only Tier-1 VitaLogic clients may publish them.
+      match /hybrid_agent_responses/{responseId} {
+        allow read: if hasProductionClearance(productionId);
+        allow create, update: if isTierOne(productionId)
+          && request.resource.data.id == responseId
+          && responseId.matches('^[A-Fa-f0-9-]{36}$')
+          && request.resource.data.productionId == productionId
+          && request.resource.data.status == 'Completed'
+          && request.resource.data.requestKind in [
+            'FinancialAnalysis', 'CorporateLedgerReview', 'ProductionLogistics',
+            'ResearchBrief', 'GeneralExpert'
+          ]
+          && request.resource.data.expertName is string
+          && request.resource.data.responseSummary is string
+          && request.resource.data.responseSummary.size() <= 1000
+          && request.resource.data.completedAt is string
+          && request.resource.data.keys().hasOnly([
+            'id', 'productionId', 'requestKind', 'expertName', 'status',
+            'responseSummary', 'completedAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'id', 'productionId', 'requestKind', 'expertName', 'status',
+            'responseSummary', 'completedAt'
+          ]);
+        allow delete: if false;
+      }
+
       match /travel_and_housing/{hubId} {
         match /bookings/{bookingId} {
           allow read: if canReadTravelBooking(productionId, resource.data);

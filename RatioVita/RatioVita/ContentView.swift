@@ -40,6 +40,7 @@ struct ContentView: View {
     @ObservedObject private var feedbackManager = LiveFeedbackManager.shared
     @ObservedObject private var sovereignContext = SovereignContextManager.shared
     @ObservedObject private var reviewQueue = ReceiptReviewQueueStore.shared
+    @ObservedObject private var hybridAgentBroker = HybridAgentBrokerService.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(LibraryNavigationCoordinator.self) private var libraryNavigationCoordinator
 
@@ -180,6 +181,67 @@ struct ContentView: View {
         } message: {
             Text(userMessages.message)
         }
+        .overlay(alignment: .top) {
+            if let error = hybridAgentBroker.listenerError {
+                hybridAgentStatusBanner(
+                    title: "Expert link unavailable",
+                    message: error,
+                    isError: true,
+                    onDismiss: { hybridAgentBroker.dismissListenerError() }
+                )
+            } else if let error = hybridAgentBroker.lastRelayError {
+                hybridAgentStatusBanner(
+                    title: "Expert request queued locally",
+                    message: error,
+                    isError: true,
+                    onDismiss: { hybridAgentBroker.dismissRelayError() }
+                )
+            } else if let response = hybridAgentBroker.responseBanner {
+                hybridAgentStatusBanner(
+                    title: "\(response.expertName) · \(response.requestKind.rawValue)",
+                    message: response.responseSummary,
+                    isError: false,
+                    onDismiss: { hybridAgentBroker.dismissResponseBanner() }
+                )
+            }
+        }
+    }
+
+    private func hybridAgentStatusBanner(
+        title: String,
+        message: String,
+        isError: Bool,
+        onDismiss: @escaping () -> Void
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
+                .foregroundStyle(isError ? Color.red : Color.green)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            Spacer(minLength: 4)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss expert status")
+        }
+        .padding(12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(isError ? Color.red.opacity(0.35) : Color.green.opacity(0.35))
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .zIndex(10)
     }
 
     #if !os(macOS)
