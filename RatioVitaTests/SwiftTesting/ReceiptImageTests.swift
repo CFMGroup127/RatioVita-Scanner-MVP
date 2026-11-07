@@ -1,7 +1,14 @@
+import Foundation
 import Testing
 @testable import RatioVita
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 @Suite("ReceiptImage encoding/decoding")
+@MainActor
 struct ReceiptImageTests {
     @Test("JPEG encode/decode produces a non-nil platformImage")
     func jpegRoundTrip() async throws {

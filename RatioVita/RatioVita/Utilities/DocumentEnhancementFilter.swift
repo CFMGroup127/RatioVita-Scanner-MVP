@@ -19,42 +19,49 @@ enum DocumentFilterMode: String, CaseIterable, Identifiable, Sendable {
 enum DocumentEnhancementFilter {
     /// Applies document-specific cleanup (shadow reduction, contrast boost, and grayscale / thresholding).
     static func enhanceDocument(_ image: RVImage, mode: DocumentFilterMode = .blackAndWhite) -> RVImage? {
+        #if canImport(UIKit)
         guard let ciImage = CIImage(image: image) else { return nil }
+        #elseif canImport(AppKit)
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let ciImage = CIImage(cgImage: cgImage)
+        #else
+        return nil
+        #endif
 
         let context = CIContext(options: nil)
         var outputImage = ciImage
 
         switch mode {
-        case .color:
-            outputImage = outputImage
-                .applyingFilter("CIColorControls", parameters: [
-                    kCIInputContrastKey: 1.15,
-                    kCIInputBrightnessKey: 0.05,
-                ])
-                .applyingFilter("CISharpenLuminance", parameters: [
-                    kCIInputSharpnessKey: 0.6,
-                ])
+            case .color:
+                outputImage = outputImage
+                    .applyingFilter("CIColorControls", parameters: [
+                        kCIInputContrastKey: 1.15,
+                        kCIInputBrightnessKey: 0.05,
+                    ])
+                    .applyingFilter("CISharpenLuminance", parameters: [
+                        kCIInputSharpnessKey: 0.6,
+                    ])
 
-        case .grayscale:
-            outputImage = outputImage
-                .applyingFilter("CIColorControls", parameters: [
-                    kCIInputSaturationKey: 0.0,
-                    kCIInputContrastKey: 1.25,
-                ])
-                .applyingFilter("CISharpenLuminance", parameters: [
-                    kCIInputSharpnessKey: 0.8,
-                ])
+            case .grayscale:
+                outputImage = outputImage
+                    .applyingFilter("CIColorControls", parameters: [
+                        kCIInputSaturationKey: 0.0,
+                        kCIInputContrastKey: 1.25,
+                    ])
+                    .applyingFilter("CISharpenLuminance", parameters: [
+                        kCIInputSharpnessKey: 0.8,
+                    ])
 
-        case .blackAndWhite:
-            outputImage = outputImage
-                .applyingFilter("CIColorControls", parameters: [
-                    kCIInputSaturationKey: 0.0,
-                    kCIInputContrastKey: 1.6,
-                    kCIInputBrightnessKey: 0.1,
-                ])
-                .applyingFilter("CISharpenLuminance", parameters: [
-                    kCIInputSharpnessKey: 1.0,
-                ])
+            case .blackAndWhite:
+                outputImage = outputImage
+                    .applyingFilter("CIColorControls", parameters: [
+                        kCIInputSaturationKey: 0.0,
+                        kCIInputContrastKey: 1.6,
+                        kCIInputBrightnessKey: 0.1,
+                    ])
+                    .applyingFilter("CISharpenLuminance", parameters: [
+                        kCIInputSharpnessKey: 1.0,
+                    ])
         }
 
         guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else { return nil }

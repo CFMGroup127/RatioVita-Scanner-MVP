@@ -62,24 +62,24 @@ struct ReceiptSelectionSheet: View {
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Import Selected (\(selectedReceiptIDs.count))") {
-                        importSelectedReceipts()
-                        dismiss()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
                     }
-                    .disabled(selectedReceiptIDs.isEmpty)
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Import Selected (\(selectedReceiptIDs.count))") {
+                            importSelectedReceipts()
+                            dismiss()
+                        }
+                        .disabled(selectedReceiptIDs.isEmpty)
+                    }
                 }
-            }
-            .onAppear {
-                applyDefaultProjectFilterIfNeeded()
-            }
-            .onChange(of: selectedProjectFilterID) { _, _ in
-                pruneSelectionToVisibleReceipts()
-            }
+                .onAppear {
+                    applyDefaultProjectFilterIfNeeded()
+                }
+                .onChange(of: selectedProjectFilterID) { _, _ in
+                    pruneSelectionToVisibleReceipts()
+                }
         }
     }
 
@@ -169,7 +169,8 @@ struct ReceiptSelectionSheet: View {
                             .foregroundStyle(Color.ratioVitaTextSecondary)
 
                         if let projectTitle = receipt.productionProject?.title,
-                           !projectTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                           !projectTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        {
                             Text("·")
                                 .foregroundStyle(Color.ratioVitaTextSecondary)
                             Text(projectTitle)

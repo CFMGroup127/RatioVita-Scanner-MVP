@@ -3,6 +3,7 @@ import SwiftData
 @testable import RatioVita
 
 @Suite("Sample seeding creates receipts and images")
+@MainActor
 struct SampleSeedTests {
     @Test
     func seedInMemoryContainer() async throws {

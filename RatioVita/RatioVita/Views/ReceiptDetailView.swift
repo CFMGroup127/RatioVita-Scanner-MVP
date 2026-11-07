@@ -1765,9 +1765,11 @@ struct EditReceiptView: View {
                             #endif
                                 .textFieldStyle(.roundedBorder)
                         }
-                        Text("Example: paying USD from CAD — enter your budget rate (e.g. 1.36) to split wire fees from exchange spread.")
-                            .font(DesignSystem.Typography.caption2)
-                            .foregroundStyle(Color.ratioVitaTextSecondary)
+                        Text(
+                            "Example: paying USD from CAD — enter your budget rate (e.g. 1.36) to split wire fees from exchange spread."
+                        )
+                        .font(DesignSystem.Typography.caption2)
+                        .foregroundStyle(Color.ratioVitaTextSecondary)
 
                         if let liveSummary = liveFXVarianceSummary {
                             FXVarianceSummaryCard(

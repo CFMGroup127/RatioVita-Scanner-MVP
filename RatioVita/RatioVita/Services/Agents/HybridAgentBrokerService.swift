@@ -76,7 +76,7 @@ final class HybridAgentBrokerService: ObservableObject {
         lastRelaySummary = relayed
             ? "Relayed \(kind.rawValue) to VitaLogic expert queue."
             : lastRelayError.map { "Queued locally — cloud relay failed: \($0)" }
-                ?? "Queued locally — expert relay deferred (offline or quota-safe mode)."
+            ?? "Queued locally — expert relay deferred (offline or quota-safe mode)."
         return request
     }
 
@@ -245,10 +245,10 @@ final class HybridAgentBrokerService: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .firestoreUnavailable:
-                "Firestore is configured but its database instance is unavailable."
-            case .invalidRequestPayload:
-                "The request could not be represented as a Firestore document."
+                case .firestoreUnavailable:
+                    "Firestore is configured but its database instance is unavailable."
+                case .invalidRequestPayload:
+                    "The request could not be represented as a Firestore document."
             }
         }
     }

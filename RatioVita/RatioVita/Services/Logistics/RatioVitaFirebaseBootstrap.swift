@@ -14,6 +14,24 @@ import FirebaseFirestore
 enum RatioVitaFirebaseBootstrap {
     private(set) static var isConfigured = false
 
+    #if DEBUG
+    private static let emulatorProjectID = "demo-ratiovita-hybrid"
+
+    static var isLocalEmulatorModeEnabled: Bool {
+        ProcessInfo.processInfo.environment["HYBRID_AGENT_FIREBASE_EMULATOR"] == "1"
+    }
+
+    static var emulatorTestProductionID: UUID? {
+        guard isLocalEmulatorModeEnabled,
+              ProcessInfo.processInfo.environment["HYBRID_AGENT_TEST_MODE"] == "1",
+              let rawValue = ProcessInfo.processInfo.environment["HYBRID_AGENT_TEST_PRODUCTION_ID"] else
+        {
+            return nil
+        }
+        return UUID(uuidString: rawValue)
+    }
+    #endif
+
     /// Evaluated the first time this type is referenced — before `@main` App property initializers.
     static let moduleBootstrap: Void = {
         configureIfNeededInternal()
@@ -62,8 +80,14 @@ enum RatioVitaFirebaseBootstrap {
         if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
            let options = FirebaseOptions(contentsOfFile: path)
         {
+            #if DEBUG
+            if isLocalEmulatorModeEnabled {
+                options.projectID = emulatorProjectID
+            }
+            #endif
             FirebaseApp.configure(options: options)
             isConfigured = true
+            configureLocalEmulatorsIfRequested()
             #if canImport(FirebaseFirestore)
             applyFirestoreCacheSettings()
             #endif
@@ -85,12 +109,31 @@ enum RatioVitaFirebaseBootstrap {
             return
         }
 
+        #if DEBUG
+        if isLocalEmulatorModeEnabled {
+            options.projectID = emulatorProjectID
+        }
+        #endif
         FirebaseApp.configure(options: options)
         isConfigured = true
+        configureLocalEmulatorsIfRequested()
         #if canImport(FirebaseFirestore)
         applyFirestoreCacheSettings()
         #endif
         Task { await ensureAuthenticatedSession() }
+        #endif
+    }
+
+    private static func configureLocalEmulatorsIfRequested() {
+        #if DEBUG
+        guard isLocalEmulatorModeEnabled else { return }
+        #if canImport(FirebaseAuth)
+        Auth.auth().useEmulator(withHost: "127.0.0.1", port: 9099)
+        #endif
+        #if canImport(FirebaseFirestore)
+        Firestore.firestore().useEmulator(withHost: "127.0.0.1", port: 8080)
+        #endif
+        print("RatioVita Firebase: using local Auth and Firestore emulators.")
         #endif
     }
 
@@ -114,6 +157,19 @@ enum RatioVitaFirebaseBootstrap {
     private static func ensureAuthenticatedSession() async {
         ensureConfigured()
         guard isConfigured else { return }
+
+        #if DEBUG
+        if isLocalEmulatorModeEnabled {
+            guard Auth.auth().currentUser == nil else { return }
+            do {
+                let result = try await Auth.auth().signInAnonymously()
+                print("RatioVita Firebase emulator: anonymous test UID \(result.user.uid)")
+            } catch {
+                print("RatioVita Firebase emulator: anonymous sign-in failed — \(error.localizedDescription)")
+            }
+            return
+        }
+        #endif
 
         if let linkedUID = SovereignSharedAuthKeychain.readLinkedUID() {
             #if DEBUG

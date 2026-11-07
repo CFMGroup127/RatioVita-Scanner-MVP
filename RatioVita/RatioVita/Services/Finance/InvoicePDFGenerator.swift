@@ -15,10 +15,10 @@ enum InvoicePDFGenerator {
 
         var errorDescription: String? {
             switch self {
-            case .couldNotCreatePDF:
-                "Could not create the invoice PDF."
-            case .couldNotWriteFile:
-                "Could not write the invoice PDF to disk."
+                case .couldNotCreatePDF:
+                    "Could not create the invoice PDF."
+                case .couldNotWriteFile:
+                    "Could not write the invoice PDF to disk."
             }
         }
     }
@@ -359,7 +359,12 @@ enum InvoicePDFGenerator {
         func drawPageHeader(at y: inout CGFloat) {
             TimecardPDFDrawUtils.draw("INVOICE", at: CGPoint(x: margin, y: y), attributes: titleAttr, in: ctx)
             let meta = "No. \(invoice.invoiceNumber) · \(invoice.status.displayTitle.uppercased())"
-            TimecardPDFDrawUtils.draw(meta, at: CGPoint(x: pageWidth - margin - 220, y: y), attributes: metaAttr, in: ctx)
+            TimecardPDFDrawUtils.draw(
+                meta,
+                at: CGPoint(x: pageWidth - margin - 220, y: y),
+                attributes: metaAttr,
+                in: ctx
+            )
             y -= 36
 
             TimecardPDFDrawUtils.draw("BILLED TO", at: CGPoint(x: margin, y: y), attributes: boldBodyAttr, in: ctx)

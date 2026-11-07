@@ -59,6 +59,11 @@
 			path = RatioVitaTests;
 			sourceTree = "<group>";
 		};
+		8BD482EB2E679830008C1ACF /* RootRatioVitaTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ../RatioVitaTests;
+			sourceTree = "<group>";
+		};
 		8BD482EA2E679830008C1ACF /* RatioVitaUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RatioVitaUITests;
@@ -99,6 +104,7 @@
 			children = (
 				8BD482D02E67982F008C1ACF /* RatioVita */,
 				8BD482E02E679830008C1ACF /* RatioVitaTests */,
+				8BD482EB2E679830008C1ACF /* RootRatioVitaTests */,
 				8BD482EA2E679830008C1ACF /* RatioVitaUITests */,
 				8BD482CF2E67982F008C1ACF /* Products */,
 			);
@@ -158,6 +164,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				8BD482E02E679830008C1ACF /* RatioVitaTests */,
+				8BD482EB2E679830008C1ACF /* RootRatioVitaTests */,
 			);
 			name = RatioVitaTests;
 			packageProductDependencies = (

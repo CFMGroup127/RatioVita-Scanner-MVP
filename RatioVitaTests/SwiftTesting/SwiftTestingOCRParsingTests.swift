@@ -1,8 +1,11 @@
+import Foundation
 import Testing
 @testable import RatioVita
 
+// Use a unique filename alongside the legacy XCTest source with the same test subject.
 @Suite("OCRParsing merchant/date/total extraction")
-struct OCRParsingTests {
+@MainActor
+struct SwiftTestingOCRParsingTests {
 
     @Test("Extracts merchant from first non-empty line")
     func extractsMerchant() async throws {

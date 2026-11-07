@@ -36,36 +36,36 @@ struct InvoiceDetailView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    exportInvoicePDF()
-                } label: {
-                    Label("Share PDF", systemImage: "square.and.arrow.up")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        exportInvoicePDF()
+                    } label: {
+                        Label("Share PDF", systemImage: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share invoice PDF")
                 }
-                .accessibilityLabel("Share invoice PDF")
             }
-        }
-        .sheet(isPresented: $showReceiptSelection) {
-            ReceiptSelectionSheet(invoice: invoice)
-        }
-        .sheet(isPresented: $showAddPayment) {
-            AddPaymentRecordSheet(invoice: invoice)
-        }
-        .sheet(isPresented: $showAddManualLineItem) {
-            AddManualLineItemSheet(invoice: invoice)
-        }
-        .sheet(item: $exportShareItem) { payload in
-            ShareExportSheet(url: payload.url)
-        }
-        .alert("Export failed", isPresented: Binding(
-            get: { exportErrorMessage != nil },
-            set: { if !$0 { exportErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(exportErrorMessage ?? "Could not generate the invoice PDF.")
-        }
+            .sheet(isPresented: $showReceiptSelection) {
+                ReceiptSelectionSheet(invoice: invoice)
+            }
+            .sheet(isPresented: $showAddPayment) {
+                AddPaymentRecordSheet(invoice: invoice)
+            }
+            .sheet(isPresented: $showAddManualLineItem) {
+                AddManualLineItemSheet(invoice: invoice)
+            }
+            .sheet(item: $exportShareItem) { payload in
+                ShareExportSheet(url: payload.url)
+            }
+            .alert("Export failed", isPresented: Binding(
+                get: { exportErrorMessage != nil },
+                set: { if !$0 { exportErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exportErrorMessage ?? "Could not generate the invoice PDF.")
+            }
     }
 
     private func exportInvoicePDF() {

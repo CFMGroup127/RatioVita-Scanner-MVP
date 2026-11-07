@@ -137,6 +137,15 @@ final class SovereignContextManager: ObservableObject {
         scheduleDeferredSideEffects()
     }
 
+    #if DEBUG
+    func switchToEmulatorTestProductionMode(productionID: UUID) {
+        guard RatioVitaFirebaseBootstrap.emulatorTestProductionID == productionID else { return }
+        activeHub = .production
+        activeProductionID = productionID
+        scheduleDeferredSideEffects()
+    }
+    #endif
+
     /// Returns true when `productionProjectID` belongs in the current isolation scope.
     func matchesIsolationScope(productionProjectID: UUID?) -> Bool {
         guard activeHub == .production, let isolation = activeProductionID else { return true }

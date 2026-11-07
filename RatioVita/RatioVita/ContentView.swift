@@ -47,6 +47,11 @@ struct ContentView: View {
     @State private var phoneLibraryTabSelection: Int = 0
     @State private var activeLaunchModal: LaunchModal?
     @State private var activeShellModal: ShellPresentationModal?
+    #if DEBUG
+    @State private var emulatorTestRequestID: String?
+    @State private var emulatorTestStatus = "Ready"
+    @State private var isSendingEmulatorTest = false
+    #endif
     @ObservedObject private var consultantSession = ConsultantSessionManager.shared
 
     @Query(
@@ -205,7 +210,64 @@ struct ContentView: View {
                 )
             }
         }
+        #if DEBUG
+        .overlay(alignment: .bottomTrailing) {
+                if let productionID = RatioVitaFirebaseBootstrap.emulatorTestProductionID {
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Button("Send local bridge test") {
+                            Task {
+                                await sendEmulatorBridgeTest(productionID: productionID)
+                            }
+                        }
+                        .disabled(isSendingEmulatorTest)
+                        Text(emulatorTestStatus)
+                            .font(.caption)
+                            .lineLimit(2)
+                            .frame(maxWidth: 240, alignment: .trailing)
+                    }
+                    .padding(12)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding()
+                    .onChange(of: hybridAgentBroker.latestResponse?.id) { _, responseID in
+                        guard responseID == emulatorTestRequestID,
+                              let response = hybridAgentBroker.latestResponse else
+                        {
+                            return
+                        }
+                        emulatorTestStatus = "Completed by \(response.expertName)"
+                    }
+                }
+            }
+        #endif
     }
+
+    #if DEBUG
+    @MainActor
+    private func sendEmulatorBridgeTest(productionID: UUID) async {
+        isSendingEmulatorTest = true
+        emulatorTestStatus = "Sending request…"
+        defer { isSendingEmulatorTest = false }
+
+        await RatioVitaFirebaseBootstrap.configureIfNeededAsync()
+        SovereignContextManager.shared.switchToEmulatorTestProductionMode(productionID: productionID)
+        let request = await hybridAgentBroker.submit(
+            kind: .generalExpert,
+            productionId: productionID.uuidString,
+            payloadSummary: "Local Firebase Emulator bridge connectivity test."
+        )
+        emulatorTestRequestID = request.id
+        if request.status == .relayedCloud {
+            emulatorTestStatus = "Request delivered; waiting for VitaLogic."
+        } else {
+            emulatorTestStatus = hybridAgentBroker.lastRelayError ?? "Request stayed in the local queue."
+        }
+        if hybridAgentBroker.latestResponse?.id == request.id,
+           let response = hybridAgentBroker.latestResponse
+        {
+            emulatorTestStatus = "Completed by \(response.expertName)"
+        }
+    }
+    #endif
 
     private func hybridAgentStatusBanner(
         title: String,

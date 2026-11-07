@@ -1,8 +1,16 @@
+import Foundation
 import Testing
 @testable import RatioVita
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
+// Use a unique filename alongside the legacy XCTest source with the same test subject.
 @Suite("ImageProcessing pipeline")
-struct ImageProcessingTests {
+@MainActor
+struct SwiftTestingImageProcessingTests {
 
     @Test("processImage returns an image (stub returns input)")
     func processImageReturnsImage() async throws {
@@ -24,7 +32,7 @@ struct ImageProcessingTests {
         #endif
 
         let result = try await ImageProcessing.processImage(img, with: .receiptDefault)
-        #expect(result != nil, "processImage should return an image")
+        #expect(result.size.width > 0, "processImage should return a rendered image")
     }
 
     @Test("processImage with receiptDefault does not crash")

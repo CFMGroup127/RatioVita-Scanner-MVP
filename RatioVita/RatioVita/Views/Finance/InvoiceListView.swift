@@ -63,10 +63,12 @@ struct InvoiceListView: View {
                     .foregroundStyle(Color.ratioVitaTextSecondary)
                     .padding(.horizontal, DesignSystem.Spacing.md)
             } else if summarySingleCurrencyCode != nil {
-                Text("Balance due: \(CurrencyFormatter.shared.format(summaryBalanceDue, currencyCode: summarySingleCurrencyCode!))")
-                    .font(DesignSystem.Typography.bodyEmphasized)
-                    .foregroundStyle(brandAccent)
-                    .padding(.horizontal, DesignSystem.Spacing.md)
+                Text(
+                    "Balance due: \(CurrencyFormatter.shared.format(summaryBalanceDue, currencyCode: summarySingleCurrencyCode!))"
+                )
+                .font(DesignSystem.Typography.bodyEmphasized)
+                .foregroundStyle(brandAccent)
+                .padding(.horizontal, DesignSystem.Spacing.md)
             } else {
                 Text("Balance due spans \(summaryCurrencyCount) currencies")
                     .font(DesignSystem.Typography.caption)

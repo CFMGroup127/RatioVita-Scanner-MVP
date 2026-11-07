@@ -18,9 +18,9 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Resolve Swift packages (if any)
-        run: xcodebuild -resolvePackageDependencies -project "RatioVita.xcodeproj"
+        run: xcodebuild -resolvePackageDependencies -workspace "RatioVita_v2.xcworkspace"
       - name: Build (macOS target)
-        run: xcodebuild -project "RatioVita.xcodeproj" -scheme "RatioVita" -destination "platform=macOS" build | xcpretty
+        run: xcodebuild -workspace "RatioVita_v2.xcworkspace" -scheme "RatioVita" -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO build
 
   test:
     name: Test (macOS)
@@ -33,4 +33,4 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Run tests (macOS)
-        run: xcodebuild -project "RatioVita.xcodeproj" -scheme "RatioVita" -destination "platform=macOS" -enableCodeCoverage YES test | xcpretty
+        run: xcodebuild -workspace "RatioVita_v2.xcworkspace" -scheme "RatioVita" -destination "platform=macOS" -enableCodeCoverage YES CODE_SIGNING_ALLOWED=NO test
