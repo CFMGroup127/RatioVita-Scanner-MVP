@@ -61,9 +61,6 @@ struct RatioVitaApp: App {
     @UIApplicationDelegateAdaptor(RatioVitaAppDelegate.self) private var appDelegate
     #endif
 
-    #if DEBUG
-    @State private var hasAutoSentEmulatorBridgeTest = false
-    #endif
     @State private var libraryNavigationCoordinator = LibraryNavigationCoordinator()
     var sharedModelContainer: ModelContainer = SwiftDataAppContainer.make()
 
@@ -78,6 +75,26 @@ struct RatioVitaApp: App {
         // environment (e.g. OS_ACTIVITY_MODE) if needed — there is no supported in-app filter.
         UserDefaults.standard.set(false, forKey: "_UIConstraintBasedLayoutLogUnsatisfiable")
         #endif
+        let autoSendEmulatorTest = ProcessInfo.processInfo.environment["HYBRID_AGENT_TEST_AUTO_SEND"] == "1"
+        let emulatorTestProductionID = RatioVitaFirebaseBootstrap.emulatorTestProductionID
+        if autoSendEmulatorTest,
+           let productionID = emulatorTestProductionID
+        {
+            Task { @MainActor in
+                print("RatioVita emulator bridge test: authenticating")
+                await RatioVitaFirebaseBootstrap.configureIfNeededAsync()
+                print("RatioVita emulator bridge test: authenticated")
+                SovereignContextManager.shared.switchToEmulatorTestProductionMode(
+                    productionID: productionID
+                )
+                let request = await HybridAgentBrokerService.shared.submit(
+                    kind: .generalExpert,
+                    productionId: productionID.uuidString,
+                    payloadSummary: "Local Firebase Emulator bridge connectivity test."
+                )
+                print("RatioVita emulator bridge test request \(request.id): \(request.status.rawValue)")
+            }
+        }
         #endif
     }
 
@@ -96,24 +113,6 @@ struct RatioVitaApp: App {
                     _ = NativeLauncherShortcutManager.handleIncomingURL(url)
                 }
                 .task { @MainActor in
-                    #if DEBUG
-                    if !hasAutoSentEmulatorBridgeTest,
-                       ProcessInfo.processInfo.environment["HYBRID_AGENT_TEST_AUTO_SEND"] == "1",
-                       let productionID = RatioVitaFirebaseBootstrap.emulatorTestProductionID
-                    {
-                        hasAutoSentEmulatorBridgeTest = true
-                        await RatioVitaFirebaseBootstrap.configureIfNeededAsync()
-                        SovereignContextManager.shared.switchToEmulatorTestProductionMode(
-                            productionID: productionID
-                        )
-                        let request = await HybridAgentBrokerService.shared.submit(
-                            kind: .generalExpert,
-                            productionId: productionID.uuidString,
-                            payloadSummary: "Local Firebase Emulator bridge connectivity test."
-                        )
-                        print("RatioVita emulator bridge test request \(request.id): \(request.status.rawValue)")
-                    }
-                    #endif
                     await ReceiptReviewQueueStore.shared.refreshTotalCount(container: sharedModelContainer)
                     LocalIndexEnvironmentGuard.prepareOnLaunch(
                         reviewQueueCount: ReceiptReviewQueueStore.shared.totalCount

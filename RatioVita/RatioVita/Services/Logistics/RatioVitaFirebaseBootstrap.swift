@@ -13,6 +13,9 @@ import FirebaseFirestore
 /// Firebase bootstrap — synchronous configure at process launch before any Firestore access.
 enum RatioVitaFirebaseBootstrap {
     private(set) static var isConfigured = false
+    #if canImport(FirebaseFirestore)
+    private static var didApplyFirestoreSettings = false
+    #endif
 
     #if DEBUG
     private static let emulatorProjectID = "demo-ratiovita-hybrid"
@@ -55,12 +58,19 @@ enum RatioVitaFirebaseBootstrap {
 
     /// Applies the modern `cacheSettings` API (replaces deprecated `cacheSizeBytes`).
     static func applyFirestoreCacheSettings() {
-        guard isConfigured else { return }
+        guard isConfigured, !didApplyFirestoreSettings else { return }
         let settings = FirestoreSettings()
         settings.cacheSettings = PersistentCacheSettings(
             sizeBytes: NSNumber(value: firestorePersistentCacheBytes)
         )
+        #if DEBUG
+        if isLocalEmulatorModeEnabled {
+            settings.host = "127.0.0.1:8080"
+            settings.isSSLEnabled = false
+        }
+        #endif
         Firestore.firestore().settings = settings
+        didApplyFirestoreSettings = true
     }
     #endif
 
@@ -87,10 +97,10 @@ enum RatioVitaFirebaseBootstrap {
             #endif
             FirebaseApp.configure(options: options)
             isConfigured = true
-            configureLocalEmulatorsIfRequested()
             #if canImport(FirebaseFirestore)
             applyFirestoreCacheSettings()
             #endif
+            configureLocalEmulatorsIfRequested()
             #if DEBUG
             print("RatioVita Firebase: configured from GoogleService-Info.plist")
             #endif
@@ -116,10 +126,10 @@ enum RatioVitaFirebaseBootstrap {
         #endif
         FirebaseApp.configure(options: options)
         isConfigured = true
-        configureLocalEmulatorsIfRequested()
         #if canImport(FirebaseFirestore)
         applyFirestoreCacheSettings()
         #endif
+        configureLocalEmulatorsIfRequested()
         Task { await ensureAuthenticatedSession() }
         #endif
     }
@@ -129,9 +139,6 @@ enum RatioVitaFirebaseBootstrap {
         guard isLocalEmulatorModeEnabled else { return }
         #if canImport(FirebaseAuth)
         Auth.auth().useEmulator(withHost: "127.0.0.1", port: 9099)
-        #endif
-        #if canImport(FirebaseFirestore)
-        Firestore.firestore().useEmulator(withHost: "127.0.0.1", port: 8080)
         #endif
         print("RatioVita Firebase: using local Auth and Firestore emulators.")
         #endif
@@ -162,8 +169,7 @@ enum RatioVitaFirebaseBootstrap {
         if isLocalEmulatorModeEnabled {
             guard Auth.auth().currentUser == nil else { return }
             do {
-                let result = try await Auth.auth().signInAnonymously()
-                print("RatioVita Firebase emulator: anonymous test UID \(result.user.uid)")
+                try await Auth.auth().signInAnonymously()
             } catch {
                 print("RatioVita Firebase emulator: anonymous sign-in failed — \(error.localizedDescription)")
             }
